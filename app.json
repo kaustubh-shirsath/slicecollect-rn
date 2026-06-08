@@ -15,15 +15,13 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#FAE2FA",
-        "foregroundImage": "./assets/adaptive-icon.png"
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-font"
-    ]
+    "plugins": []
   }
 }

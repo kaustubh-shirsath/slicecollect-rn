@@ -163,27 +163,50 @@ export default function DepositionScreen({ navigation }: Props) {
             data={pendingReceipts}
             keyExtractor={(item: any) => item.id}
             contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 160 }}
-            renderItem={({ item: r }: { item: any }) => (
-              <TouchableOpacity onPress={() => toggleSelect(r.id)}>
-                <View
-                  className="bg-white rounded-[24px] px-4 py-3"
-                  style={{ elevation: 1, borderWidth: 2, borderColor: selectedIds.has(r.id) ? '#D30AD7' : 'transparent' }}
+            renderItem={({ item: r }: { item: any }) => {
+              const isSelected = selectedIds.has(r.id)
+              return (
+                <TouchableOpacity
+                  onPress={() => toggleSelect(r.id)}
+                  activeOpacity={0.7}
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 20,
+                    padding: 16,
+                    elevation: 1,
+                    borderWidth: 2,
+                    borderColor: isSelected ? '#D30AD7' : 'transparent',
+                    shadowColor: '#000',
+                    shadowOpacity: 0.04,
+                    shadowRadius: 6,
+                    shadowOffset: { width: 0, height: 2 },
+                  }}
                 >
-                  <View className="flex-row items-start justify-between mb-1">
-                    <Text className="text-sm font-medium text-[rgba(0,0,0,0.9)]">{r.name}</Text>
-                    <Text className="text-xs text-black/40">{r.date}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: 'rgba(0,0,0,0.9)' }}>{r.name}</Text>
+                      <Text style={{ fontSize: 11, color: '#D30AD7', fontWeight: '500', marginTop: 2 }}>{r.receipt}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)' }}>{r.date}</Text>
+                      <View style={{
+                        width: 22, height: 22, borderRadius: 11,
+                        backgroundColor: isSelected ? '#D30AD7' : '#F0F4F7',
+                        borderWidth: isSelected ? 0 : 1.5,
+                        borderColor: 'rgba(0,0,0,0.15)',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {isSelected && <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>✓</Text>}
+                      </View>
+                    </View>
                   </View>
-                  <View className="flex-row items-center gap-1 mb-2">
-                    <Text className="text-[10px]">🧾</Text>
-                    <Text className="text-[11px] text-[#D30AD7] font-medium">{r.receipt}</Text>
-                  </View>
-                  <View className="flex-row items-center justify-between">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <DpdBadge dpd={r.dpd} />
-                    <Text className="text-sm font-medium text-[#00A63E]">{fmt(r.amount)}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#00A63E' }}>{fmt(r.amount)}</Text>
                   </View>
-                </View>
-              </TouchableOpacity>
-            )}
+                </TouchableOpacity>
+              )
+            }}
           />
 
           <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-3 gap-3" style={{ elevation: 8, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>

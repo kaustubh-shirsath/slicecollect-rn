@@ -49,6 +49,77 @@ function ReasonPicker({ value, onChange }: { value: string; onChange: (v: string
   )
 }
 
+function CalendarModal({ visible, onClose, onSelect, minDate }: {
+  visible: boolean; onClose: () => void; onSelect: (date: string) => void; minDate?: Date
+}) {
+  const [calMonth, setCalMonth] = useState(() => {
+    const d = minDate ? new Date(minDate) : new Date()
+    d.setDate(d.getDate() + 1)
+    return d
+  })
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 }}>
+          <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <TouchableOpacity onPress={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() - 1); setCalMonth(d) }} style={{ padding: 8 }}>
+              <Text style={{ color: '#D30AD7', fontSize: 20 }}>‹</Text>
+            </TouchableOpacity>
+            <Text style={{ fontWeight: '600', fontSize: 15, color: 'rgba(0,0,0,0.9)' }}>
+              {calMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+            </Text>
+            <TouchableOpacity onPress={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() + 1); setCalMonth(d) }} style={{ padding: 8 }}>
+              <Text style={{ color: '#D30AD7', fontSize: 20 }}>›</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+            {['S','M','T','W','T','F','S'].map((d, i) => (
+              <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: 'rgba(0,0,0,0.35)' }}>{d}</Text>
+            ))}
+          </View>
+          {(() => {
+            const today = new Date(); today.setHours(0,0,0,0)
+            const earliest = minDate ? new Date(minDate) : today
+            earliest.setHours(0,0,0,0)
+            const maxDate = new Date(today); maxDate.setDate(today.getDate() + 90)
+            const firstDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1)
+            const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate()
+            const startPad = firstDay.getDay()
+            const cells: (number | null)[] = [...Array(startPad).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+            while (cells.length % 7 !== 0) cells.push(null)
+            const weeks: (number | null)[][] = []
+            for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
+            return weeks.map((week, wi) => (
+              <View key={wi} style={{ flexDirection: 'row', marginBottom: 4 }}>
+                {week.map((day, di) => {
+                  if (!day) return <View key={di} style={{ flex: 1 }} />
+                  const d = new Date(calMonth.getFullYear(), calMonth.getMonth(), day)
+                  d.setHours(0,0,0,0)
+                  const isDisabled = d <= earliest || d > maxDate
+                  const dateStr = d.toISOString().split('T')[0]
+                  return (
+                    <TouchableOpacity
+                      key={di}
+                      disabled={isDisabled}
+                      onPress={() => { onSelect(dateStr); onClose() }}
+                      style={{ flex: 1, alignItems: 'center', paddingVertical: 6 }}
+                    >
+                      <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 13, color: isDisabled ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.85)', fontWeight: '400' }}>{day}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            ))
+          })()}
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  )
+}
+
 export default function SettlementScreen({ navigation, route }: Props) {
   const { customer: c } = route.params
   const [settAmount, setSettAmount] = useState((c.emiOs ?? c.overdue ?? 0).toString())
@@ -61,6 +132,7 @@ export default function SettlementScreen({ navigation, route }: Props) {
   const [submitted, setSubmitted] = useState(false)
   const [instAmounts, setInstAmounts] = useState<number[]>([0])
   const [instDates, setInstDates] = useState<string[]>([''])
+  const [openCalIdx, setOpenCalIdx] = useState<number | null>(null)
 
   const sAmount   = parseFloat(settAmount) || 0
   const advAmount = parseFloat(advance) || 0
@@ -263,17 +335,24 @@ export default function SettlementScreen({ navigation, route }: Props) {
                       />
                     </View>
                     <View className="pt-4">
-                      <TextInput
-                        value={instDates[i]}
-                        onChangeText={v => {
+                      <TouchableOpacity
+                        onPress={() => setOpenCalIdx(i)}
+                        style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 2, borderColor: instDates[i] ? '#D30AD7' : 'rgba(0,0,0,0.10)', backgroundColor: instDates[i] ? '#FAE2FA' : '#F0F4F7', flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: instDates[i] ? '#D30AD7' : 'rgba(0,0,0,0.4)' }}>
+                          {instDates[i] ? formatDisplay(instDates[i]) : 'Pick date'}
+                        </Text>
+                        <Text style={{ fontSize: 13 }}>🗓</Text>
+                      </TouchableOpacity>
+                      <CalendarModal
+                        visible={openCalIdx === i}
+                        onClose={() => setOpenCalIdx(null)}
+                        onSelect={dateStr => {
                           const updated = [...instDates]
-                          updated[i] = v
+                          updated[i] = dateStr
                           setInstDates(updated)
                         }}
-                        placeholder="YYYY-MM-DD"
-                        placeholderTextColor="rgba(0,0,0,0.3)"
-                        className="px-3 py-2 rounded-xl text-xs font-semibold"
-                        style={{ borderWidth: 2, borderColor: instDates[i] ? '#D30AD7' : 'rgba(0,0,0,0.06)', backgroundColor: instDates[i] ? '#FAE2FA' : 'white', color: instDates[i] ? '#D30AD7' : 'rgba(0,0,0,0.5)' }}
+                        minDate={new Date()}
                       />
                     </View>
                   </View>

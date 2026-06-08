@@ -139,7 +139,9 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               </View>
               <Text className="text-[10px] text-black/40">{c.dpd} DPD</Text>
               <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
-              <Text className="text-[10px] font-medium" style={{ color: riskColor }}>⚡ {c.risk}</Text>
+              {c.risk === 'High' && (
+                <Text className="text-[10px] font-medium" style={{ color: riskColor }}>⚡ High</Text>
+              )}
             </View>
           </View>
           <View className="items-end gap-2">
@@ -184,40 +186,56 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     <SafeAreaView className="flex-1 bg-[#F0F4F7]" edges={['top']}>
       <TouchableOpacity activeOpacity={1} onPress={closeDropdown} className="flex-1">
         {/* Header */}
-        <View className="bg-white px-5 pb-3" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
-          <View className="flex-row items-baseline justify-between">
+        <View className="bg-white px-5 py-3" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+          <View className="flex-row items-center justify-between">
             <Text className="text-[rgba(0,0,0,0.9)] text-lg font-medium">My Cases</Text>
-            <Text className="text-black/40 text-xs">
-              {loading ? '…' : `${filtered.length}${isFallback ? ' (offline)' : ''}`}
-            </Text>
+            <View className="flex-row items-center gap-3">
+              <Text className="text-black/40 text-xs">
+                {loading ? '…' : `${filtered.length}${isFallback ? ' (offline)' : ''}`}
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Profile')}
+                className="w-9 h-9 rounded-full bg-[#FAE2FA] items-center justify-center"
+              >
+                <Text className="text-[#A008A3] text-xs font-bold">
+                  {agentInfo?.name ? agentInfo.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) : 'SF'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
         {/* Search + filters */}
         <View className="bg-white" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
-          <View className="px-4 pt-3 pb-2">
-            <View className="flex-row items-center gap-2 bg-[#F0F4F7] rounded-full px-4 py-2.5">
-              <Text className="text-black/30">🔍</Text>
+          <View className="flex-row items-center gap-2 px-4 pt-2 pb-2">
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0F4F7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
+              <Text style={{ color: 'rgba(0,0,0,0.3)', fontSize: 14 }}>🔍</Text>
               <TextInput
                 value={search}
                 onChangeText={setSearch}
                 placeholder="Search by name or ID…"
                 placeholderTextColor="rgba(0,0,0,0.3)"
-                className="flex-1 text-sm text-black/70"
+                style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.7)', padding: 0 }}
               />
               {search ? (
                 <TouchableOpacity onPress={() => setSearch('')}>
-                  <Text className="text-black/30 text-xs">✕</Text>
+                  <Text style={{ color: 'rgba(0,0,0,0.3)', fontSize: 12 }}>✕</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
+            <TouchableOpacity
+              onPress={() => setOpenDropdown(prev => prev === 'sort' ? 'none' : 'sort')}
+              className={`w-9 h-9 rounded-full items-center justify-center ${sortBy !== 'distance' ? 'bg-[#D30AD7]' : 'bg-[#F0F4F7]'}`}
+            >
+              <Text className={`text-base ${sortBy !== 'distance' ? 'text-white' : 'text-black/50'}`}>⇅</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Filter chips */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 pb-3" contentContainerStyle={{ gap: 8, flexDirection: 'row' }}>
             <TouchableOpacity
               onPress={() => {
-                if (stageFilter.length > 0) setStageFilter([])
+                if (stageFilter.length > 0) { setStageFilter([]); setOpenDropdown('none') }
                 else setOpenDropdown(prev => prev === 'bucket' ? 'none' : 'bucket')
               }}
               className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${stageFilter.length > 0 ? 'bg-[#D30AD7]' : 'bg-[#F0F4F7]'}`}
@@ -324,6 +342,22 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                 >
                   <Text className="text-sm text-black/80">{opt.label}</Text>
                   {ptpFilter === opt.id && <Text className="text-[#FF8100] text-sm">✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {openDropdown === 'sort' && (
+            <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
+              {SORT_OPTIONS.map(opt => (
+                <TouchableOpacity
+                  key={opt.id}
+                  onPress={() => { setSortBy(opt.id); closeDropdown() }}
+                  className="flex-row items-center justify-between px-4 py-3"
+                  style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
+                >
+                  <Text className="text-sm text-black/80">{opt.label}</Text>
+                  {sortBy === opt.id && <Text className="text-[#D30AD7] text-sm">✓</Text>}
                 </TouchableOpacity>
               ))}
             </View>

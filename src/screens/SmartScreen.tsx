@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, Animated, Easing } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { CompositeScreenProps } from '@react-navigation/native'
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
@@ -28,6 +28,27 @@ export default function SmartScreen({ navigation }: Props) {
   const [rerouting, setRerouting] = useState(false)
   const currentPos = useRef<[number, number]>([agentInfo?.lat ?? 27.4728, agentInfo?.lng ?? 94.9120])
   const prevVersion = useRef(0)
+  const spinAnim = useRef(new Animated.Value(0)).current
+  const pulseAnim = useRef(new Animated.Value(1)).current
+
+  useEffect(() => {
+    if (rerouting) {
+      Animated.loop(
+        Animated.timing(spinAnim, { toValue: 1, duration: 1200, easing: Easing.linear, useNativeDriver: true })
+      ).start()
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 0.9, duration: 600, useNativeDriver: true }),
+        ])
+      ).start()
+    } else {
+      spinAnim.stopAnimation()
+      pulseAnim.stopAnimation()
+      spinAnim.setValue(0)
+      pulseAnim.setValue(1)
+    }
+  }, [rerouting])
 
   const load = (lat: number, lng: number, isReroute = false) => {
     const username = agentInfo?.username
@@ -92,14 +113,24 @@ export default function SmartScreen({ navigation }: Props) {
                 <Text className="text-white/40 text-xs mt-1">{totalVisited}/{totalStops} visited</Text>
               )}
             </View>
-            {!loading && (
+            <View className="flex-row items-center gap-2">
+              {!loading && (
+                <TouchableOpacity
+                  onPress={() => load(agentInfo?.lat ?? 27.4728, agentInfo?.lng ?? 94.9120)}
+                  className="border border-white/10 px-3 py-1.5 rounded-full"
+                >
+                  <Text className="text-white/40 text-[11px]">Refresh</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                onPress={() => load(agentInfo?.lat ?? 27.4728, agentInfo?.lng ?? 94.9120)}
-                className="border border-white/10 px-3 py-1.5 rounded-full"
+                onPress={() => navigation.navigate('Profile')}
+                className="w-9 h-9 rounded-full bg-white/10 items-center justify-center"
               >
-                <Text className="text-white/40 text-[11px]">Refresh</Text>
+                <Text className="text-white text-xs font-bold">
+                  {agentInfo?.name ? agentInfo.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) : 'SF'}
+                </Text>
               </TouchableOpacity>
-            )}
+            </View>
           </View>
 
           {!loading && totalStops > 0 && (
@@ -120,12 +151,25 @@ export default function SmartScreen({ navigation }: Props) {
       </SafeAreaView>
 
       {rerouting && (
-        <View className="mx-4 mt-3 bg-[#090B0C] rounded-2xl px-4 py-3 flex-row items-center gap-3">
-          <Text className="text-[#D30AD7] text-xl">✦</Text>
-          <View className="flex-1">
-            <Text className="text-white text-xs font-medium">Recalculating route…</Text>
-            <Text className="text-white/40 text-[10px]">New visit added • updating order</Text>
-          </View>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(9,11,12,0.80)', zIndex: 100, alignItems: 'center', justifyContent: 'center' }}>
+          <Animated.View style={{
+            transform: [{ scale: pulseAnim }],
+            alignItems: 'center',
+            gap: 16,
+          }}>
+            <Animated.View style={{
+              width: 72, height: 72, borderRadius: 36,
+              backgroundColor: '#D30AD7',
+              alignItems: 'center', justifyContent: 'center',
+              transform: [{ rotate: spinAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
+            }}>
+              <Text style={{ color: '#fff', fontSize: 28 }}>✦</Text>
+            </Animated.View>
+            <View style={{ alignItems: 'center', gap: 4 }}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Recalculating route…</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>Optimising stops after new visit</Text>
+            </View>
+          </Animated.View>
         </View>
       )}
 

@@ -22,7 +22,6 @@ function isCallAllowed() {
 
 export default function CustomerDetailScreen({ navigation, route }: Props) {
   const { customer: c, fromScreen } = route.params
-  const [visitOpen, setVisitOpen] = useState(false)
   const [callBlocked, setCallBlocked] = useState(false)
 
   const bc = getBucketColor(c.assetClassification || c.assetClass || '')
@@ -164,7 +163,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   onPress={() => openWhatsApp(c.mobile)}
                   className="w-9 h-9 rounded-full bg-[#25D366] items-center justify-center"
                 >
-                  <Text className="text-white text-sm">💬</Text>
+                  <Text style={{ color: '#fff', fontSize: 15 }}>💬</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -205,57 +204,55 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
         {/* Visit history */}
         {visitHistory.length > 0 && (
           <View className="bg-white rounded-[20px] overflow-hidden" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-            <TouchableOpacity
-              onPress={() => setVisitOpen(o => !o)}
-              className="flex-row items-center justify-between px-4 py-3"
-            >
-              <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-sm">Visit History</Text>
-              <Text className="text-black/30 text-xs">{visitOpen ? '▲' : '▼'}</Text>
-            </TouchableOpacity>
-            {visitOpen && (
-              <View className="px-4 pb-3 gap-3" style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' }}>
-                {visitHistory.map((v: any, i: number) => (
-                  <View key={i} className="flex-row items-start gap-3">
-                    <View className="items-center mt-1">
-                      <View className="w-2 h-2 rounded-full bg-[#D30AD7]" />
-                      {i < visitHistory.length - 1 && <View className="w-0.5 h-6 bg-black/10 mt-1" />}
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row items-center justify-between">
-                        <Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{v.dispositionType}</Text>
-                        <Text className="text-[10px] text-black/40">{v.date}</Text>
-                      </View>
-                      <Text className="text-[10px] text-black/50 mt-0.5">{v.summary}</Text>
-                    </View>
-                  </View>
-                ))}
+            <View className="px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
+              <View className="flex-row items-center justify-between">
+                <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-sm">Visit History</Text>
+                <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full">
+                  <Text className="text-[10px] text-[#A008A3] font-medium">{visitHistory.length} visits</Text>
+                </View>
               </View>
-            )}
+            </View>
+            <View className="px-4 py-3 gap-3">
+              {visitHistory.map((v: any, i: number) => (
+                <View key={i} className="flex-row items-start gap-3">
+                  <View className="items-center">
+                    <View className="w-2.5 h-2.5 rounded-full bg-[#D30AD7] mt-1" />
+                    {i < visitHistory.length - 1 && <View className="w-0.5 flex-1 bg-black/10 mt-1" style={{ minHeight: 24 }} />}
+                  </View>
+                  <View className="flex-1 pb-3" style={i < visitHistory.length - 1 ? { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.04)' } : {}}>
+                    <View className="flex-row items-center justify-between mb-0.5">
+                      <Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{v.dispositionType}</Text>
+                      <Text className="text-[10px] text-black/40">{v.date}</Text>
+                    </View>
+                    <Text className="text-[10px] text-black/50 leading-relaxed">{v.summary}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         )}
       </ScrollView>
 
       {/* Action buttons */}
       <View className="absolute bottom-6 left-0 right-0 px-4">
-        <View className="bg-white rounded-[18px] px-3 py-2.5 flex-row gap-2" style={{ elevation: 8, shadowColor: '#000', shadowOpacity: 0.10, shadowRadius: 20, shadowOffset: { width: 0, height: 4 } }}>
+        <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 12, elevation: 16, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity
-            onPress={() => navigation.navigate('Disposition', { customer: c, fromScreen: fromScreen })}
-            className="flex-1 bg-[#D30AD7] py-2.5 rounded-xl items-center"
-            style={{ elevation: 2 }}
+            onPress={() => navigation.navigate('Disposition', { customer: c, fromScreen })}
+            style={{ flex: 1, backgroundColor: '#D30AD7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
           >
-            <Text className="text-white text-xs font-bold">Add Feedback</Text>
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', letterSpacing: 0.2 }}>Add Feedback</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('Settlement', { customer: c })}
-            className="flex-1 bg-[#F0F4F7] py-2.5 rounded-xl items-center"
+            style={{ flex: 1, backgroundColor: '#F0F4F7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
           >
-            <Text className="text-[rgba(0,0,0,0.75)] text-xs font-bold">Settlement</Text>
+            <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 12, fontWeight: '600' }}>Settlement</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('PaymentLink', { customer: c })}
-            className="flex-1 bg-[#F0F4F7] py-2.5 rounded-xl items-center"
+            style={{ flex: 1, backgroundColor: '#F0F4F7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
           >
-            <Text className="text-[rgba(0,0,0,0.75)] text-xs font-bold">Pay Link</Text>
+            <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 12, fontWeight: '600' }}>Pay Link</Text>
           </TouchableOpacity>
         </View>
       </View>

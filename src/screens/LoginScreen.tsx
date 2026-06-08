@@ -70,11 +70,11 @@ export default function LoginScreen({ navigation }: Props) {
 
         {/* Form area */}
         <View className="flex-1 bg-[#F0F4F7] rounded-t-3xl px-6 pt-8 pb-10">
-          <Text className="text-[rgba(0,0,0,0.9)] text-xl font-medium mb-6">Field Agent Login</Text>
+          <Text className="text-[rgba(0,0,0,0.9)] text-xl font-medium mb-8">Field Agent Login</Text>
 
           {/* Employee ID */}
-          <View className="mb-5">
-            <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-1.5">Employee ID</Text>
+          <View className="mb-8">
+            <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-2">Employee ID</Text>
             <TextInput
               value={empId}
               onChangeText={setEmpId}
@@ -82,55 +82,48 @@ export default function LoginScreen({ navigation }: Props) {
               autoCorrect={false}
               placeholder="Enter your employee ID"
               placeholderTextColor="rgba(0,0,0,0.3)"
-              className="w-full bg-transparent py-2.5 text-sm text-[rgba(0,0,0,0.9)]"
+              className="w-full bg-transparent py-3 text-sm text-[rgba(0,0,0,0.9)]"
               style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)' }}
             />
           </View>
 
           {/* Password */}
-          <View className="mb-5">
-            <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-1.5">Password</Text>
+          <View className="mb-8">
+            <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-2">Password</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               placeholder="Enter password"
               placeholderTextColor="rgba(0,0,0,0.3)"
-              className="w-full bg-transparent py-2.5 text-sm text-[rgba(0,0,0,0.9)]"
+              className="w-full bg-transparent py-3 text-sm text-[rgba(0,0,0,0.9)]"
               style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)' }}
             />
           </View>
 
           {/* Role toggle */}
-          <View className="mb-5">
-            <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-1.5">Role</Text>
+          <View className="mb-8">
+            <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-2">Role</Text>
             <View className="flex-row gap-3">
-              {['Bank', 'Slice'].map(r => (
+              {['Collections', 'Sales'].map(r => (
                 <TouchableOpacity
                   key={r}
                   onPress={() => setRole(r)}
-                  className={`flex-1 py-3 rounded-full items-center ${role === r ? 'bg-[#D30AD7]' : 'bg-white border border-black/10'}`}
+                  className={`flex-1 py-3.5 rounded-full items-center ${role === r ? 'bg-[#D30AD7]' : 'bg-white border border-black/10'}`}
                 >
                   <Text className={`text-sm font-medium ${role === r ? 'text-white' : 'text-[rgba(0,0,0,0.7)]'}`}>{r}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-            <Text className="text-xs text-[rgba(0,0,0,0.5)] mt-1.5">Bank = NESFB Field Agent · Slice = Consumer Collections</Text>
           </View>
 
           {/* Login button */}
           <TouchableOpacity
             onPress={handleLogin}
-            className="w-full mt-8 bg-[#D30AD7] py-4 rounded-full items-center"
+            className="w-full mt-2 bg-[#D30AD7] py-4 rounded-full items-center"
           >
             <Text className="text-white font-medium text-sm">Login →</Text>
           </TouchableOpacity>
-
-          {/* Hint */}
-          <View className="mt-6 bg-[#FAE2FA] border border-[#D30AD7]/20 rounded-3xl p-3">
-            <Text className="text-xs text-[#A008A3] font-medium">Field Agent Login</Text>
-            <Text className="text-xs text-[rgba(0,0,0,0.5)] mt-0.5">Enter your agent username and password 000000</Text>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

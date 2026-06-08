@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { View, Text } from 'react-native'
+import { View, Text, Platform } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 
 import { AgentProvider } from './src/navigation/AgentContext'
@@ -28,9 +28,19 @@ const Tab   = createBottomTabNavigator<MainTabParamList>()
 
 function TabIcon({ label, emoji, focused }: { label: string; emoji: string; focused: boolean }) {
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4 }}>
-      <Text style={{ fontSize: 20 }}>{emoji}</Text>
-      <Text style={{ fontSize: 10, marginTop: 2, color: focused ? '#D30AD7' : 'rgba(0,0,0,0.4)', fontWeight: focused ? '600' : '400' }}>
+    <View style={{ width: '100%', height: 68, alignItems: 'center', justifyContent: 'center', paddingTop: 28}}>
+      <View style={{
+        backgroundColor: focused ? '#FAE2FA' : 'transparent',
+        borderRadius: 18,
+        paddingHorizontal: focused ? 12 : 0,
+        paddingVertical: focused ? 4 : 0,
+        minWidth: focused ? 44 : undefined,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <Text style={{ fontSize: 20, lineHeight: 24 }}>{emoji}</Text>
+      </View>
+      <Text style={{ fontSize: 10, marginTop: 3, color: focused ? '#D30AD7' : 'rgba(0,0,0,0.35)', fontWeight: focused ? '700' : '400', lineHeight: 13 }}>
         {label}
       </Text>
     </View>
@@ -43,16 +53,27 @@ function MainTabs() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          right: 20,
           backgroundColor: '#FFFFFF',
-          borderTopColor: 'rgba(0,0,0,0.06)',
-          borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 16,
-          elevation: 8,
+          borderRadius: 32,
+          height: 68,
+          borderTopWidth: 0,
+          borderTopColor: 'transparent',
+          elevation: 12,
           shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.14,
+          shadowRadius: 20,
+          shadowOffset: { width: 0, height: 6 },
+          paddingTop: 0,
+          paddingBottom: 0,
+        },
+        tabBarItemStyle: {
+          height: 68,
+          paddingTop: 0,
+          paddingBottom: 0,
         },
         tabBarShowLabel: false,
       }}
@@ -75,7 +96,7 @@ function MainTabs() {
         name="Smart"
         component={SmartScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="Route" emoji="✦" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon label="Route" emoji="⚡" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -91,7 +112,8 @@ function MainTabs() {
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#E5E7EB', alignItems: Platform.OS === 'web' ? 'center' : undefined }}>
+      <View style={Platform.OS === 'web' ? { width: 390, flex: 1, overflow: 'hidden', backgroundColor: '#F0F4F7' } : { flex: 1 }}>
       <SafeAreaProvider>
         <AgentProvider>
           <NavigationContainer>
@@ -141,6 +163,7 @@ export default function App() {
           </NavigationContainer>
         </AgentProvider>
       </SafeAreaProvider>
+      </View>
     </GestureHandlerRootView>
   )
 }

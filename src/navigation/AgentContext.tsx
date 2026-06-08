@@ -27,8 +27,21 @@ const AgentContext = createContext<AgentContextValue>({
   triggerReroute: () => {},
 })
 
+const DEFAULT_AGENT: AgentInfo = {
+  id: 'EMP-DBR-001',
+  username: 'Gakul_Khanikar',
+  name: 'Gakul Khanikar',
+  branch: 'DIBRUGARH',
+  region: 'Upper Assam',
+  role: 'FOA',
+  glCode: '11799',
+  employeeCode: 'EMP-DBR-001',
+  lat: 27.4728,
+  lng: 94.9120,
+}
+
 export function AgentProvider({ children }: { children: ReactNode }) {
-  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null)
+  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(DEFAULT_AGENT)
   const [dataVersion, setDataVersion] = useState(0)
 
   const triggerReroute = () => {

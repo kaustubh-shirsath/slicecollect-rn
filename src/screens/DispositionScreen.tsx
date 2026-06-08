@@ -33,34 +33,29 @@ function SimpleSelect({ value, onChange, options, placeholder }: {
 }) {
   const [open, setOpen] = useState(false)
   return (
-    <>
+    <View>
       <TouchableOpacity
-        onPress={() => setOpen(true)}
-        className="w-full py-2.5 flex-row justify-between items-center"
-        style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)' }}
+        onPress={() => setOpen(o => !o)}
+        style={{ borderBottomWidth: 1, borderBottomColor: open ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
       >
-        <Text className={`text-sm ${value ? 'text-[rgba(0,0,0,0.9)]' : 'text-black/30'}`}>{value || placeholder}</Text>
-        <Text className="text-black/30 text-xs">▾</Text>
+        <Text style={{ fontSize: 14, color: value ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.3)' }}>{value || placeholder}</Text>
+        <Text style={{ color: open ? '#D30AD7' : 'rgba(0,0,0,0.3)', fontSize: 12 }}>{open ? '▴' : '▾'}</Text>
       </TouchableOpacity>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity className="flex-1 justify-end bg-black/40" activeOpacity={1} onPress={() => setOpen(false)}>
-          <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-3xl px-5 pt-5 pb-10">
-            <View className="w-10 h-1 bg-black/10 rounded-full mx-auto mb-4" />
-            {options.map(opt => (
-              <TouchableOpacity
-                key={opt}
-                onPress={() => { onChange(opt); setOpen(false) }}
-                className="py-3 flex-row items-center justify-between"
-                style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-              >
-                <Text className="text-sm text-[rgba(0,0,0,0.9)]">{opt}</Text>
-                {value === opt && <Text className="text-[#D30AD7] font-bold">✓</Text>}
-              </TouchableOpacity>
-            ))}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-    </>
+      {open && (
+        <View style={{ backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', marginTop: 4, borderWidth: 1, borderColor: 'rgba(211,10,215,0.15)', elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
+          {options.map((opt, idx) => (
+            <TouchableOpacity
+              key={opt}
+              onPress={() => { onChange(opt); setOpen(false) }}
+              style={{ paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: idx < options.length - 1 ? 1 : 0, borderBottomColor: 'rgba(0,0,0,0.05)', backgroundColor: value === opt ? '#FAE2FA' : 'transparent' }}
+            >
+              <Text style={{ fontSize: 14, color: value === opt ? '#A008A3' : 'rgba(0,0,0,0.85)', fontWeight: value === opt ? '600' : '400' }}>{opt}</Text>
+              {value === opt && <Text style={{ color: '#D30AD7', fontWeight: '700' }}>✓</Text>}
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
   )
 }
 
@@ -82,6 +77,8 @@ export default function DispositionScreen({ navigation, route }: Props) {
   const [remarks, setRemarks] = useState('')
   const [sfConfirm, setSfConfirm] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [showDateModal, setShowDateModal] = useState(false)
+  const [calMonth, setCalMonth] = useState(new Date())
 
   const isCollected     = actionType === 'Collected'
   const isContactedPos  = actionType === 'Contacted Positive'
@@ -137,6 +134,14 @@ export default function DispositionScreen({ navigation, route }: Props) {
         deposited: false,
       })
     }
+    const newVisitHistory = [
+      ...(existing?.visitHistory ?? []),
+      {
+        date: todayStr,
+        dispositionType: `${actionType} — ${code}`,
+        summary: remarks || (amount ? `Collected ₹${Number(amount).toLocaleString('en-IN')}` : contactPerson ? `Met ${contactPerson} at ${contactPlace}` : 'Visit recorded'),
+      },
+    ]
     updateActivity(c.partyId, {
       latestDisposition: {
         type: actionType || 'Unknown',
@@ -148,6 +153,7 @@ export default function DispositionScreen({ navigation, route }: Props) {
         visitedAt: new Date().toISOString(),
       },
       collections: newCollections,
+      visitHistory: newVisitHistory,
     })
 
     recordActualVisit(c.partyId, new Date().toISOString(), amount ? Number(amount) : 0)
@@ -271,19 +277,31 @@ export default function DispositionScreen({ navigation, route }: Props) {
               <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-2">Action Type</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {([
-                  { key: 'Collected', activeBg: '#00A63E' },
-                  { key: 'Contacted Positive', activeBg: '#2B6ACF' },
-                  { key: 'Contacted Negative', activeBg: '#A35300' },
-                  { key: 'Non-Contacted', activeBg: 'rgba(0,0,0,0.6)' },
+                  { key: 'Collected',          activeBg: '#00A63E',           icon: '✓' },
+                  { key: 'Contacted Positive', activeBg: '#2B6ACF',           icon: '+' },
+                  { key: 'Contacted Negative', activeBg: '#A35300',           icon: '−' },
+                  { key: 'Non-Contacted',      activeBg: 'rgba(0,0,0,0.6)',  icon: '?' },
                 ] as const).map(a => {
                   const isActive = actionType === a.key
                   return (
                     <TouchableOpacity
                       key={a.key}
                       onPress={() => { setActionType(a.key as ActionType); setCode(''); resetStep2() }}
-                      style={{ minHeight: 52, width: '48%', borderRadius: 24, padding: 12, backgroundColor: isActive ? a.activeBg : 'white', borderWidth: isActive ? 0 : 1, borderColor: 'rgba(0,0,0,0.10)' }}
+                      style={{
+                        width: '47.5%', borderRadius: 20, padding: 16,
+                        backgroundColor: isActive ? a.activeBg : 'white',
+                        borderWidth: isActive ? 0 : 1, borderColor: 'rgba(0,0,0,0.10)',
+                        alignItems: 'flex-start',
+                      }}
                     >
-                      <Text style={{ fontSize: 13, fontWeight: '500', color: isActive ? 'white' : 'rgba(0,0,0,0.7)' }}>{a.key}</Text>
+                      <View style={{
+                        width: 32, height: 32, borderRadius: 16,
+                        backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.06)',
+                        alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+                      }}>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: isActive ? 'white' : 'rgba(0,0,0,0.5)' }}>{a.icon}</Text>
+                      </View>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? 'white' : 'rgba(0,0,0,0.75)', lineHeight: 18 }}>{a.key}</Text>
                     </TouchableOpacity>
                   )
                 })}
@@ -403,15 +421,83 @@ export default function DispositionScreen({ navigation, route }: Props) {
                 {showFollowUpDate && (
                   <View>
                     <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-1.5">Follow-up Date *</Text>
-                    <TextInput
-                      value={followUpDate}
-                      onChangeText={setFollowUpDate}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor="rgba(0,0,0,0.3)"
-                      className="w-full py-2.5 text-sm text-[rgba(0,0,0,0.9)]"
-                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)' }}
-                    />
-                    <Text className="text-[10px] text-black/40 mt-1">Tomorrow to max 30 days ahead</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowDateModal(true)}
+                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)', paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
+                      <Text style={{ fontSize: 14, color: followUpDate ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.3)' }}>
+                        {followUpDate || 'Select date'}
+                      </Text>
+                      <Text style={{ fontSize: 16 }}>🗓</Text>
+                    </TouchableOpacity>
+                    <Text className="text-[10px] text-black/40 mt-1">Up to 90 days from today</Text>
+
+                    <Modal visible={showDateModal} transparent animationType="slide" onRequestClose={() => setShowDateModal(false)}>
+                      <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={() => setShowDateModal(false)}>
+                        <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 }}>
+                          <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
+                          {/* Month nav */}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                            <TouchableOpacity onPress={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() - 1); setCalMonth(d) }} style={{ padding: 8 }}>
+                              <Text style={{ color: '#D30AD7', fontSize: 18 }}>‹</Text>
+                            </TouchableOpacity>
+                            <Text style={{ fontWeight: '600', fontSize: 15, color: 'rgba(0,0,0,0.9)' }}>
+                              {calMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                            </Text>
+                            <TouchableOpacity onPress={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() + 1); setCalMonth(d) }} style={{ padding: 8 }}>
+                              <Text style={{ color: '#D30AD7', fontSize: 18 }}>›</Text>
+                            </TouchableOpacity>
+                          </View>
+                          {/* Day headers */}
+                          <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                            {['S','M','T','W','T','F','S'].map((d, i) => (
+                              <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: 'rgba(0,0,0,0.35)' }}>{d}</Text>
+                            ))}
+                          </View>
+                          {/* Calendar grid */}
+                          {(() => {
+                            const today = new Date(); today.setHours(0,0,0,0)
+                            const maxDate = new Date(today); maxDate.setDate(today.getDate() + 90)
+                            const firstDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1)
+                            const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate()
+                            const startPad = firstDay.getDay()
+                            const cells: (number | null)[] = [...Array(startPad).fill(null), ...Array.from({length: daysInMonth}, (_, i) => i + 1)]
+                            while (cells.length % 7 !== 0) cells.push(null)
+                            const weeks: (number | null)[][] = []
+                            for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
+                            return weeks.map((week, wi) => (
+                              <View key={wi} style={{ flexDirection: 'row', marginBottom: 4 }}>
+                                {week.map((day, di) => {
+                                  if (!day) return <View key={di} style={{ flex: 1 }} />
+                                  const d = new Date(calMonth.getFullYear(), calMonth.getMonth(), day)
+                                  d.setHours(0,0,0,0)
+                                  const isDisabled = d <= today || d > maxDate
+                                  const dateStr = d.toISOString().split('T')[0]
+                                  const isSelected = followUpDate === dateStr
+                                  return (
+                                    <TouchableOpacity
+                                      key={di}
+                                      disabled={isDisabled}
+                                      onPress={() => { setFollowUpDate(dateStr); setShowDateModal(false) }}
+                                      style={{ flex: 1, alignItems: 'center', paddingVertical: 6 }}
+                                    >
+                                      <View style={{
+                                        width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+                                        backgroundColor: isSelected ? '#D30AD7' : 'transparent',
+                                      }}>
+                                        <Text style={{ fontSize: 13, color: isSelected ? '#fff' : isDisabled ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.8)', fontWeight: isSelected ? '700' : '400' }}>
+                                          {day}
+                                        </Text>
+                                      </View>
+                                    </TouchableOpacity>
+                                  )
+                                })}
+                              </View>
+                            ))
+                          })()}
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    </Modal>
                   </View>
                 )}
               </View>

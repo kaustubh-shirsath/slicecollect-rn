@@ -5,6 +5,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { getBranchLeaderboard, getAgentPerf } from '../data/leaderboard'
+import { ACTIVITY_LOG } from '../data/activityLog'
+import { ALL_CUSTOMERS } from '../data/customers'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>
 
@@ -48,6 +50,21 @@ export default function ProfileScreen({ navigation }: Props) {
   const myUsername = agentInfo?.username
   const myEntry = leaderboard.find(r => r.username === myUsername)
   const myRank = myEntry?.rank ?? null
+
+  const myHistory = ACTIVITY_LOG
+    .filter((a: any) => a.username === myUsername && a.latestDisposition)
+    .map((a: any) => {
+      const cust = ALL_CUSTOMERS.find((c: any) => c.partyId === a.partyId)
+      return {
+        name: cust?.name || a.partyId,
+        type: a.latestDisposition!.type,
+        code: a.latestDisposition!.code,
+        date: a.latestDisposition!.date,
+        amount: a.collections.reduce((s: number, x: any) => s + x.amount, 0),
+      }
+    })
+    .sort((a: any, b: any) => b.date.localeCompare(a.date))
+    .slice(0, 10)
   const inTop5 = myRank !== null && myRank <= 5
 
   let displayList = leaderboard.slice(0, 5)
@@ -194,6 +211,32 @@ export default function ProfileScreen({ navigation }: Props) {
             </>
           )}
         </View>
+
+        {/* Recent Disposition Activity */}
+        {myHistory.length > 0 && (
+          <View style={{ backgroundColor: '#fff', borderRadius: 24, padding: 16, elevation: 1 }}>
+            <Text style={{ fontWeight: '600', color: 'rgba(0,0,0,0.9)', fontSize: 14, marginBottom: 12 }}>Recent Activity</Text>
+            {myHistory.map((item: any, i: number) => {
+              const dotColor = item.type === 'Collected' ? '#00A63E' : item.type === 'Contacted Positive' ? '#2B6ACF' : item.type === 'Contacted Negative' ? '#A35300' : 'rgba(0,0,0,0.3)'
+              return (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: i < myHistory.length - 1 ? 12 : 0 }}>
+                  <View style={{ alignItems: 'center', marginTop: 4 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor }} />
+                    {i < myHistory.length - 1 && <View style={{ width: 1, height: 20, backgroundColor: 'rgba(0,0,0,0.08)', marginTop: 3 }} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.85)', flex: 1 }} numberOfLines={1}>{item.name}</Text>
+                      <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)', marginLeft: 8 }}>{item.date}</Text>
+                    </View>
+                    <Text style={{ fontSize: 11, color: dotColor, fontWeight: '500', marginTop: 1 }}>{item.code}</Text>
+                    {item.amount > 0 && <Text style={{ fontSize: 11, color: '#00A63E', fontWeight: '600', marginTop: 1 }}>+{fmtL(item.amount)}</Text>}
+                  </View>
+                </View>
+              )
+            })}
+          </View>
+        )}
 
         {/* Logout */}
         <TouchableOpacity

@@ -58,7 +58,7 @@ export default function HomeScreen({ navigation }: Props) {
   return (
     <SafeAreaView className="flex-1 bg-[#F0F4F7]" edges={['top']}>
       {/* Header */}
-      <View className="bg-white px-5 pb-3 flex-row items-center justify-between border-b border-black/[0.06]">
+      <View className="bg-white px-5 py-3 flex-row items-center justify-between border-b border-black/[0.06]">
         <Text className="text-[rgba(0,0,0,0.9)] text-lg font-medium tracking-tight">SliceField</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('Profile')}
@@ -69,8 +69,8 @@ export default function HomeScreen({ navigation }: Props) {
       </View>
 
       {/* Search */}
-      <View className="px-5 py-3 bg-white">
-        <View className="flex-row items-center gap-3 bg-[#F0F4F7] rounded-full px-4 py-2.5">
+      <View className="px-5 py-2 bg-white">
+        <View className="flex-row items-center gap-3 bg-[#F0F4F7] rounded-full px-4 py-1.5">
           <Text className="text-black/30">🔍</Text>
           <TextInput
             value={search}
@@ -173,84 +173,103 @@ export default function HomeScreen({ navigation }: Props) {
         {/* Summary footer */}
         <Text className="text-center text-xs text-black/40">{fmtL(totalCollected)} collected of {fmtL(totalOverdue)} total</Text>
 
-        {/* Weekly Target */}
-        <View className="bg-white rounded-[24px] px-5 py-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
-          <View className="flex-row items-center justify-between mb-2">
-            <Text className="text-sm font-medium text-[rgba(0,0,0,0.9)]">Weekly Target</Text>
-            <Text className="text-xs text-black/40">{fmtL(homeData.monthlyCollected)} / {fmtL(homeData.weeklyTarget)}</Text>
-          </View>
-          <View className="w-full bg-[#F0F4F7] rounded-full h-2.5 mb-2">
-            <View
-              className="bg-[#D30AD7] h-2.5 rounded-full"
-              style={{ width: `${Math.min(100, Math.round((homeData.monthlyCollected / homeData.weeklyTarget) * 100))}%` }}
-            />
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-xs text-black/50">{Math.min(100, Math.round((homeData.monthlyCollected / homeData.weeklyTarget) * 100))}% achieved</Text>
-            <Text className="text-xs text-[#D30AD7] font-medium">{fmtL(Math.max(0, homeData.weeklyTarget - homeData.monthlyCollected))} remaining</Text>
-          </View>
-        </View>
-
-        {/* Earnings Tier Widget */}
-        <View className="bg-white rounded-[24px] px-5 py-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
-          <View className="flex-row items-center justify-between mb-4">
-            <View>
-              <Text className="text-sm font-medium text-[rgba(0,0,0,0.9)]">Your Earnings · June</Text>
-              <Text className="text-[10px] text-black/40 mt-0.5">Monthly incentive tracker</Text>
+        {/* ═══ EARNINGS TRACKER ═══ */}
+        <View style={{ backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
+          {/* Header */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: 'rgba(0,0,0,0.9)' }}>Earnings Tracker</Text>
+                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', marginTop: 1 }}>June 2025 · Variable Pay</Text>
+              </View>
+              <View style={{ backgroundColor: curTier.bg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: curTier.color }}>{curTier.emoji} {curTier.name}</Text>
+              </View>
             </View>
-            <View className="flex-row items-center gap-2">
-              <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: curTier.bg }}>
-                <Text className="text-[11px] font-semibold" style={{ color: curTier.color }}>
-                  {curTier.emoji} {curTier.name}{curTier.rate > 0 ? ` · ${curTier.rate}%` : ' · Fixed'}
+          </View>
+
+          {/* Big earned number */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
+            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.45)', fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.8 }}>Variable Pay Earned</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
+              <Text style={{ fontSize: 32, fontWeight: '700', color: curTier.rate > 0 ? '#007E2F' : 'rgba(0,0,0,0.3)' }}>
+                {curTier.rate > 0 ? fmtL(totalEarned) : '₹0'}
+              </Text>
+              {nextTier && (
+                <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', fontWeight: '500' }}>
+                  → {fmtL(Math.round((monthlyCollected + toNext) * nextTier.rate / 100))} at {nextTier.name}
                 </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setShowTierInfo(true)}
-                className="w-6 h-6 rounded-full bg-[#F0F4F7] items-center justify-center"
-              >
-                <Text className="text-black/40 text-[11px] font-semibold">i</Text>
-              </TouchableOpacity>
+              )}
+            </View>
+            <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>{fmtL(monthlyCollected)} collected this month</Text>
+          </View>
+
+          {/* Progress track — horizontal line with tier markers */}
+          <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+            {/* Tier labels row */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+              {INCENTIVE_TIERS.map((t, i) => (
+                <Text key={t.name} style={{ fontSize: 8, color: i <= curTierIdx ? t.color : 'rgba(0,0,0,0.25)', fontWeight: '700', textAlign: 'center', flex: 1 }}>
+                  {t.name.toUpperCase()}
+                </Text>
+              ))}
+            </View>
+
+            {/* The progress track */}
+            <View style={{ height: 8, backgroundColor: '#F0F4F7', borderRadius: 8, flexDirection: 'row', overflow: 'hidden' }}>
+              {INCENTIVE_TIERS.map((t, i) => {
+                const segStart = t.bottom
+                const segEnd   = t.top === Infinity ? segStart + 800000 : t.top
+                const segRange = segEnd - segStart
+                let fill = 0
+                if (monthlyCollected >= segEnd) fill = 1
+                else if (monthlyCollected > segStart) fill = (monthlyCollected - segStart) / segRange
+                else fill = 0
+                return (
+                  <View key={t.name} style={{ flex: 1, backgroundColor: '#F0F4F7', marginHorizontal: 1 }}>
+                    <View style={{ height: '100%', width: `${fill * 100}%`, backgroundColor: t.color, borderRadius: 8 }} />
+                  </View>
+                )
+              })}
+            </View>
+
+            {/* Milestone amounts */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
+              {INCENTIVE_TIERS.map((t) => (
+                <Text key={t.name} style={{ fontSize: 8, color: 'rgba(0,0,0,0.3)', flex: 1, textAlign: 'center' }}>
+                  {t.bottom === 0 ? '₹0' : fmtL(t.bottom)}
+                </Text>
+              ))}
             </View>
           </View>
 
-          {curTier.rate === 0 ? (
-            <View className="rounded-2xl px-4 py-3 mb-4" style={{ backgroundColor: curTier.bg }}>
-              <Text className="text-xs font-semibold mb-1" style={{ color: curTier.color }}>No variable incentive yet this month</Text>
-              <Text className="text-[10px] text-black/50">Collect ₹10L to unlock Bronze — earn 0.5% on every rupee collected</Text>
-            </View>
-          ) : (
-            <View className="flex-row gap-3 mb-4">
-              <View className="flex-1 bg-[#E0F4E8] rounded-2xl px-3 py-3">
-                <Text className="text-[10px] text-[#007E2F] font-medium mb-1">Earned so far</Text>
-                <Text className="text-2xl font-semibold text-[#007E2F]">{fmtL(totalEarned)}</Text>
-                <Text className="text-[10px] text-[#007E2F] mt-1.5" style={{ opacity: 0.6 }}>{curTier.rate}% of {fmtL(monthlyCollected)}</Text>
-              </View>
-              <View className="flex-1 bg-[#FAE2FA] rounded-2xl px-3 py-3">
-                <Text className="text-[10px] text-[#A008A3] font-medium mb-1">💎 At Platinum</Text>
-                <Text className="text-2xl font-semibold text-[#D30AD7]">{fmtL(platEarned)}</Text>
-                <Text className="text-[10px] text-[#A008A3] mt-1.5" style={{ opacity: 0.6 }}>1.8% of same collections</Text>
-              </View>
-            </View>
-          )}
-
-          <Text className="text-[10px] text-black/30 mt-2 mb-3">
-            {fmtL(monthlyCollected)} collected this month
-            {nextTier ? ` · ${fmtL(toNext)} to ${nextTier.name}` : ' · Platinum achieved 🎉'}
-          </Text>
-
+          {/* Next tier nudge */}
           {nextTier ? (
-            <View className="rounded-2xl px-4 py-3" style={{ backgroundColor: nextTier.bg }}>
-              <Text className="text-xs font-semibold" style={{ color: nextTier.color }}>
-                {nextTier.emoji} {fmtL(toNext)} more to unlock {nextTier.name} ({nextTier.rate}%)
-              </Text>
-              <Text className="text-[10px] mt-0.5" style={{ color: nextTier.color + 'BB' }}>
-                Same {fmtL(monthlyCollected)} collected → earn {fmtL(totalExtra)} extra
-              </Text>
+            <View style={{ marginHorizontal: 16, marginBottom: 16, borderRadius: 16, padding: 14, backgroundColor: nextTier.bg }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: nextTier.color }}>
+                    {nextTier.emoji} {fmtL(toNext)} away from {nextTier.name}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: nextTier.color, opacity: 0.75, marginTop: 2 }}>
+                    Unlock {nextTier.rate}% rate → earn {fmtL(totalExtra)} extra this month
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowTierInfo(true)}
+                  style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center', marginLeft: 12 }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: nextTier.color }}>i</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
-            <View className="rounded-2xl px-4 py-3 flex-row items-center gap-2 bg-[#F5F3FF]">
-              <Text>🏆</Text>
-              <Text className="text-xs font-semibold text-[#818cf8]">Platinum unlocked — maximum 1.8% rate</Text>
+            <View style={{ marginHorizontal: 16, marginBottom: 16, borderRadius: 16, padding: 14, backgroundColor: '#F5F3FF', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 20 }}>🏆</Text>
+              <View>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#818cf8' }}>Platinum unlocked!</Text>
+                <Text style={{ fontSize: 11, color: '#818cf8', opacity: 0.8, marginTop: 1 }}>Maximum 1.8% rate · {fmtL(platEarned)} earned</Text>
+              </View>
             </View>
           )}
         </View>
