@@ -8,6 +8,8 @@ import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { updateActivity, getActivity } from '../data/activityLog'
 import { recordActualVisit } from '../data/routingEngine'
+import { recordCashInhand } from '../api/allocations'
+import { getToken } from '../api/client'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Disposition'>
 
@@ -159,6 +161,13 @@ export default function DispositionScreen({ navigation, route }: Props) {
     recordActualVisit(c.partyId, new Date().toISOString(), amount ? Number(amount) : 0)
     triggerReroute()
 
+    // Record cash collected in agent_collections table
+    if (amount && Number(amount) > 0 && (payMode === 'Cash' || !payMode) && getToken()) {
+      const now = new Date()
+      const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()}`
+      recordCashInhand(Number(amount), monthYear).catch(() => {})
+    }
+
     if (amount && Number(amount) > 0) {
       const receipt = {
         receiptNo: newCollections[newCollections.length - 1]?.receiptId || '',
@@ -170,8 +179,8 @@ export default function DispositionScreen({ navigation, route }: Props) {
         advanceAmount: 0,
         paymentMode: payMode || 'Cash',
         agentName: agentInfo?.name || '',
-        branchName: agentInfo?.branch || c.branch || '',
-        glCode: agentInfo?.glCode || '',
+        branchName: agentInfo?.branchCode || c.branch || '',
+        glCode: agentInfo?.branchCode || '',
         createdAt: new Date().toISOString(),
       }
       navigation.replace('Receipt', { receipt, backTo: fromScreen || 'Main' })

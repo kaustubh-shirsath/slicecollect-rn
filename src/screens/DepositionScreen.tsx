@@ -43,12 +43,12 @@ export default function DepositionScreen({ navigation }: Props) {
   const dpNumber = useRef('DP' + Date.now() + Math.floor(Math.random() * 9999))
 
   const glAcct = (agentInfo as any)?.glCode || '11799'
-  const branch = agentInfo?.branch || 'TINSUKIA'
+  const branch = agentInfo?.branchCode || 'TINSUKIA'
 
   const pendingReceipts = useMemo(() => {
     if (!agentInfo) return []
     return ALL_CUSTOMERS
-      .filter((c: any) => c.username === agentInfo.username)
+      .filter((c: any) => c.username === agentInfo.agentId)
       .flatMap((c: any) => {
         const act = getActivity(c.partyId)
         return (act?.collections ?? [])
@@ -60,12 +60,12 @@ export default function DepositionScreen({ navigation }: Props) {
   const submittedSamples = useMemo(() => {
     if (!agentInfo) return []
     return ALL_CUSTOMERS
-      .filter((c: any) => c.username === agentInfo.username)
+      .filter((c: any) => c.username === agentInfo.agentId)
       .flatMap((c: any) => {
         const act = getActivity(c.partyId)
         return (act?.collections ?? [])
           .filter((col: any) => col.deposited && col.depositId)
-          .map((col: any) => ({ dpNumber: col.depositId, date: col.date, amount: col.amount, branch: agentInfo.branch, status: 'Submitted' }))
+          .map((col: any) => ({ dpNumber: col.depositId, date: col.date, amount: col.amount, branch: agentInfo.branchCode, status: 'Submitted' }))
       })
       .slice(0, 10)
   }, [agentInfo])

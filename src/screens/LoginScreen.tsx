@@ -1,52 +1,45 @@
 import { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
-import { findAgent } from '../data/agents'
+import { login } from '../api/auth'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>
 
 export default function LoginScreen({ navigation }: Props) {
   const [empId, setEmpId] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState('Bank')
-  const { setAgentInfo } = useAgent()
+  const [loading, setLoading] = useState(false)
+  const { setAgentInfo, setToken } = useAgent()
 
-  function handleLogin() {
-    const agent = findAgent(empId)
-    if (agent) {
+  async function handleLogin() {
+    if (!empId.trim() || !password.trim()) {
+      Alert.alert('Error', 'Please enter employee ID and password')
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await login(empId.trim(), password)
+      setToken(res.accessToken)
       setAgentInfo({
-        id: agent.employeeCode,
-        username: agent.username,
-        name: agent.name,
-        branch: agent.branch,
-        region: agent.region || '',
-        role: role,
-        glCode: (agent as any).glCode || '11799',
-        employeeCode: (agent as any).employeeCode || empId,
-        lat: agent.lat || 27.4728,
-        lng: agent.lng || 94.9120,
-      })
-    } else {
-      // Fallback agent for demo
-      setAgentInfo({
-        id: empId || 'demo',
-        username: empId || 'agent001',
-        name: empId || 'Field Agent',
-        branch: 'TINSUKIA',
-        region: 'NORTH EAST',
-        role: role,
-        glCode: '11799',
-        employeeCode: empId || 'EMP001',
+        agentId: res.agent.agentId,
+        name: res.agent.name,
+        email: res.agent.email,
+        branchCode: res.agent.branchCode,
+        mobileNo: res.agent.mobileNo,
         lat: 27.4728,
         lng: 94.9120,
       })
+      navigation.replace('Main')
+    } catch (e: any) {
+      Alert.alert('Login failed', e.message ?? 'Invalid credentials')
+    } finally {
+      setLoading(false)
     }
-    navigation.replace('Main')
   }
 
   return (
@@ -68,11 +61,10 @@ export default function LoginScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Form area */}
+        {/* Form */}
         <View className="flex-1 bg-[#F0F4F7] rounded-t-3xl px-6 pt-8 pb-10">
           <Text className="text-[rgba(0,0,0,0.9)] text-xl font-medium mb-8">Field Agent Login</Text>
 
-          {/* Employee ID */}
           <View className="mb-8">
             <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-2">Employee ID</Text>
             <TextInput
@@ -87,7 +79,6 @@ export default function LoginScreen({ navigation }: Props) {
             />
           </View>
 
-          {/* Password */}
           <View className="mb-8">
             <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-2">Password</Text>
             <TextInput
@@ -101,28 +92,16 @@ export default function LoginScreen({ navigation }: Props) {
             />
           </View>
 
-          {/* Role toggle */}
-          <View className="mb-8">
-            <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-2">Role</Text>
-            <View className="flex-row gap-3">
-              {['Collections', 'Sales'].map(r => (
-                <TouchableOpacity
-                  key={r}
-                  onPress={() => setRole(r)}
-                  className={`flex-1 py-3.5 rounded-full items-center ${role === r ? 'bg-[#D30AD7]' : 'bg-white border border-black/10'}`}
-                >
-                  <Text className={`text-sm font-medium ${role === r ? 'text-white' : 'text-[rgba(0,0,0,0.7)]'}`}>{r}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Login button */}
           <TouchableOpacity
             onPress={handleLogin}
+            disabled={loading}
             className="w-full mt-2 bg-[#D30AD7] py-4 rounded-full items-center"
+            style={{ opacity: loading ? 0.7 : 1 }}
           >
-            <Text className="text-white font-medium text-sm">Login →</Text>
+            {loading
+              ? <ActivityIndicator color="#fff" />
+              : <Text className="text-white font-medium text-sm">Login →</Text>
+            }
           </TouchableOpacity>
         </View>
       </ScrollView>

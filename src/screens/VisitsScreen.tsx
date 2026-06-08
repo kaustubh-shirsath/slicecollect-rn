@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, { Circle, Path, G } from 'react-native-svg'
@@ -9,6 +9,8 @@ import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { ALL_CUSTOMERS } from '../data/customers'
 import { getActivity } from '../data/activityLog'
+import { getCollectionSummary, CollectionSummary } from '../api/allocations'
+import { getToken } from '../api/client'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Visits'>,
@@ -60,11 +62,17 @@ function DonutChart({ fullPct, partialPct, total }: { fullPct: number; partialPc
 export default function VisitsScreen({ navigation }: Props) {
   const { agentInfo, dataVersion } = useAgent()
   const [tab, setTab] = useState<TabFilter>('Today')
+  const [collectionSummary, setCollectionSummary] = useState<CollectionSummary | null>(null)
+
+  useEffect(() => {
+    if (!getToken()) return
+    getCollectionSummary().then(setCollectionSummary).catch(() => {})
+  }, [dataVersion])
 
   const allEntries = useMemo(() => {
     if (!agentInfo) return []
     return ALL_CUSTOMERS
-      .filter((c: any) => c.username === agentInfo.username)
+      .filter((c: any) => c.username === agentInfo.agentId)
       .flatMap((c: any) => {
         const act = getActivity(c.partyId)
         if (!act?.latestDisposition) return []
@@ -113,14 +121,10 @@ export default function VisitsScreen({ navigation }: Props) {
   const partialPct = Math.round(partialAmt / totalAmt * 100)
   const notCollectedCount = todayEntries.filter((e: any) => e.category === 'contacted').length
 
-  const cashToDeposit = agentInfo ? ALL_CUSTOMERS
-    .filter((c: any) => c.username === agentInfo.username)
-    .flatMap((c: any) => (getActivity(c.partyId)?.collections ?? []).filter((col: any) => !col.deposited && col.mode === 'Cash'))
-    .reduce((s: number, col: any) => s + col.amount, 0) : 0
-
-  const receiptCount = agentInfo ? ALL_CUSTOMERS
-    .filter((c: any) => c.username === agentInfo.username)
-    .flatMap((c: any) => (getActivity(c.partyId)?.collections ?? []).filter((col: any) => !col.deposited && col.mode === 'Cash')).length : 0
+  const totalCollected = collectionSummary?.total ?? 0
+  const cashInhand = collectionSummary?.totalCashInhand ?? 0
+  const cashDeposited = collectionSummary?.totalCashDepositedAmt ?? 0
+  const plAmt = collectionSummary?.totalPlAmt ?? 0
 
   return (
     <SafeAreaView className="flex-1 bg-[#F0F4F7]" edges={['top']}>
@@ -167,13 +171,12 @@ export default function VisitsScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Cash to deposit widget */}
+        {/* Collection summary widget */}
         <View className="mx-4 my-3 bg-[#D30AD7] rounded-[24px] px-4 py-3.5" style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } }}>
-          <View className="flex-row items-start justify-between mb-2.5">
+          <View className="flex-row items-start justify-between mb-3">
             <View>
-              <Text className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-0.5">Cash to Deposit</Text>
-              <Text className="text-2xl font-medium text-white">{fmt(cashToDeposit)}</Text>
-              <Text className="text-[10px] text-white/60 mt-1">{receiptCount} receipts · limit ₹80L</Text>
+              <Text className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-0.5">Total Collected (This Month)</Text>
+              <Text className="text-2xl font-medium text-white">{fmt(totalCollected)}</Text>
             </View>
             <TouchableOpacity
               onPress={() => navigation.navigate('Deposition')}
@@ -182,12 +185,17 @@ export default function VisitsScreen({ navigation }: Props) {
               <Text className="text-[#D30AD7] text-xs font-medium">Deposit →</Text>
             </TouchableOpacity>
           </View>
-          <View className="bg-white/20 rounded-full h-1.5 overflow-hidden">
-            <View className="bg-white h-1.5 rounded-full" style={{ width: '6%' }} />
-          </View>
-          <View className="flex-row justify-between mt-1">
-            <Text className="text-[9px] text-white/50">{fmt(cashToDeposit)} pending</Text>
-            <Text className="text-[9px] text-white/50">₹80,00,000 limit</Text>
+          <View className="flex-row gap-2">
+            {[
+              { label: 'PL Amount', value: plAmt },
+              { label: 'Deposited', value: cashDeposited },
+              { label: 'In Hand', value: cashInhand },
+            ].map(item => (
+              <View key={item.label} className="flex-1 bg-white/15 rounded-2xl px-3 py-2">
+                <Text className="text-[9px] text-white/60 uppercase tracking-wider mb-0.5">{item.label}</Text>
+                <Text className="text-sm font-semibold text-white">{fmt(item.value)}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -272,8 +280,8 @@ export default function VisitsScreen({ navigation }: Props) {
                               advanceAmount: 0,
                               paymentMode: e.mode || e.latestCol?.mode || '',
                               agentName: agentInfo?.name || '',
-                              branchName: agentInfo?.branch || e.branchName || '',
-                              glCode: agentInfo?.glCode || '',
+                              branchName: agentInfo?.branchCode || e.branchName || '',
+                              glCode: agentInfo?.branchCode || '',
                               createdAt: e.visitedAt,
                             },
                             backTo: 'Visits',

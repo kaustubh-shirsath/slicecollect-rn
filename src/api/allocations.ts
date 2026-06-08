@@ -1,0 +1,136 @@
+import { apiFetch } from './client'
+
+export interface Allocation {
+  id: string
+  partyId: string
+  partyName: string
+  region: string | null
+  branchName: string | null
+  partyMobileNumber: string | null
+  mobile1: string | null
+  mobile2: string | null
+  addressLine1: string | null
+  addressLine2: string | null
+  addressLine3: string | null
+  assetClassification: string | null
+  dpd: number | null
+  emiOs: number | null
+  outstandingBalance: number | null
+  outstandingPrincipal: number | null
+  overdueInterest: number | null
+  outstandingCharges: number | null
+  minimumAmountDue: number | null
+  rollbackAmount: number | null
+  emiAmt: number | null
+  lastPaymentDate: string | null
+  nextEmiDate: string | null
+  product: string | null
+  openingBucket: string | null
+  lat: number | null
+  lng: number | null
+  agentId: string | null
+}
+
+export interface PortfolioResponse {
+  data: Allocation[]
+  total: number
+  page: number
+  limit: number
+}
+
+export interface BucketCount {
+  bucket: string
+  count: string
+  totalEmiOs: string
+}
+
+export interface AgentProfileResponse {
+  agent: {
+    agentId: string
+    name: string
+    email: string
+    branchCode: string
+    mobileNo: string | null
+  }
+  stats: {
+    totalCases: number
+    totalEmiOs: number
+    totalOutstanding: number
+    totalMinDue: number
+  }
+  buckets: BucketCount[]
+}
+
+export interface LeaderboardEntry {
+  agentId: string
+  name: string
+  username: string
+  totalCases: string
+  totalEmiOs: string
+  rank: number
+}
+
+export interface HomeSummary {
+  totalCases: number
+  overdueTotal: number
+  outstanding: number
+  collectedToday: number
+  monthlyCollected: number
+  pendingVisits: number
+  bucketSummary: {
+    bucket: string
+    cases: number
+    overdue: number
+    outstanding: number
+    collected: number
+    collectedCases: number
+  }[]
+}
+
+export function getPortfolio(params?: {
+  bucket?: string
+  page?: number
+  limit?: number
+  search?: string
+}) {
+  return apiFetch<PortfolioResponse>('/allocations', { params: params as any })
+}
+
+export function getBucketCounts() {
+  return apiFetch<BucketCount[]>('/allocations/bucket-counts')
+}
+
+export function getProfile() {
+  return apiFetch<AgentProfileResponse>('/allocations/profile')
+}
+
+export function getLeaderboard() {
+  return apiFetch<LeaderboardEntry[]>('/allocations/leaderboard')
+}
+
+export function getAllocationById(id: string) {
+  return apiFetch<Allocation>(`/allocations/${id}`)
+}
+
+export function getHomeSummary() {
+  return apiFetch<HomeSummary>('/home/summary')
+}
+
+export interface CollectionSummary {
+  totalPlAmt: number
+  totalCashDepositedAmt: number
+  totalCashInhand: number
+  total: number
+  allocationMonthYear: string
+}
+
+export function recordCashInhand(amount: number, allocationMonthYear: string) {
+  return apiFetch<{ totalCashInhand: number }>('/agent-collection/cash-inhand', {
+    method: 'POST',
+    body: JSON.stringify({ amount, allocationMonthYear }),
+  })
+}
+
+export function getCollectionSummary() {
+  return apiFetch<CollectionSummary>('/agent-collection/summary')
+}

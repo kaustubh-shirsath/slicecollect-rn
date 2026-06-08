@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput, Modal,
 } from 'react-native'
@@ -8,7 +8,7 @@ import { CompositeScreenProps } from '@react-navigation/native'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
-import { getHomeData } from '../data/homeData'
+import { useHomeSummary } from '../hooks/useHomeSummary'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Home'>,
@@ -35,12 +35,12 @@ export default function HomeScreen({ navigation }: Props) {
   const [search, setSearch] = useState('')
   const [showTierInfo, setShowTierInfo] = useState(false)
 
-  const homeData = useMemo(() => getHomeData(agentInfo?.username ?? ''), [agentInfo?.username, dataVersion])
+  const { data: homeData } = useHomeSummary(agentInfo?.agentId ?? '', dataVersion)
 
-  const buckets = homeData.bucketSummary
-  const totalOverdue = homeData.overdueTotal
-  const totalCollected = homeData.collectedToday
-  const monthlyCollected = homeData.monthlyCollected
+  const buckets = homeData?.bucketSummary ?? []
+  const totalOverdue = homeData?.overdueTotal ?? 0
+  const totalCollected = homeData?.collectedToday ?? 0
+  const monthlyCollected = homeData?.monthlyCollected ?? 0
 
   const curTierIdx = INCENTIVE_TIERS.reduce((best, t, i) => monthlyCollected >= t.bottom ? i : best, 0)
   const curTier    = INCENTIVE_TIERS[curTierIdx]
@@ -90,18 +90,18 @@ export default function HomeScreen({ navigation }: Props) {
           <View className="flex-row gap-3 mb-3">
             <View className="flex-1 bg-[#F0F4F7] rounded-xl px-3 py-2.5">
               <Text className="text-[10px] text-black/50 font-medium">Total{'\n'}Allocated</Text>
-              <Text className="text-lg font-medium text-[rgba(0,0,0,0.9)] mt-1">{homeData.totalCases}</Text>
+              <Text className="text-lg font-medium text-[rgba(0,0,0,0.9)] mt-1">{homeData?.totalCases ?? 0}</Text>
               <Text className="text-[10px] text-black/40 mt-0.5">cases</Text>
             </View>
             <View className="flex-1 bg-[#F0F4F7] rounded-xl px-3 py-2.5">
               <Text className="text-[10px] text-black/50 font-medium">Pending{'\n'}Cases</Text>
-              <Text className="text-lg font-medium text-[rgba(0,0,0,0.9)] mt-1">{homeData.pendingVisits}</Text>
+              <Text className="text-lg font-medium text-[rgba(0,0,0,0.9)] mt-1">{homeData?.pendingVisits ?? 0}</Text>
               <Text className="text-[10px] text-black/40 mt-0.5">cases</Text>
             </View>
             <View className="flex-1 bg-[#FAE2FA] rounded-xl px-3 py-2.5">
-              <Text className="text-[10px] text-[#A008A3] font-medium">Collected{'\n'}Today</Text>
-              <Text className="text-lg font-medium text-[#D30AD7] mt-1">{fmtL(homeData.collectedToday)}</Text>
-              <Text className="text-[10px] text-[#D30AD7] mt-0.5" style={{ opacity: 0.7 }}>today</Text>
+              <Text className="text-[10px] text-[#A008A3] font-medium">Collected{'\n'}(Month)</Text>
+              <Text className="text-lg font-medium text-[#D30AD7] mt-1">{fmtL(homeData?.collectedToday ?? 0)}</Text>
+              <Text className="text-[10px] text-[#D30AD7] mt-0.5" style={{ opacity: 0.7 }}>this month</Text>
             </View>
           </View>
           <View className="flex-row gap-3">
@@ -153,7 +153,7 @@ export default function HomeScreen({ navigation }: Props) {
             const pending   = bucketMode === 'count' ? b.cases - (b.collectedCases ?? 0) : Math.max(0, b.overdue - b.collected)
             return (
               <TouchableOpacity
-                key={b.bucket || b.name}
+                key={`bucket-${i}-${b.bucket ?? b.name ?? ''}`}
                 onPress={() => navigation.navigate('Allocations', { defaultBucket: b.bucket || b.name })}
                 className={`flex-row items-center px-4 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F0F4F7]/40'}`}
                 style={{ borderBottomWidth: 0.5, borderBottomColor: 'rgba(0,0,0,0.04)' }}
@@ -206,41 +206,32 @@ export default function HomeScreen({ navigation }: Props) {
 
           {/* Progress track — horizontal line with tier markers */}
           <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-            {/* Tier labels row */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-              {INCENTIVE_TIERS.map((t, i) => (
-                <Text key={t.name} style={{ fontSize: 8, color: i <= curTierIdx ? t.color : 'rgba(0,0,0,0.25)', fontWeight: '700', textAlign: 'center', flex: 1 }}>
-                  {t.name.toUpperCase()}
-                </Text>
-              ))}
-            </View>
-
-            {/* The progress track */}
-            <View style={{ height: 8, backgroundColor: '#F0F4F7', borderRadius: 8, flexDirection: 'row', overflow: 'hidden' }}>
-              {INCENTIVE_TIERS.map((t, i) => {
-                const segStart = t.bottom
-                const segEnd   = t.top === Infinity ? segStart + 800000 : t.top
-                const segRange = segEnd - segStart
-                let fill = 0
-                if (monthlyCollected >= segEnd) fill = 1
-                else if (monthlyCollected > segStart) fill = (monthlyCollected - segStart) / segRange
-                else fill = 0
-                return (
-                  <View key={t.name} style={{ flex: 1, backgroundColor: '#F0F4F7', marginHorizontal: 1 }}>
-                    <View style={{ height: '100%', width: `${fill * 100}%`, backgroundColor: t.color, borderRadius: 8 }} />
+            {/* Unified progress bar */}
+            {(() => {
+              const MAX = 2500000
+              const fillPct = Math.min(monthlyCollected / MAX, 1) * 100
+              const ticks = INCENTIVE_TIERS.slice(1).map(t => ({ pct: (t.bottom / MAX) * 100, color: t.color, label: fmtL(t.bottom), name: t.name }))
+              return (
+                <>
+                  {/* Track */}
+                  <View style={{ height: 8, backgroundColor: '#F0F4F7', borderRadius: 8, overflow: 'hidden', marginBottom: 6 }}>
+                    <View style={{ height: '100%', width: `${fillPct}%`, backgroundColor: curTier.color, borderRadius: 8 }} />
                   </View>
-                )
-              })}
-            </View>
 
-            {/* Milestone amounts */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
-              {INCENTIVE_TIERS.map((t) => (
-                <Text key={t.name} style={{ fontSize: 8, color: 'rgba(0,0,0,0.3)', flex: 1, textAlign: 'center' }}>
-                  {t.bottom === 0 ? '₹0' : fmtL(t.bottom)}
-                </Text>
-              ))}
-            </View>
+                  {/* Tick marks + labels */}
+                  <View style={{ position: 'relative', height: 20 }}>
+                    {ticks.map((tick, ti) => (
+                      <View key={`tick-${ti}-${tick.name}`} style={{ position: 'absolute', left: `${tick.pct}%`, alignItems: 'center', transform: [{ translateX: -18 }] }}>
+                        <Text style={{ fontSize: 8, color: monthlyCollected >= (INCENTIVE_TIERS.find(t => t.name === tick.name)?.bottom ?? 0) ? tick.color : 'rgba(0,0,0,0.3)', fontWeight: '700' }}>
+                          {tick.label}
+                        </Text>
+                        <Text style={{ fontSize: 7, color: 'rgba(0,0,0,0.25)', marginTop: 1 }}>{tick.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )
+            })()}
           </View>
 
           {/* Next tier nudge */}

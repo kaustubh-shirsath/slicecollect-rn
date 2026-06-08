@@ -1,14 +1,12 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
+import { setToken } from '../api/client'
 
 export interface AgentInfo {
-  id: string
-  username: string
+  agentId: string
   name: string
-  branch: string
-  region: string
-  role: string
-  glCode: string
-  employeeCode: string
+  email: string
+  branchCode: string
+  mobileNo: string | null
   lat: number
   lng: number
 }
@@ -16,6 +14,8 @@ export interface AgentInfo {
 interface AgentContextValue {
   agentInfo: AgentInfo | null
   setAgentInfo: (info: AgentInfo | null) => void
+  token: string | null
+  setToken: (token: string | null) => void
   dataVersion: number
   triggerReroute: () => void
 }
@@ -23,33 +23,38 @@ interface AgentContextValue {
 const AgentContext = createContext<AgentContextValue>({
   agentInfo: null,
   setAgentInfo: () => {},
+  token: null,
+  setToken: () => {},
   dataVersion: 0,
   triggerReroute: () => {},
 })
 
-const DEFAULT_AGENT: AgentInfo = {
-  id: 'EMP-DBR-001',
-  username: 'Gakul_Khanikar',
-  name: 'Gakul Khanikar',
-  branch: 'DIBRUGARH',
-  region: 'Upper Assam',
-  role: 'FOA',
-  glCode: '11799',
-  employeeCode: 'EMP-DBR-001',
-  lat: 27.4728,
-  lng: 94.9120,
-}
-
 export function AgentProvider({ children }: { children: ReactNode }) {
-  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(DEFAULT_AGENT)
+  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null)
+  const [token, _setToken] = useState<string | null>(null)
   const [dataVersion, setDataVersion] = useState(0)
 
-  const triggerReroute = () => {
-    setDataVersion(v => v + 1)
+  function handleSetToken(t: string | null) {
+    _setToken(t)
+    setToken(t) // sync to the fetch client module
   }
 
+  function handleSetAgentInfo(info: AgentInfo | null) {
+    setAgentInfo(info)
+    if (!info) handleSetToken(null)
+  }
+
+  const triggerReroute = () => setDataVersion(v => v + 1)
+
   return (
-    <AgentContext.Provider value={{ agentInfo, setAgentInfo, dataVersion, triggerReroute }}>
+    <AgentContext.Provider value={{
+      agentInfo,
+      setAgentInfo: handleSetAgentInfo,
+      token,
+      setToken: handleSetToken,
+      dataVersion,
+      triggerReroute,
+    }}>
       {children}
     </AgentContext.Provider>
   )

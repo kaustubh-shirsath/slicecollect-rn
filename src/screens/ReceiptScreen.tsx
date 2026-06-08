@@ -86,7 +86,7 @@ export default function ReceiptScreen({ navigation, route }: Props) {
                 ['Disposition Type', receipt.dispositionType || receipt.actionType],
                 ['Payment Mode', receipt.paymentMode],
                 ['Branch', receipt.branchName],
-                ...(receipt.glCode || agentInfo?.glCode ? [['GL Code', receipt.glCode || agentInfo?.glCode || '']] : []),
+                ...(receipt.glCode || undefined ? [['GL Code', receipt.glCode || agentInfo?.branchCode || '']] : []),
               ].map(([label, value]) => (
                 <View key={label} className="flex-row justify-between">
                   <Text className="text-xs text-black/50">{label}</Text>
@@ -102,11 +102,11 @@ export default function ReceiptScreen({ navigation, route }: Props) {
               <View>
                 <Text className="text-[10px] text-black/40 uppercase tracking-wider">Collected by</Text>
                 <Text className="text-sm font-medium text-black/90 mt-0.5">{receipt.agentName || agentInfo?.name || '—'}</Text>
-                <Text className="text-xs text-black/40">{agentInfo?.branch || receipt.branchName}</Text>
+                <Text className="text-xs text-black/40">{agentInfo?.branchCode || receipt.branchName}</Text>
               </View>
               <View className="items-end">
                 <Text className="text-[10px] text-black/40 uppercase tracking-wider">Role</Text>
-                <Text className="text-xs font-medium text-black/70 mt-0.5">{agentInfo?.role || 'FOA'}</Text>
+                <Text className="text-xs font-medium text-black/70 mt-0.5">{'FOA'}</Text>
               </View>
             </View>
           </View>

@@ -51,7 +51,7 @@ export default function SmartScreen({ navigation }: Props) {
   }, [rerouting])
 
   const load = (lat: number, lng: number, isReroute = false) => {
-    const username = agentInfo?.username
+    const username = agentInfo?.agentId
     if (!username) return
     currentPos.current = [lat, lng]
     if (isReroute) {
@@ -73,7 +73,7 @@ export default function SmartScreen({ navigation }: Props) {
     const fallbackLat = agentInfo?.lat ?? 27.4728
     const fallbackLng = agentInfo?.lng ?? 94.9120
     load(fallbackLat, fallbackLng)
-  }, [agentInfo?.username])
+  }, [agentInfo?.agentId])
 
   useEffect(() => {
     if (dataVersion > 0 && dataVersion !== prevVersion.current) {

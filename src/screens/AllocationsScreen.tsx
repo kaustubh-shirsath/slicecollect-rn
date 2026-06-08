@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  View, Text, TouchableOpacity, ScrollView, TextInput, FlatList,
+  View, Text, TouchableOpacity, ScrollView, TextInput, FlatList, Pressable,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { CompositeScreenProps } from '@react-navigation/native'
@@ -68,7 +68,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     else if (defaultBucket === 'All') setStageFilter([])
   }, [defaultBucket])
 
-  const { allocations, loading, isFallback } = useAllocations('All', search, agentInfo?.username)
+  const { allocations, loading, isFallback } = useAllocations('All', search, agentInfo?.agentId)
 
   const today = new Date().toDateString()
 
@@ -165,8 +165,8 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                     advanceAmount: 0,
                     paymentMode: c.latestCollection.mode,
                     agentName: agentInfo?.name || '',
-                    branchName: agentInfo?.branch || c.branch || '',
-                    glCode: agentInfo?.glCode || '',
+                    branchName: agentInfo?.branchCode || c.branch || '',
+                    glCode: agentInfo?.branchCode || '',
                     createdAt: c.latestCollection.date,
                   },
                   backTo: 'Allocations',
@@ -184,7 +184,13 @@ export default function AllocationsScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView className="flex-1 bg-[#F0F4F7]" edges={['top']}>
-      <TouchableOpacity activeOpacity={1} onPress={closeDropdown} className="flex-1">
+      <View className="flex-1">
+        {openDropdown !== 'none' && (
+          <Pressable
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 }}
+            onPress={closeDropdown}
+          />
+        )}
         {/* Header */}
         <View className="bg-white px-5 py-3" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
           <View className="flex-row items-center justify-between">
@@ -206,7 +212,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
         </View>
 
         {/* Search + filters */}
-        <View className="bg-white" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
+        <View className="bg-white" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 20, zIndex: 20, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
           <View className="flex-row items-center gap-2 px-4 pt-2 pb-2">
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0F4F7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
               <Text style={{ color: 'rgba(0,0,0,0.3)', fontSize: 14 }}>🔍</Text>
@@ -367,7 +373,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
         {/* Cards */}
         <FlatList
           data={filtered}
-          keyExtractor={(item: any) => String(item.partyId)}
+          keyExtractor={(item: any, index: number) => item.id ? String(item.id) : `${item.partyId}-${index}`}
           renderItem={renderItem}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           ListEmptyComponent={
@@ -383,7 +389,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             )
           }
         />
-      </TouchableOpacity>
+      </View>
     </SafeAreaView>
   )
 }
