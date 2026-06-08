@@ -8,6 +8,7 @@ import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { buildRoute } from '../data/routingEngine'
 import type { RouteStop } from '../data/routingEngine'
+import { getTimeSlotLabel } from '../data/appointments'
 import { getBucketColor } from '../utils/bucketColors'
 
 type Props = CompositeScreenProps<
@@ -233,13 +234,20 @@ export default function SmartScreen({ navigation }: Props) {
                           >
                             {stop.customer.name}
                           </Text>
-                          <View className="flex-row items-center gap-2 mt-1.5">
+                          <View className="flex-row items-center gap-2 mt-1.5 flex-wrap">
                             <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                               <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{bucket}</Text>
                             </View>
                             <Text className={`text-[10px] font-mono ${state === 'done' ? 'text-black/25' : 'text-black/35'}`}>
                               {maskId(stop.customer.partyId)}
                             </Text>
+                            {stop.appointmentSlot && (
+                              <View style={{ backgroundColor: '#FFF3E0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
+                                <Text style={{ fontSize: 10, color: '#A35300', fontWeight: '500' }}>
+                                  🕐 {stop.appointmentSlot === 'morning' ? '9–12' : stop.appointmentSlot === 'afternoon' ? '12–4' : '4–7'}
+                                </Text>
+                              </View>
+                            )}
                           </View>
                           {state !== 'done' && stop.visitReason && (
                             <Text className="text-[10px] mt-1.5 leading-snug" style={{ color: state === 'current' ? '#A008A3' : 'rgba(0,0,0,0.35)' }}>

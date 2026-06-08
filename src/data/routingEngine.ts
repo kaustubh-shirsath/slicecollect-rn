@@ -2,6 +2,8 @@
 import { ALL_CUSTOMERS } from './customers'
 import type { Customer } from './customers'
 import { getActivity } from './activityLog'
+import { getAppointments } from './appointments'
+import type { TimeSlot } from './appointments'
 
 // ─── Scoring weights (backend-configurable in production) ──────────────────
 // Each weight is a multiplier 0–1. Sum need not equal 1 — scores are normalised
@@ -153,6 +155,8 @@ export interface RouteStop {
   offRoute?: boolean
   scoreBreakdown?: RouteDecisionLog['scoreBreakdown']
   visitReason?: string   // human-readable explanation for Smart Screen tooltip
+  appointmentSlot?: TimeSlot
+  appointmentTime?: string
 }
 
 // ─── Main: Build composite-scored route ──────────────────────────────────
@@ -226,95 +230,112 @@ export function buildRoute(username: string, currentLat: number, currentLng: num
     }
   })
 
+  // ─── Appointment-aware sorting ────────────────────────────────────────────
+  const appts = getAppointments(username)
+  const todayApptMap = new Map<string, { slot: TimeSlot }>(
+    appts
+      .filter(a => a.date === todayStr && a.module === 'collections')
+      .map(a => [a.partyId, { slot: a.timeSlot }])
+  )
+
+  const morningAppts   = scored.filter(s => todayApptMap.get(s.customer.partyId)?.slot === 'morning')
+  const afternoonAppts = scored.filter(s => todayApptMap.get(s.customer.partyId)?.slot === 'afternoon')
+  const eveningAppts   = scored.filter(s => todayApptMap.get(s.customer.partyId)?.slot === 'evening')
+  const unscheduled    = scored.filter(s => !todayApptMap.has(s.customer.partyId))
+
   // ─── Greedy selection: argmax(score + proximity_bonus) / step ────────────
   // At each step, pick the customer with highest: composite_score + w_proximity * (1 / distance)
   // Normalise proximity as 1 / (1 + distanceKm) so 0km → 1.0, 5km → 0.17, 20km → 0.05
 
   const ordered: RouteStop[] = []
   let fromLat = currentLat, fromLng = currentLng
-  const remaining = [...scored]
   const now = new Date()
   let minutes = now.getHours() * 60 + now.getMinutes()
   if (minutes < 540) minutes = 540  // start no earlier than 09:00
 
   let suggestedRank = 1
 
-  while (remaining.length > 0) {
-    // Compute live proximity for each remaining candidate
-    let bestIdx = 0
-    let bestFinalScore = -Infinity
+  function greedyPickInto(pool: typeof scored, out: RouteStop[], apptSlotOverride?: TimeSlot) {
+    const remaining = [...pool]
+    while (remaining.length > 0) {
+      let bestIdx = 0
+      let bestFinalScore = -Infinity
 
-    for (let i = 0; i < remaining.length; i++) {
-      const c = remaining[i].customer
-      const dist = haversine(fromLat, fromLng, c.lat, c.lng)
-      const proximityScore = 1 / (1 + dist)  // 0–1, distance-agnostic normalisation
-      const finalScore = remaining[i].breakdown.composite + ROUTE_WEIGHTS.proximity * proximityScore
-      if (finalScore > bestFinalScore) {
-        bestFinalScore = finalScore
-        bestIdx = i
+      for (let i = 0; i < remaining.length; i++) {
+        const c = remaining[i].customer
+        const dist = haversine(fromLat, fromLng, c.lat, c.lng)
+        const proximityScore = 1 / (1 + dist)
+        const finalScore = remaining[i].breakdown.composite + ROUTE_WEIGHTS.proximity * proximityScore
+        if (finalScore > bestFinalScore) {
+          bestFinalScore = finalScore
+          bestIdx = i
+        }
       }
+
+      const chosen = remaining.splice(bestIdx, 1)[0]
+      const c = chosen.customer
+      const dist = haversine(fromLat, fromLng, c.lat, c.lng)
+      const proximityScore = 1 / (1 + dist)
+
+      chosen.breakdown.proximity = proximityScore
+      chosen.breakdown.composite += ROUTE_WEIGHTS.proximity * proximityScore
+
+      const travelMins = Math.round((dist / 20) * 60)
+      minutes += travelMins + 20
+      const h = Math.floor(minutes / 60) % 24
+      const m = minutes % 60
+
+      const reasons: string[] = []
+      if (chosen.breakdown.ptpUrgency >= 0.8)
+        reasons.push(chosen.breakdown.ptpUrgency >= 0.95 ? 'Broken PTP — follow up now' : `PTP due ${chosen.ptpDate === todayStr ? 'today' : 'soon'}`)
+      if (c.cibilAlert)
+        reasons.push('Paying other banks — high recovery chance')
+      if (chosen.breakdown.bucketUrgency >= 0.9)
+        reasons.push(`${c.assetClassification} bucket — urgent`)
+      if (chosen.breakdown.collectionValue >= 0.7)
+        reasons.push(`High overdue ₹${(c.emiOs/1000).toFixed(0)}K`)
+      if (dist <= 0.5)
+        reasons.push('Nearest stop')
+      const visitReason = reasons.length > 0 ? reasons.join(' · ') : 'Balanced priority'
+
+      const logEntry: RouteDecisionLog = {
+        partyId: c.partyId,
+        suggestedRank,
+        actualVisitRank: null,
+        scoreBreakdown: { ...chosen.breakdown },
+        distanceKm: Math.round(dist * 10) / 10,
+        suggestedAt: new Date().toISOString(),
+        visitedAt: null,
+        collectedAmount: null,
+        ptpDate: chosen.ptpDate ?? null,
+        bucket: c.assetClassification,
+        product: c.product,
+        currentHour,
+      }
+      if (!_decisionLog.find(e => e.partyId === c.partyId)) {
+        _decisionLog.push(logEntry)
+      }
+
+      const apptSlot = apptSlotOverride ?? todayApptMap.get(c.partyId)?.slot
+      out.push({
+        customer: c,
+        distanceFromPrev: Math.round(dist * 10) / 10,
+        estimatedArrival: `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`,
+        visited: false,
+        scoreBreakdown: chosen.breakdown,
+        visitReason,
+        appointmentSlot: apptSlot,
+      })
+
+      fromLat = c.lat; fromLng = c.lng
+      suggestedRank++
     }
-
-    const chosen = remaining.splice(bestIdx, 1)[0]
-    const c = chosen.customer
-    const dist = haversine(fromLat, fromLng, c.lat, c.lng)
-    const proximityScore = 1 / (1 + dist)
-
-    // Finalise breakdown with actual proximity
-    chosen.breakdown.proximity = proximityScore
-    chosen.breakdown.composite += ROUTE_WEIGHTS.proximity * proximityScore
-
-    const travelMins = Math.round((dist / 20) * 60)
-    minutes += travelMins + 20
-    const h = Math.floor(minutes / 60) % 24
-    const m = minutes % 60
-
-    // Generate human-readable "why this stop" reason
-    const reasons: string[] = []
-    if (chosen.breakdown.ptpUrgency >= 0.8)
-      reasons.push(chosen.breakdown.ptpUrgency >= 0.95 ? 'Broken PTP — follow up now' : `PTP due ${chosen.ptpDate === todayStr ? 'today' : 'soon'}`)
-    if (c.cibilAlert)
-      reasons.push('Paying other banks — high recovery chance')
-    if (chosen.breakdown.bucketUrgency >= 0.9)
-      reasons.push(`${c.assetClassification} bucket — urgent`)
-    if (chosen.breakdown.collectionValue >= 0.7)
-      reasons.push(`High overdue ₹${(c.emiOs/1000).toFixed(0)}K`)
-    if (dist <= 0.5)
-      reasons.push('Nearest stop')
-    const visitReason = reasons.length > 0 ? reasons.join(' · ') : 'Balanced priority'
-
-    // Log decision for ML feedback
-    const logEntry: RouteDecisionLog = {
-      partyId: c.partyId,
-      suggestedRank,
-      actualVisitRank: null,
-      scoreBreakdown: { ...chosen.breakdown },
-      distanceKm: Math.round(dist * 10) / 10,
-      suggestedAt: new Date().toISOString(),
-      visitedAt: null,
-      collectedAmount: null,
-      ptpDate: chosen.ptpDate ?? null,
-      bucket: c.assetClassification,
-      product: c.product,
-      currentHour,
-    }
-    // Only push if not already logged (avoid duplicate on reroute)
-    if (!_decisionLog.find(e => e.partyId === c.partyId)) {
-      _decisionLog.push(logEntry)
-    }
-
-    ordered.push({
-      customer: c,
-      distanceFromPrev: Math.round(dist * 10) / 10,
-      estimatedArrival: `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`,
-      visited: false,
-      scoreBreakdown: chosen.breakdown,
-      visitReason,
-    })
-
-    fromLat = c.lat; fromLng = c.lng
-    suggestedRank++
   }
+
+  greedyPickInto(morningAppts, ordered)
+  greedyPickInto(unscheduled, ordered)
+  greedyPickInto(afternoonAppts, ordered)
+  greedyPickInto(eveningAppts, ordered)
 
   // Visited stops prepended (sorted by actual visit time)
   const visitedStops: RouteStop[] = visitedToday

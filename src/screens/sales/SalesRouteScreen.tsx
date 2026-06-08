@@ -8,6 +8,7 @@ import { SalesTabParamList, RootStackParamList } from '../../navigation/types'
 import { useAgent } from '../../navigation/AgentContext'
 import { buildSalesRoute } from '../../data/salesRoutingEngine'
 import type { SalesRouteStop } from '../../data/salesRoutingEngine'
+import { getTimeSlotLabel } from '../../data/appointments'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<SalesTabParamList, 'SalesRoute'>,
@@ -234,13 +235,20 @@ export default function SalesRouteScreen({ navigation }: Props) {
                           >
                             {stop.merchant.businessName}
                           </Text>
-                          <View className="flex-row items-center gap-2 mt-1.5">
+                          <View className="flex-row items-center gap-2 mt-1.5 flex-wrap">
                             <View style={{ backgroundColor: bc.bg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>
                               <Text style={{ fontSize: 10, fontWeight: '500', color: bc.text }}>{stop.merchant.businessType}</Text>
                             </View>
                             <Text className={`text-[11px] font-medium ${state === 'done' ? 'text-black/25' : 'text-[#00A63E]'}`}>
                               {fmt(stop.merchant.pendingAmount)}
                             </Text>
+                            {stop.appointmentSlot && (
+                              <View style={{ backgroundColor: '#FFF3E0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
+                                <Text style={{ fontSize: 10, color: '#A35300', fontWeight: '500' }}>
+                                  🕐 {stop.appointmentSlot === 'morning' ? '9–12' : stop.appointmentSlot === 'afternoon' ? '12–4' : '4–7'}
+                                </Text>
+                              </View>
+                            )}
                           </View>
                         </View>
                         <Text className={`text-[10px] ${state === 'done' ? 'text-[#00A63E] font-medium' : 'text-black/30'}`}>

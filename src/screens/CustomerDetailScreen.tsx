@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, Linking, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { getBucketColor } from '../utils/bucketColors'
 import { getActivity } from '../data/activityLog'
+import { getAppointmentForCustomer, setAppointment, cancelAppointment, getTimeSlotLabel, type TimeSlot, type Appointment } from '../data/appointments'
+import { useAgent } from '../navigation/AgentContext'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>
 
@@ -22,7 +24,63 @@ function isCallAllowed() {
 
 export default function CustomerDetailScreen({ navigation, route }: Props) {
   const { customer: c, fromScreen } = route.params
+  const { agentInfo } = useAgent()
   const [callBlocked, setCallBlocked] = useState(false)
+
+  // Appointment state
+  const [appt, setAppt] = useState<Appointment | undefined>(() => getAppointmentForCustomer(c.partyId))
+  const [showApptForm, setShowApptForm] = useState(false)
+  const [apptAddressIdx, setApptAddressIdx] = useState<number | null>(null)
+  const [apptCustomAddress, setApptCustomAddress] = useState('')
+  const [apptDate, setApptDate] = useState('')
+  const [apptSlot, setApptSlot] = useState<TimeSlot>('morning')
+  const [showApptCalendar, setShowApptCalendar] = useState(false)
+
+  const addressOptions = [
+    c.address && { label: 'Home', value: c.address },
+    c.address_line2 && { label: 'Home 2', value: c.address_line2 },
+    c.address_line3 && { label: 'Home 3', value: c.address_line3 },
+  ].filter(Boolean) as { label: string; value: string }[]
+
+  // Calendar helpers
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const maxDate = new Date(today)
+  maxDate.setDate(maxDate.getDate() + 90)
+
+  function generateCalendarDays(): Date[] {
+    const days: Date[] = []
+    const d = new Date(today)
+    for (let i = 0; i < 90; i++) {
+      days.push(new Date(d))
+      d.setDate(d.getDate() + 1)
+    }
+    return days
+  }
+
+  function saveAppointment() {
+    let selectedAddress = ''
+    let addressLabel = 'Custom'
+    if (apptAddressIdx !== null && apptAddressIdx < addressOptions.length) {
+      selectedAddress = addressOptions[apptAddressIdx].value
+      addressLabel = addressOptions[apptAddressIdx].label
+    } else {
+      selectedAddress = apptCustomAddress.trim()
+      addressLabel = 'Custom'
+    }
+    if (!apptDate || !selectedAddress) return
+    const newAppt = setAppointment({
+      partyId: c.partyId,
+      module: 'collections',
+      date: apptDate,
+      timeSlot: apptSlot,
+      addressLabel,
+      address: selectedAddress,
+      agentUsername: agentInfo?.username ?? '',
+    })
+    setAppt(newAppt)
+    setShowApptForm(false)
+  }
 
   const bc = getBucketColor(c.assetClassification || c.assetClass || '')
   const activity = getActivity(c.partyId)
@@ -231,6 +289,161 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             </View>
           </View>
         )}
+        {/* Appointment Section */}
+        <View className="bg-white rounded-2xl p-4 mb-4" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-sm font-semibold text-[rgba(0,0,0,0.85)]">📅 Appointment</Text>
+            {appt ? (
+              <View className="bg-[#E0F4E8] px-2 py-0.5 rounded-full">
+                <Text className="text-[10px] text-[#00A63E] font-semibold">Confirmed</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setShowApptForm(v => !v)}
+                className="bg-[#FAE2FA] px-3 py-1 rounded-full"
+              >
+                <Text className="text-[11px] text-[#A008A3] font-semibold">+ Confirm</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {appt && !showApptForm && (
+            <View className="gap-1 mb-3">
+              <Text className="text-xs text-black/60">{appt.date} · {getTimeSlotLabel(appt.timeSlot)}</Text>
+              <Text className="text-xs text-black/70 leading-snug">{appt.addressLabel}: {appt.address}</Text>
+              <View className="flex-row gap-2 mt-2">
+                <TouchableOpacity
+                  onPress={() => setShowApptForm(true)}
+                  className="flex-1 border border-[#D30AD7] rounded-xl py-1.5 items-center"
+                >
+                  <Text className="text-[11px] text-[#D30AD7] font-semibold">Reschedule</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => { cancelAppointment(c.partyId); setAppt(undefined) }}
+                  className="flex-1 border border-[#CE1D26]/40 rounded-xl py-1.5 items-center"
+                >
+                  <Text className="text-[11px] text-[#CE1D26] font-semibold">Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {showApptForm && (
+            <View className="gap-3 mt-1">
+              {/* Address selection */}
+              <View>
+                <Text className="text-[10px] text-black/40 uppercase tracking-wide font-medium mb-1.5">Select Address</Text>
+                <View className="gap-2">
+                  {addressOptions.map((opt, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => setApptAddressIdx(idx)}
+                      className="w-full px-3 py-2.5 rounded-xl border"
+                      style={{ borderColor: apptAddressIdx === idx ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: apptAddressIdx === idx ? '#FAE2FA' : '#fff' }}
+                    >
+                      <Text className="text-[11px] font-medium" style={{ color: apptAddressIdx === idx ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>
+                        {opt.label}: {opt.value}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity
+                    onPress={() => setApptAddressIdx(addressOptions.length)}
+                    className="w-full px-3 py-2.5 rounded-xl border"
+                    style={{ borderColor: apptAddressIdx === addressOptions.length ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: apptAddressIdx === addressOptions.length ? '#FAE2FA' : '#fff' }}
+                  >
+                    <Text className="text-[11px] font-medium" style={{ color: apptAddressIdx === addressOptions.length ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>✏️ Custom</Text>
+                  </TouchableOpacity>
+                  {apptAddressIdx === addressOptions.length && (
+                    <TextInput
+                      value={apptCustomAddress}
+                      onChangeText={setApptCustomAddress}
+                      placeholder="Enter custom address"
+                      placeholderTextColor="rgba(0,0,0,0.3)"
+                      className="border border-[#D30AD7]/40 rounded-xl px-3 py-2 text-xs text-black/80"
+                      multiline
+                    />
+                  )}
+                </View>
+              </View>
+
+              {/* Date selection */}
+              <View>
+                <Text className="text-[10px] text-black/40 uppercase tracking-wide font-medium mb-1.5">Select Date</Text>
+                <TouchableOpacity
+                  onPress={() => setShowApptCalendar(v => !v)}
+                  className="border rounded-xl px-3 py-2.5 flex-row items-center gap-2"
+                  style={{ borderColor: apptDate ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: apptDate ? '#FAE2FA' : '#fff' }}
+                >
+                  <Text>🗓</Text>
+                  <Text className="text-xs" style={{ color: apptDate ? '#A008A3' : 'rgba(0,0,0,0.35)' }}>
+                    {apptDate || 'Choose date'}
+                  </Text>
+                </TouchableOpacity>
+                {showApptCalendar && (
+                  <View className="mt-2 border border-black/10 rounded-xl p-2 bg-white">
+                    <View className="flex-row flex-wrap gap-1">
+                      {generateCalendarDays().map((day, di) => {
+                        const ds = day.toISOString().split('T')[0]
+                        const isSelected = ds === apptDate
+                        return (
+                          <TouchableOpacity
+                            key={di}
+                            onPress={() => { setApptDate(ds); setShowApptCalendar(false) }}
+                            style={{
+                              width: '13%',
+                              paddingVertical: 4,
+                              borderRadius: 6,
+                              alignItems: 'center',
+                              backgroundColor: isSelected ? '#D30AD7' : 'transparent',
+                            }}
+                          >
+                            <Text style={{ fontSize: 10, color: isSelected ? '#fff' : 'rgba(0,0,0,0.7)' }}>
+                              {day.getDate()}
+                            </Text>
+                            <Text style={{ fontSize: 8, color: isSelected ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.3)' }}>
+                              {['Su','Mo','Tu','We','Th','Fr','Sa'][day.getDay()]}
+                            </Text>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Time slot */}
+              <View>
+                <Text className="text-[10px] text-black/40 uppercase tracking-wide font-medium mb-1.5">Time Slot</Text>
+                <View className="flex-row gap-2">
+                  {(['morning', 'afternoon', 'evening'] as TimeSlot[]).map(slot => (
+                    <TouchableOpacity
+                      key={slot}
+                      onPress={() => setApptSlot(slot)}
+                      className="flex-1 py-2 rounded-xl border items-center"
+                      style={{ borderColor: apptSlot === slot ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: apptSlot === slot ? '#FAE2FA' : '#fff' }}
+                    >
+                      <Text className="text-[10px] font-medium capitalize" style={{ color: apptSlot === slot ? '#A008A3' : 'rgba(0,0,0,0.6)' }}>
+                        {slot === 'morning' ? 'Morning' : slot === 'afternoon' ? 'Afternoon' : 'Evening'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Save button */}
+              <TouchableOpacity
+                onPress={saveAppointment}
+                className="bg-[#D30AD7] rounded-xl py-3 items-center"
+              >
+                <Text className="text-white text-sm font-bold">Save Appointment</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowApptForm(false)}>
+                <Text className="text-center text-[11px] text-black/40 mt-1">Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
       </ScrollView>
 
       {/* Action buttons */}
