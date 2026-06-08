@@ -311,6 +311,99 @@ export default function DepositionScreen({ navigation }: Props) {
                 />
               </View>
 
+              {/* Note Denomination Counter */}
+              <View className="mb-4">
+                <TouchableOpacity
+                  onPress={() => setDenomOpen(o => !o)}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: denomOpen ? '#D30AD7' : 'rgba(0,0,0,0.10)' }}
+                >
+                  <View>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: 0.8 }}>Note Count</Text>
+                    {denomTotal > 0 && (
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: denomTotal === totalPending ? '#00A63E' : '#CE1D26', marginTop: 2 }}>
+                        {fmt(denomTotal)} {denomTotal === totalPending ? '✓ Matches' : `≠ Expected ${fmt(totalPending)}`}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={{ color: denomOpen ? '#D30AD7' : 'rgba(0,0,0,0.3)', fontSize: 13 }}>{denomOpen ? '▴' : '▾'}</Text>
+                </TouchableOpacity>
+
+                {denomOpen && (
+                  <View style={{ backgroundColor: '#F0F4F7', borderRadius: 20, padding: 12, marginTop: 8 }}>
+
+                    {/* 3-column grid */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {noteValues.map(note => {
+                        const count = counts[note] || 0
+                        const active = count > 0
+                        return (
+                          <View
+                            key={note}
+                            style={{
+                              width: '30.5%',
+                              backgroundColor: active ? '#FAE2FA' : '#fff',
+                              borderRadius: 16,
+                              borderWidth: 1.5,
+                              borderColor: active ? 'rgba(211,10,215,0.30)' : 'rgba(0,0,0,0.08)',
+                              padding: 10,
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            {/* Denomination label */}
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: active ? '#A008A3' : 'rgba(0,0,0,0.55)' }}>{fmt(note)}</Text>
+
+                            {/* +/− row */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <TouchableOpacity
+                                onPress={() => setCounts(prev => ({ ...prev, [note]: Math.max(0, (prev[note] || 0) - 1) }))}
+                                style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: active ? '#D30AD7' : '#EAEBED', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <Text style={{ color: active ? '#fff' : 'rgba(0,0,0,0.3)', fontSize: 18, lineHeight: 22, fontWeight: '700' }}>−</Text>
+                              </TouchableOpacity>
+                              <Text style={{ minWidth: 18, textAlign: 'center', fontSize: 15, fontWeight: '800', color: active ? '#D30AD7' : 'rgba(0,0,0,0.35)' }}>{count}</Text>
+                              <TouchableOpacity
+                                onPress={() => setCounts(prev => ({ ...prev, [note]: (prev[note] || 0) + 1 }))}
+                                style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#D30AD7', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <Text style={{ color: '#fff', fontSize: 18, lineHeight: 22, fontWeight: '700' }}>+</Text>
+                              </TouchableOpacity>
+                            </View>
+
+                            {/* Row subtotal */}
+                            <Text style={{ fontSize: 10, fontWeight: '600', color: active ? '#A008A3' : 'rgba(0,0,0,0.25)' }}>
+                              {active ? fmt(count * note) : '—'}
+                            </Text>
+                          </View>
+                        )
+                      })}
+                    </View>
+
+                    {/* Total row */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 10, marginTop: 2 }}>
+                      <Text style={{ flex: 1, fontSize: 12, fontWeight: '700', color: 'rgba(0,0,0,0.7)' }}>Total Counted</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: denomTotal === totalPending ? '#00A63E' : denomTotal > 0 ? '#CE1D26' : 'rgba(0,0,0,0.4)' }}>
+                        {fmt(denomTotal)}
+                      </Text>
+                    </View>
+                    {denomTotal > 0 && denomTotal !== totalPending && (
+                      <View style={{ backgroundColor: '#F9E4E5', borderRadius: 12, padding: 8, marginTop: 6 }}>
+                        <Text style={{ fontSize: 11, color: '#CE1D26', fontWeight: '600' }}>
+                          {denomTotal > totalPending
+                            ? `₹${(denomTotal - totalPending).toLocaleString('en-IN')} excess`
+                            : `₹${(totalPending - denomTotal).toLocaleString('en-IN')} short`}
+                        </Text>
+                      </View>
+                    )}
+                    {denomTotal === totalPending && totalPending > 0 && (
+                      <View style={{ backgroundColor: '#E0F4E8', borderRadius: 12, padding: 8, marginTop: 6 }}>
+                        <Text style={{ fontSize: 11, color: '#00A63E', fontWeight: '600' }}>✓ Note count matches deposit amount</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+
               {/* Upload slip */}
               <View className="mb-4">
                 <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-1.5">Upload Deposition Slip *</Text>
