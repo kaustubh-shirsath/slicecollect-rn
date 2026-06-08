@@ -8,7 +8,7 @@ import { View, Text, Platform } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 
 import { AgentProvider } from './src/navigation/AgentContext'
-import { RootStackParamList, MainTabParamList } from './src/navigation/types'
+import { RootStackParamList, MainTabParamList, SalesTabParamList } from './src/navigation/types'
 
 import LoginScreen from './src/screens/LoginScreen'
 import HomeScreen from './src/screens/HomeScreen'
@@ -23,8 +23,18 @@ import PaymentLinkScreen from './src/screens/PaymentLinkScreen'
 import ProfileScreen from './src/screens/ProfileScreen'
 import DepositionScreen from './src/screens/DepositionScreen'
 
+// Sales screens
+import SalesHomeScreen from './src/screens/sales/SalesHomeScreen'
+import SalesMerchantsScreen from './src/screens/sales/SalesMerchantsScreen'
+import SalesRouteScreen from './src/screens/sales/SalesRouteScreen'
+import SalesDepositionScreen from './src/screens/sales/SalesDepositionScreen'
+import SalesMerchantDetailScreen from './src/screens/sales/SalesMerchantDetailScreen'
+import SalesCollectScreen from './src/screens/sales/SalesCollectScreen'
+import SalesReceiptScreen from './src/screens/sales/SalesReceiptScreen'
+
 const Stack = createNativeStackNavigator<RootStackParamList>()
 const Tab   = createBottomTabNavigator<MainTabParamList>()
+const SalesTab = createBottomTabNavigator<SalesTabParamList>()
 
 function TabIcon({ label, emoji, focused }: { label: string; emoji: string; focused: boolean }) {
   return (
@@ -44,6 +54,61 @@ function TabIcon({ label, emoji, focused }: { label: string; emoji: string; focu
         {label}
       </Text>
     </View>
+  )
+}
+
+function SalesTabs() {
+  return (
+    <SalesTab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          right: 20,
+          backgroundColor: '#FFFFFF',
+          borderRadius: 32,
+          height: 68,
+          borderTopWidth: 0,
+          borderTopColor: 'transparent',
+          elevation: 12,
+          shadowColor: '#000',
+          shadowOpacity: 0.14,
+          shadowRadius: 20,
+          shadowOffset: { width: 0, height: 6 },
+          paddingTop: 0,
+          paddingBottom: 0,
+        },
+        tabBarItemStyle: {
+          height: 68,
+          paddingTop: 0,
+          paddingBottom: 0,
+        },
+        tabBarShowLabel: false,
+      }}
+    >
+      <SalesTab.Screen
+        name="SalesHome"
+        component={SalesHomeScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Home" emoji="🏠" focused={focused} /> }}
+      />
+      <SalesTab.Screen
+        name="SalesMerchants"
+        component={SalesMerchantsScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Merchants" emoji="🏪" focused={focused} /> }}
+      />
+      <SalesTab.Screen
+        name="SalesRoute"
+        component={SalesRouteScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Route" emoji="⚡" focused={focused} /> }}
+      />
+      <SalesTab.Screen
+        name="SalesDeposit"
+        component={SalesDepositionScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Deposit" emoji="🏦" focused={focused} /> }}
+      />
+    </SalesTab.Navigator>
   )
 }
 
@@ -124,6 +189,22 @@ export default function App() {
             >
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="Main" component={MainTabs} />
+              <Stack.Screen name="SalesMain" component={SalesTabs} />
+              <Stack.Screen
+                name="SalesMerchantDetail"
+                component={SalesMerchantDetailScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="SalesCollect"
+                component={SalesCollectScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="SalesReceipt"
+                component={SalesReceiptScreen}
+                options={{ animation: 'slide_from_bottom' }}
+              />
               <Stack.Screen
                 name="CustomerDetail"
                 component={CustomerDetailScreen}

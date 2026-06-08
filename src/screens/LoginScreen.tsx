@@ -13,7 +13,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>
 export default function LoginScreen({ navigation }: Props) {
   const [empId, setEmpId] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState('Bank')
+  const [role, setRole] = useState('Collections')
   const { setAgentInfo } = useAgent()
 
   function handleLogin() {
@@ -46,7 +46,11 @@ export default function LoginScreen({ navigation }: Props) {
         lng: 94.9120,
       })
     }
-    navigation.replace('Main')
+    if (role === 'Collections') {
+      navigation.replace('Main')
+    } else {
+      navigation.replace('SalesMain')
+    }
   }
 
   return (
