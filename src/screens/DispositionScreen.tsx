@@ -109,7 +109,7 @@ export default function DispositionScreen({ navigation, route }: Props) {
   const step1Valid = actionType !== null && code !== ''
   const step2Valid = (() => {
     if (isCollected) return amount !== '' && payMode !== '' && contactPerson !== '' && contactPlace !== ''
-    if (isContacted) return contactPerson !== '' && contactPlace !== '' && contactNumber !== '' && (showFollowUpDate ? followUpDate !== '' : true)
+    if (isContacted) return contactPerson !== '' && contactPlace !== '' && contactNumber.length === 10 && (showFollowUpDate ? followUpDate !== '' : true)
     return true
   })()
   const step3Valid = photoCaptured && remarksValid
@@ -408,15 +408,26 @@ export default function DispositionScreen({ navigation, route }: Props) {
                   <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-1.5">
                     Contact Number{contactNumberRequired ? ' *' : ' (optional)'}
                   </Text>
-                  <TextInput
-                    keyboardType="phone-pad"
-                    value={contactNumber}
-                    onChangeText={setContactNumber}
-                    placeholder={c.mobile ? `+91-${c.mobile}` : 'Enter contact number'}
-                    placeholderTextColor="rgba(0,0,0,0.3)"
-                    className="w-full py-2.5 text-sm text-[rgba(0,0,0,0.9)]"
-                    style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)' }}
-                  />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: contactNumber.length > 0 && contactNumber.length !== 10 ? '#CE1D26' : 'rgba(0,0,0,0.15)' }}>
+                    <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10, paddingRight: 6, fontWeight: '500' }}>+91</Text>
+                    <TextInput
+                      keyboardType="phone-pad"
+                      value={contactNumber}
+                      onChangeText={t => setContactNumber(t.replace(/\D/g, '').slice(0, 10))}
+                      placeholder={c.mobile ? c.mobile.slice(-10) : '10-digit number'}
+                      placeholderTextColor="rgba(0,0,0,0.3)"
+                      maxLength={10}
+                      style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}
+                    />
+                    {contactNumber.length > 0 && (
+                      <Text style={{ fontSize: 11, color: contactNumber.length === 10 ? '#00A63E' : '#CE1D26', paddingLeft: 4 }}>
+                        {contactNumber.length}/10
+                      </Text>
+                    )}
+                  </View>
+                  {contactNumber.length > 0 && contactNumber.length !== 10 && (
+                    <Text style={{ fontSize: 10, color: '#CE1D26', marginTop: 3 }}>Enter 10-digit number</Text>
+                  )}
                 </View>
                 {showFollowUpDate && (
                   <View>
