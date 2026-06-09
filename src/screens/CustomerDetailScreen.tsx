@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { getBucketColor } from '../utils/bucketColors'
-import { getActivity } from '../data/activityLog'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>
 
@@ -25,10 +24,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
   const [callBlocked, setCallBlocked] = useState(false)
 
   const bc = getBucketColor(c.assetClassification || c.assetClass || '')
-  const activity = getActivity(c.partyId)
-  const visitHistory = activity?.visitHistory ?? []
-  const latestDisp = activity?.latestDisposition
-  const amtCollected = activity?.collections.reduce((s: number, x: any) => s + x.amount, 0) ?? 0
+  const isVisited = c.status === 'visited'
 
   function handleCall(mobile: string) {
     if (!isCallAllowed()) {
@@ -100,15 +96,14 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
 
       <ScrollView className="flex-1 px-4 py-3" contentContainerStyle={{ gap: 12, paddingBottom: 120 }}>
 
-        {/* Last visit */}
-        {latestDisp && (
+        {/* Visit status */}
+        {isVisited && (
           <View className="bg-white rounded-2xl px-3 py-2.5 flex-row items-center justify-between" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
             <View className="flex-row items-center gap-2">
-              <View className="w-1.5 h-1.5 rounded-full bg-[#D30AD7]" />
-              <Text className="text-[10px] text-black/40 uppercase tracking-wide">Last Visit</Text>
-              <Text className="text-xs font-medium text-[rgba(0,0,0,0.85)]">{latestDisp.code}</Text>
+              <View className="w-1.5 h-1.5 rounded-full bg-[#00A63E]" />
+              <Text className="text-[10px] text-black/40 uppercase tracking-wide">Status</Text>
+              <Text className="text-xs font-medium text-[#00A63E]">Visited</Text>
             </View>
-            <Text className="text-[10px] text-black/40">{latestDisp.date}</Text>
           </View>
         )}
 
@@ -119,8 +114,8 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             <Text className="text-[#CE1D26] text-2xl font-bold mt-0.5">{fmt(c.emiOs)}</Text>
           </View>
           <View className="items-end">
-            <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">Collected</Text>
-            <Text className={`text-xl font-bold mt-0.5 ${amtCollected > 0 ? 'text-[#00A63E]' : 'text-black/20'}`}>{fmt(amtCollected)}</Text>
+            <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">Status</Text>
+            <Text className={`text-xl font-bold mt-0.5 ${isVisited ? 'text-[#00A63E]' : 'text-black/40'}`}>{isVisited ? 'Visited' : 'Pending'}</Text>
           </View>
         </View>
 
@@ -201,36 +196,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
           <Text className="text-[#D30AD7] text-[10px] font-semibold mt-1.5">Open in Google Maps →</Text>
         </TouchableOpacity>
 
-        {/* Visit history */}
-        {visitHistory.length > 0 && (
-          <View className="bg-white rounded-[20px] overflow-hidden" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-            <View className="px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
-              <View className="flex-row items-center justify-between">
-                <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-sm">Visit History</Text>
-                <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full">
-                  <Text className="text-[10px] text-[#A008A3] font-medium">{visitHistory.length} visits</Text>
-                </View>
-              </View>
-            </View>
-            <View className="px-4 py-3 gap-3">
-              {visitHistory.map((v: any, i: number) => (
-                <View key={i} className="flex-row items-start gap-3">
-                  <View className="items-center">
-                    <View className="w-2.5 h-2.5 rounded-full bg-[#D30AD7] mt-1" />
-                    {i < visitHistory.length - 1 && <View className="w-0.5 flex-1 bg-black/10 mt-1" style={{ minHeight: 24 }} />}
-                  </View>
-                  <View className="flex-1 pb-3" style={i < visitHistory.length - 1 ? { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.04)' } : {}}>
-                    <View className="flex-row items-center justify-between mb-0.5">
-                      <Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{v.dispositionType}</Text>
-                      <Text className="text-[10px] text-black/40">{v.date}</Text>
-                    </View>
-                    <Text className="text-[10px] text-black/50 leading-relaxed">{v.summary}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       {/* Action buttons */}

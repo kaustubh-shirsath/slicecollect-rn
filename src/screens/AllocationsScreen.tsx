@@ -10,7 +10,6 @@ import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { useAllocations } from '../hooks/useAllocations'
 import { getBucketColor } from '../utils/bucketColors'
-import { getActivity } from '../data/activityLog'
 import { haversine } from '../data/routingEngine'
 
 type Props = CompositeScreenProps<
@@ -53,7 +52,7 @@ const SORT_OPTIONS: { id: SortKey; label: string }[] = [
 ]
 
 export default function AllocationsScreen({ navigation, route }: Props) {
-  const { agentInfo } = useAgent()
+  const { agentInfo, dataVersion } = useAgent()
   const defaultBucket = route.params?.defaultBucket
   const [search, setSearch] = useState('')
   const [highChancesOnly, setHighChancesOnly] = useState(false)
@@ -68,7 +67,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     else if (defaultBucket === 'All') setStageFilter([])
   }, [defaultBucket])
 
-  const { allocations, loading, isFallback } = useAllocations('All', search, agentInfo?.agentId)
+  const { allocations, loading } = useAllocations('All', search, agentInfo?.agentId, undefined, dataVersion)
 
   const today = new Date().toDateString()
 
@@ -76,12 +75,8 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     const agentLat = agentInfo?.lat ?? 27.4728
     const agentLng = agentInfo?.lng ?? 94.9120
     const distKm = parseFloat(haversine(agentLat, agentLng, c.lat, c.lng).toFixed(1))
-    const act = getActivity(c.partyId)
-    const disp = act?.latestDisposition
-    const hasPtp = disp?.type === 'Connected-PTP'
-    const ptpBroken = hasPtp && disp?.ptpDate && new Date(disp.ptpDate).toDateString() < today && act!.collections.length === 0
-    const latestCollection = act && act.collections.length > 0 ? act.collections[act.collections.length - 1] : null
-    return { ...c, distKm, risk: riskLabel(c.cibilAlert, c.priorityScore || 0), hasPtp, ptpBroken, latestCollection }
+    const isVisited = c.status === 'visited'
+    return { ...c, distKm, risk: riskLabel(c.cibilAlert, c.priorityScore || 0), isVisited, hasPtp: false, ptpBroken: false, latestCollection: null }
   })
 
   const sorted = [...withMeta].sort((a: any, b: any) => {
@@ -126,6 +121,11 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             <View className="flex-row items-center gap-1.5">
               {c.cibilAlert && <View className="w-2 h-2 rounded-full bg-[#CE1D26]" />}
               <Text className="font-medium text-[rgba(0,0,0,0.9)] text-sm" numberOfLines={1}>{c.name}</Text>
+              {c.isVisited && (
+                <View className="bg-[#E0F4E8] px-1.5 py-0.5 rounded-full">
+                  <Text className="text-[9px] text-[#007E2F] font-medium">Visited</Text>
+                </View>
+              )}
               {c.hasPtp && (
                 <View className="bg-[#FFF0E0] px-1.5 py-0.5 rounded-full">
                   <Text className="text-[9px] text-[#A35300] font-medium">PTP</Text>
@@ -197,7 +197,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             <Text className="text-[rgba(0,0,0,0.9)] text-lg font-medium">My Cases</Text>
             <View className="flex-row items-center gap-3">
               <Text className="text-black/40 text-xs">
-                {loading ? '…' : `${filtered.length}${isFallback ? ' (offline)' : ''}`}
+                {loading ? '…' : `${filtered.length}`}
               </Text>
               <TouchableOpacity
                 onPress={() => navigation.navigate('Profile')}

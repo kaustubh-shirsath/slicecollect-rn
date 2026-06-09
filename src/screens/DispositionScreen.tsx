@@ -6,9 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
-import { updateActivity, getActivity } from '../data/activityLog'
-import { recordActualVisit } from '../data/routingEngine'
-import { recordCashInhand } from '../api/allocations'
+import { recordCashInhand, submitDisposition } from '../api/allocations'
 import { getToken } from '../api/client'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Disposition'>
@@ -124,44 +122,24 @@ export default function DispositionScreen({ navigation, route }: Props) {
   function handleSubmit() {
     if (isSF && !sfConfirm) { setSfConfirm(true); return }
 
-    const todayStr = new Date().toISOString().split('T')[0]
-    const existing = getActivity(c.partyId)
-    const newCollections = existing ? [...existing.collections] : []
-    if (amount && Number(amount) > 0) {
-      newCollections.push({
-        date: todayStr,
-        amount: Number(amount),
-        mode: (payMode as any) || 'Cash',
-        receiptId: 'MB' + Date.now().toString().slice(-8) + String(c.partyId).slice(-4),
-        deposited: false,
-      })
+    const payload = {
+      allocationId: c.id,
+      partyId: c.partyId,
+      partyName: c.name,
+      actionType: actionType || 'Unknown',
+      code: code || '',
+      amount: amount ? Number(amount) : 0,
+      paymentMode: payMode || 'Cash',
+      contactPerson: contactPerson || undefined,
+      contactPlace: contactPlace || undefined,
+      contactNumber: contactNumber || undefined,
+      followUpDate: followUpDate || undefined,
+      remarks: remarks || '',
     }
-    const newVisitHistory = [
-      ...(existing?.visitHistory ?? []),
-      {
-        date: todayStr,
-        dispositionType: `${actionType} — ${code}`,
-        summary: remarks || (amount ? `Collected ₹${Number(amount).toLocaleString('en-IN')}` : contactPerson ? `Met ${contactPerson} at ${contactPlace}` : 'Visit recorded'),
-      },
-    ]
-    updateActivity(c.partyId, {
-      latestDisposition: {
-        type: actionType || 'Unknown',
-        code: code || '',
-        date: todayStr,
-        ptpDate: followUpDate || undefined,
-        ptpAmount: amount ? Number(amount) : undefined,
-        remarks: remarks || '',
-        visitedAt: new Date().toISOString(),
-      },
-      collections: newCollections,
-      visitHistory: newVisitHistory,
-    })
 
-    recordActualVisit(c.partyId, new Date().toISOString(), amount ? Number(amount) : 0)
+    submitDisposition(payload).catch(() => {})
     triggerReroute()
 
-    // Record cash collected in agent_collections table
     if (amount && Number(amount) > 0 && (payMode === 'Cash' || !payMode) && getToken()) {
       const now = new Date()
       const monthYear = `${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()}`
@@ -169,8 +147,9 @@ export default function DispositionScreen({ navigation, route }: Props) {
     }
 
     if (amount && Number(amount) > 0) {
+      const receiptId = 'MB' + Date.now().toString().slice(-8) + String(c.partyId).slice(-4)
       const receipt = {
-        receiptNo: newCollections[newCollections.length - 1]?.receiptId || '',
+        receiptNo: receiptId,
         partyId: c.partyId,
         customerName: c.name,
         dispositionType: actionType || '',

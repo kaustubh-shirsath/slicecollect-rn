@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, { Circle, Path, G } from 'react-native-svg'
@@ -7,9 +7,7 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
-import { ALL_CUSTOMERS } from '../data/customers'
-import { getActivity } from '../data/activityLog'
-import { getCollectionSummary, CollectionSummary } from '../api/allocations'
+import { getCollectionSummary, getVisits, CollectionSummary } from '../api/allocations'
 import { getToken } from '../api/client'
 
 type Props = CompositeScreenProps<
@@ -63,63 +61,55 @@ export default function VisitsScreen({ navigation }: Props) {
   const { agentInfo, dataVersion } = useAgent()
   const [tab, setTab] = useState<TabFilter>('Today')
   const [collectionSummary, setCollectionSummary] = useState<CollectionSummary | null>(null)
+  const [allEntries, setAllEntries] = useState<any[]>([])
+
+  const tabToFilter = (t: TabFilter): 'today' | '7days' | 'earlier' =>
+    t === 'Today' ? 'today' : t === 'Last 7 Days' ? '7days' : 'earlier'
 
   useEffect(() => {
     if (!getToken()) return
     getCollectionSummary().then(setCollectionSummary).catch(() => {})
   }, [dataVersion])
 
-  const allEntries = useMemo(() => {
-    if (!agentInfo) return []
-    return ALL_CUSTOMERS
-      .filter((c: any) => c.username === agentInfo.agentId)
-      .flatMap((c: any) => {
-        const act = getActivity(c.partyId)
-        if (!act?.latestDisposition) return []
-        const disp = act.latestDisposition
-        const totalCollected = act.collections.reduce((s: number, x: any) => s + x.amount, 0)
-        const latestCol = act.collections.length > 0 ? act.collections[act.collections.length - 1] : null
-        return [{
-          name: c.name,
-          partyId: c.partyId,
-          visitedAt: disp.visitedAt,
-          time: new Date(disp.visitedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-          date: new Date(disp.visitedAt),
-          amount: totalCollected,
-          type: disp.code,
-          mode: act.collections[0]?.mode ?? '',
-          category: totalCollected >= c.emiOs && c.emiOs > 0 ? 'collected' : totalCollected > 0 ? 'partial' : 'contacted',
-          bucket: c.assetClassification,
-          dpd: c.dpd,
-          receiptId: latestCol?.receiptId ?? null,
-          ptpDate: disp.type === 'Connected-PTP' ? disp.ptpDate : null,
-          remarks: disp.remarks,
-          latestCol,
-          customerName: c.name,
-          branchName: c.branch,
-          product: c.product,
-        }]
+  useEffect(() => {
+    if (!getToken()) return
+    getVisits(tabToFilter(tab))
+      .then(visits => {
+        const entries = (visits || []).map((v: any) => ({
+          name: v.partyName || '',
+          partyId: v.partyId || '',
+          visitedAt: v.visitedAt || new Date().toISOString(),
+          time: new Date(v.visitedAt || '').toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+          date: new Date(v.visitedAt || ''),
+          amount: Number(v.amount) || 0,
+          type: v.code || v.actionType || '',
+          mode: v.paymentMode || '',
+          category: Number(v.amount) > 0 ? 'collected' : 'contacted',
+          bucket: '',
+          dpd: 0,
+          receiptId: null,
+          ptpDate: v.followUpDate || null,
+          remarks: v.remarks || '',
+          customerName: v.partyName || '',
+          branchName: '',
+          product: '',
+        }))
+        setAllEntries(entries.sort((a: any, b: any) => b.date.getTime() - a.date.getTime()))
       })
-      .sort((a: any, b: any) => b.date.getTime() - a.date.getTime())
-  }, [agentInfo, dataVersion])
+      .catch(() => setAllEntries([]))
+  }, [tab, dataVersion])
 
-  const today = new Date().toDateString()
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const tabEntries = allEntries
 
-  const todayEntries   = allEntries.filter((e: any) => e.date.toDateString() === today)
-  const last7Entries   = allEntries.filter((e: any) => e.date > sevenDaysAgo && e.date.toDateString() !== today)
-  const earlierEntries = allEntries.filter((e: any) => e.date <= sevenDaysAgo)
-
-  const tabEntries = tab === 'Today' ? todayEntries : tab === 'Last 7 Days' ? last7Entries : earlierEntries
-
-  const totalCollectedToday = todayEntries.reduce((s: number, e: any) => s + (e.category !== 'contacted' ? e.amount : 0), 0)
-  const fullAmt    = todayEntries.filter((e: any) => e.category === 'collected').reduce((s: number, e: any) => s + e.amount, 0)
-  const partialAmt = todayEntries.filter((e: any) => e.category === 'partial').reduce((s: number, e: any) => s + e.amount, 0)
+  const totalCollectedToday = allEntries.length > 0 && tab === 'Today'
+    ? allEntries.reduce((s: number, e: any) => s + (e.category !== 'contacted' ? e.amount : 0), 0)
+    : (collectionSummary?.total ?? 0)
+  const fullAmt    = tabEntries.filter((e: any) => e.category === 'collected').reduce((s: number, e: any) => s + e.amount, 0)
+  const partialAmt = tabEntries.filter((e: any) => e.category === 'partial').reduce((s: number, e: any) => s + e.amount, 0)
   const totalAmt   = fullAmt + partialAmt || 1
   const fullPct    = Math.round(fullAmt / totalAmt * 100)
   const partialPct = Math.round(partialAmt / totalAmt * 100)
-  const notCollectedCount = todayEntries.filter((e: any) => e.category === 'contacted').length
+  const notCollectedCount = tabEntries.filter((e: any) => e.category === 'contacted').length
 
   const totalCollected = collectionSummary?.total ?? 0
   const cashInhand = collectionSummary?.totalCashInhand ?? 0
@@ -138,7 +128,7 @@ export default function VisitsScreen({ navigation }: Props) {
             </Text>
           </View>
           <View className="bg-[#E0F4E8] border border-[#00A63E]/20 rounded-full px-3 py-1">
-            <Text className="text-[#007E2F] text-xs font-medium">{todayEntries.length} Today</Text>
+            <Text className="text-[#007E2F] text-xs font-medium">{tabEntries.length} Today</Text>
           </View>
         </View>
       </View>

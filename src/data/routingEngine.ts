@@ -1,7 +1,27 @@
-// TODO backend: GET /api/route/today?agent={username}&lat={lat}&lng={lng}
-import { ALL_CUSTOMERS } from './customers'
-import type { Customer } from './customers'
-import { getActivity } from './activityLog'
+export interface Customer {
+  partyId: string
+  name: string
+  mobile: string
+  mobile1: string
+  address: string
+  region: string
+  branch: string
+  assetClassification: string
+  dpd: number
+  emiOs: number
+  outstandingBalance: number
+  rollbackAmount: number
+  minimumAmountDue: number
+  emiAmt: number
+  lastPaymentDate: string
+  product: string
+  lat: number
+  lng: number
+  cibilAlert: boolean
+  status?: string
+  id?: string
+  [key: string]: any
+}
 
 // ─── Scoring weights (backend-configurable in production) ──────────────────
 // Each weight is a multiplier 0–1. Sum need not equal 1 — scores are normalised
@@ -156,26 +176,21 @@ export interface RouteStop {
 }
 
 // ─── Main: Build composite-scored route ──────────────────────────────────
-export function buildRoute(username: string, currentLat: number, currentLng: number): RouteStop[] {
-  const today = new Date().toDateString()
+export function buildRoute(_username: string, currentLat: number, currentLng: number, customers?: Customer[]): RouteStop[] {
   const todayStr = new Date().toISOString().split('T')[0]
   const currentHour = new Date().getHours()
 
-  const myCases = ALL_CUSTOMERS.filter(c => c.username === username)
+  const myCases = customers || []
 
-  // Compute max emiOs across portfolio for normalisation
   const maxEmiOs = Math.max(...myCases.map(c => c.emiOs), 1)
 
   const unvisited: Customer[] = []
   const visitedToday: { customer: Customer; visitedAt: string; offRoute: boolean }[] = []
 
   for (const c of myCases) {
-    const act = getActivity(c.partyId)
-    const disp = act?.latestDisposition
-    if (disp && new Date(disp.visitedAt).toDateString() === today) {
-      visitedToday.push({ customer: c, visitedAt: disp.visitedAt, offRoute: isOffRoute(c.partyId) })
+    if (c.status === 'visited') {
+      visitedToday.push({ customer: c, visitedAt: new Date().toISOString(), offRoute: isOffRoute(c.partyId) })
     } else {
-      // Include: no disposition OR disposition from a previous day (not yet visited today)
       unvisited.push(c)
     }
   }
@@ -190,8 +205,7 @@ export function buildRoute(username: string, currentLat: number, currentLng: num
   }
 
   const scored: ScoredCustomer[] = unvisited.map(c => {
-    const act = getActivity(c.partyId)
-    const ptpDate = act?.latestDisposition?.ptpDate
+    const ptpDate: string | undefined = undefined
 
     // 1. Collection value (normalised 0–1)
     const collectionValue = c.emiOs / maxEmiOs

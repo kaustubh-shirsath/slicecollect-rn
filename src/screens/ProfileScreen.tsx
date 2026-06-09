@@ -6,7 +6,6 @@ import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { getProfile, getLeaderboard, getCollectionSummary, AgentProfileResponse, LeaderboardEntry, CollectionSummary } from '../api/allocations'
 import { getToken } from '../api/client'
-import { getBranchLeaderboard, getAgentPerf } from '../data/leaderboard'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>
 
@@ -34,14 +33,10 @@ export default function ProfileScreen({ navigation }: Props) {
       setLoading(false)
       return
     }
-    Promise.all([getProfile(), getLeaderboard(), getCollectionSummary()])
-      .then(([p, lb, col]) => {
-        setProfile(p)
-        setLeaderboard(lb)
-        setCollection(col)
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    getProfile().then(setProfile).catch(() => {})
+    getLeaderboard().then(setLeaderboard).catch(() => {})
+    getCollectionSummary().then(setCollection).catch(() => {})
+    setLoading(false)
   }, [])
 
   const stats = profile?.stats
@@ -62,16 +57,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const myAgentId = agentInfo?.agentId
 
-  const rankRows = leaderboard.length > 0 ? leaderboard : (
-    agentInfo?.branchCode ? getBranchLeaderboard(agentInfo.branchCode).map(r => ({
-      agentId: r.username,
-      name: r.name,
-      username: r.username,
-      totalCases: String(r.cases),
-      totalEmiOs: '0',
-      rank: r.rank,
-    })) : []
-  )
+  const rankRows = leaderboard
 
   const myRankEntry = rankRows.find(r => r.agentId === myAgentId)
   const myRank = myRankEntry?.rank ?? null

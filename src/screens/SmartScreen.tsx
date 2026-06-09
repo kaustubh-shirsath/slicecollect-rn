@@ -9,6 +9,7 @@ import { useAgent } from '../navigation/AgentContext'
 import { buildRoute } from '../data/routingEngine'
 import type { RouteStop } from '../data/routingEngine'
 import { getBucketColor } from '../utils/bucketColors'
+import { useAllocations } from '../hooks/useAllocations'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Smart'>,
@@ -23,6 +24,7 @@ function maskId(id: string): string {
 
 export default function SmartScreen({ navigation }: Props) {
   const { agentInfo, dataVersion } = useAgent()
+  const { allocations } = useAllocations('All', undefined, agentInfo?.agentId, undefined, dataVersion)
   const [routeStops, setRouteStops] = useState<RouteStop[]>([])
   const [loading, setLoading] = useState(true)
   const [rerouting, setRerouting] = useState(false)
@@ -57,13 +59,13 @@ export default function SmartScreen({ navigation }: Props) {
     if (isReroute) {
       setRerouting(true)
       setTimeout(() => {
-        const stops = buildRoute(username, lat, lng)
+        const stops = buildRoute(username, lat, lng, allocations)
         setRouteStops(stops)
         setRerouting(false)
       }, 2200)
     } else {
       setLoading(true)
-      const stops = buildRoute(username, lat, lng)
+      const stops = buildRoute(username, lat, lng, allocations)
       setRouteStops(stops)
       setLoading(false)
     }

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput, Modal, FlatList,
 } from 'react-native'
@@ -6,8 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
-import { ALL_CUSTOMERS } from '../data/customers'
-import { getActivity, updateActivity } from '../data/activityLog'
+import { getDispositionReceipts } from '../api/allocations'
+import { getToken } from '../api/client'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Deposition'>
 type Tab = 'pending' | 'submitted' | 'transfers'
@@ -45,30 +45,27 @@ export default function DepositionScreen({ navigation }: Props) {
   const glAcct = (agentInfo as any)?.glCode || '11799'
   const branch = agentInfo?.branchCode || 'TINSUKIA'
 
+  const [receiptsData, setReceiptsData] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!getToken()) return
+    getDispositionReceipts()
+      .then(data => setReceiptsData(data || []))
+      .catch(() => setReceiptsData([]))
+  }, [])
+
   const pendingReceipts = useMemo(() => {
-    if (!agentInfo) return []
-    return ALL_CUSTOMERS
-      .filter((c: any) => c.username === agentInfo.agentId)
-      .flatMap((c: any) => {
-        const act = getActivity(c.partyId)
-        return (act?.collections ?? [])
-          .filter((col: any) => !col.deposited && col.mode === 'Cash' && !depositedIds.has(col.receiptId))
-          .map((col: any) => ({ id: col.receiptId, name: c.name, receipt: col.receiptId, date: col.date, dpd: c.dpd, amount: col.amount, partyId: c.partyId }))
-      })
-  }, [agentInfo, depositedIds])
+    return receiptsData
+      .filter((r: any) => !r.deposited && r.mode === 'Cash' && !depositedIds.has(r.receiptId))
+      .map((r: any) => ({ id: r.receiptId, name: r.partyName || '', receipt: r.receiptId, date: r.date, dpd: r.dpd || 0, amount: Number(r.amount) || 0, partyId: r.partyId }))
+  }, [receiptsData, depositedIds])
 
   const submittedSamples = useMemo(() => {
-    if (!agentInfo) return []
-    return ALL_CUSTOMERS
-      .filter((c: any) => c.username === agentInfo.agentId)
-      .flatMap((c: any) => {
-        const act = getActivity(c.partyId)
-        return (act?.collections ?? [])
-          .filter((col: any) => col.deposited && col.depositId)
-          .map((col: any) => ({ dpNumber: col.depositId, date: col.date, amount: col.amount, branch: agentInfo.branchCode, status: 'Submitted' }))
-      })
+    return receiptsData
+      .filter((r: any) => r.deposited && r.depositId)
+      .map((r: any) => ({ dpNumber: r.depositId, date: r.date, amount: Number(r.amount) || 0, branch: agentInfo?.branchCode || '', status: 'Submitted' }))
       .slice(0, 10)
-  }, [agentInfo])
+  }, [receiptsData, agentInfo])
 
   const selectedReceipts = pendingReceipts.filter((r: any) => selectedIds.has(r.id))
   const totalPending     = pendingReceipts.reduce((s: number, r: any) => s + r.amount, 0)
@@ -85,15 +82,6 @@ export default function DepositionScreen({ navigation }: Props) {
   }
 
   function handleDepositSubmit() {
-    for (const r of pendingReceipts.filter((r: any) => selectedIds.has(r.id))) {
-      const act = getActivity(r.partyId)
-      if (act) {
-        const updated = act.collections.map((col: any) =>
-          col.receiptId === r.receipt ? { ...col, deposited: true, depositId: dpNumber.current } : col
-        )
-        updateActivity(r.partyId, { collections: updated })
-      }
-    }
     setDepositedIds(prev => new Set([...prev, ...selectedIds]))
     setShowDepositModal(false)
     setSelectedIds(new Set())

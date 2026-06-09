@@ -1,5 +1,7 @@
 import { apiFetch } from './client'
 
+export type AllocationStatus = 'pending' | 'visited'
+
 export interface Allocation {
   id: string
   partyId: string
@@ -29,6 +31,7 @@ export interface Allocation {
   lat: number | null
   lng: number | null
   agentId: string | null
+  status: AllocationStatus
 }
 
 export interface PortfolioResponse {
@@ -92,6 +95,7 @@ export function getPortfolio(params?: {
   page?: number
   limit?: number
   search?: string
+  status?: AllocationStatus
 }) {
   return apiFetch<PortfolioResponse>('/allocations', { params: params as any })
 }
@@ -133,4 +137,23 @@ export function recordCashInhand(amount: number, allocationMonthYear: string) {
 
 export function getCollectionSummary() {
   return apiFetch<CollectionSummary>('/agent-collection/summary')
+}
+
+export function submitDisposition(payload: any) {
+  return apiFetch<any>('/disposition', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function getDispositionReceipts() {
+  return apiFetch<any[]>('/disposition/receipts')
+}
+
+export function getTodayVisits() {
+  return apiFetch<any[]>('/disposition/today-visits')
+}
+
+export function getVisits(filter?: 'today' | '7days' | 'earlier') {
+  return apiFetch<any[]>('/visits', { params: filter ? { filter } : undefined })
 }
