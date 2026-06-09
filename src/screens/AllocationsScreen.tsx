@@ -19,11 +19,13 @@ type Props = CompositeScreenProps<
 
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN')
 
-function riskLabel(cibilAlert: boolean, priorityScore: number): 'High' | 'Medium' | 'Low' {
-  if (cibilAlert) return 'High'
-  if (priorityScore >= 4) return 'High'
-  if (priorityScore >= 2) return 'Medium'
-  return 'Low'
+function riskLabel(partyId: string, dpd: number): 'High' | null {
+  if (dpd >= 180) {
+    let hash = 0
+    for (let i = 0; i < partyId.length; i++) hash = ((hash << 5) - hash + partyId.charCodeAt(i)) | 0
+    if (Math.abs(hash) % 5 === 0) return 'High'
+  }
+  return null
 }
 
 type SortKey = 'distance' | 'amount' | 'ptpSoonest' | 'riskHigh' | 'lastVisited'
@@ -72,11 +74,11 @@ export default function AllocationsScreen({ navigation, route }: Props) {
   const today = new Date().toDateString()
 
   const withMeta = allocations.map((c: any) => {
-    const agentLat = agentInfo?.lat ?? 27.4728
-    const agentLng = agentInfo?.lng ?? 94.9120
+    const agentLat = agentInfo?.lat ?? 12.9716
+    const agentLng = agentInfo?.lng ?? 77.5946
     const distKm = parseFloat(haversine(agentLat, agentLng, c.lat, c.lng).toFixed(1))
     const isVisited = c.status === 'visited'
-    return { ...c, distKm, risk: riskLabel(c.cibilAlert, c.priorityScore || 0), isVisited, hasPtp: false, ptpBroken: false, latestCollection: null }
+    return { ...c, distKm, risk: riskLabel(c.partyId || '', c.dpd || 0), isVisited, hasPtp: false, ptpBroken: false, latestCollection: null }
   })
 
   const sorted = [...withMeta].sort((a: any, b: any) => {
@@ -108,8 +110,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     const maskedId = c.partyId
       ? String(c.partyId).replace(/^(.{4})(.+)(.{4})$/, (_: string, a: string, m: string, z: string) => a + '·'.repeat(Math.min(4, m.length)) + z)
       : '—'
-    const riskColor = c.risk === 'High' ? '#CE1D26' : c.risk === 'Medium' ? '#A35300' : '#007E2F'
-
     return (
       <TouchableOpacity
         className="bg-white rounded-[20px] px-4 py-4 mb-2.5"
@@ -140,7 +140,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               <Text className="text-[10px] text-black/40">{c.dpd} DPD</Text>
               <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
               {c.risk === 'High' && (
-                <Text className="text-[10px] font-medium" style={{ color: riskColor }}>⚡ High</Text>
+                <Text className="text-[10px] font-medium text-[#CE1D26]">⚡ High</Text>
               )}
             </View>
           </View>

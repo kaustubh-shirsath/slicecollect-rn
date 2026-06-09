@@ -10,6 +10,7 @@ import { buildRoute } from '../data/routingEngine'
 import type { RouteStop } from '../data/routingEngine'
 import { getBucketColor } from '../utils/bucketColors'
 import { useAllocations } from '../hooks/useAllocations'
+import { getTodayAppointments } from '../api/allocations'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Smart'>,
@@ -28,7 +29,8 @@ export default function SmartScreen({ navigation }: Props) {
   const [routeStops, setRouteStops] = useState<RouteStop[]>([])
   const [loading, setLoading] = useState(true)
   const [rerouting, setRerouting] = useState(false)
-  const currentPos = useRef<[number, number]>([agentInfo?.lat ?? 27.4728, agentInfo?.lng ?? 94.9120])
+  const [todayAppts, setTodayAppts] = useState<{ allocationId: string; timeSlot: string }[]>([])
+  const currentPos = useRef<[number, number]>([agentInfo?.lat ?? 12.9716, agentInfo?.lng ?? 77.5946])
   const prevVersion = useRef(0)
   const spinAnim = useRef(new Animated.Value(0)).current
   const pulseAnim = useRef(new Animated.Value(1)).current
@@ -52,37 +54,41 @@ export default function SmartScreen({ navigation }: Props) {
     }
   }, [rerouting])
 
-  const load = (lat: number, lng: number, isReroute = false) => {
-    const username = agentInfo?.agentId
-    if (!username) return
-    currentPos.current = [lat, lng]
+
+  useEffect(() => {
+    getTodayAppointments()
+      .then(appts => setTodayAppts(appts || []))
+      .catch(() => {})
+  }, [dataVersion])
+
+  useEffect(() => {
+    if (allocations.length === 0) return
+    const isReroute = prevVersion.current > 0 && dataVersion !== prevVersion.current
+    prevVersion.current = dataVersion
+
     if (isReroute) {
+      const newlyVisited = allocations.find(
+        (a: any) => a.status === 'visited' && !routeStops.find(s => s.visited && s.customer.partyId === a.partyId)
+      )
+      if (newlyVisited) {
+        currentPos.current = [newlyVisited.lat, newlyVisited.lng]
+      }
+
       setRerouting(true)
       setTimeout(() => {
-        const stops = buildRoute(username, lat, lng, allocations)
-        setRouteStops(stops)
+        const [lat, lng] = currentPos.current
+        setRouteStops(buildRoute(agentInfo?.agentId || '', lat, lng, allocations, todayAppts))
         setRerouting(false)
-      }, 2200)
+      }, 1500)
     } else {
+      const [lat, lng] = currentPos.current.every(v => v !== 0)
+        ? currentPos.current
+        : [agentInfo?.lat || 12.9716, agentInfo?.lng || 77.5946]
       setLoading(true)
-      const stops = buildRoute(username, lat, lng, allocations)
-      setRouteStops(stops)
+      setRouteStops(buildRoute(agentInfo?.agentId || '', lat, lng, allocations, todayAppts))
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    const fallbackLat = agentInfo?.lat ?? 27.4728
-    const fallbackLng = agentInfo?.lng ?? 94.9120
-    load(fallbackLat, fallbackLng)
-  }, [agentInfo?.agentId])
-
-  useEffect(() => {
-    if (dataVersion > 0 && dataVersion !== prevVersion.current) {
-      prevVersion.current = dataVersion
-      load(currentPos.current[0], currentPos.current[1], true)
-    }
-  }, [dataVersion])
+  }, [allocations, dataVersion, todayAppts])
 
   const visitedStops = routeStops.filter(s => s.visited)
   const pendingStops = routeStops.filter(s => !s.visited)
@@ -118,7 +124,12 @@ export default function SmartScreen({ navigation }: Props) {
             <View className="flex-row items-center gap-2">
               {!loading && (
                 <TouchableOpacity
-                  onPress={() => load(agentInfo?.lat ?? 27.4728, agentInfo?.lng ?? 94.9120)}
+                  onPress={() => {
+                    const lat = agentInfo?.lat ?? 12.9716
+                    const lng = agentInfo?.lng ?? 77.5946
+                    currentPos.current = [lat, lng]
+                    setRouteStops(buildRoute(agentInfo?.agentId || '', lat, lng, allocations))
+                  }}
                   className="border border-white/10 px-3 py-1.5 rounded-full"
                 >
                   <Text className="text-white/40 text-[11px]">Refresh</Text>

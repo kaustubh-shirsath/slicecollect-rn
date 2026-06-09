@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
+import { submitSettlement } from '../api/allocations'
+import { useAgent } from '../navigation/AgentContext'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settlement'>
 
@@ -122,6 +124,7 @@ function CalendarModal({ visible, onClose, onSelect, minDate }: {
 
 export default function SettlementScreen({ navigation, route }: Props) {
   const { customer: c } = route.params
+  const { triggerReroute } = useAgent()
   const [settAmount, setSettAmount] = useState((c.emiOs ?? c.overdue ?? 0).toString())
   const [advance, setAdvance] = useState('')
   const [mode, setMode] = useState('Cash')
@@ -130,9 +133,69 @@ export default function SettlementScreen({ navigation, route }: Props) {
   const [reason, setReason] = useState('')
   const [desc, setDesc] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [instAmounts, setInstAmounts] = useState<number[]>([0])
   const [instDates, setInstDates] = useState<string[]>([''])
   const [openCalIdx, setOpenCalIdx] = useState<number | null>(null)
+  const [files, setFiles] = useState<{ uri: string; name: string; type: string }[]>([])
+
+  const pickFiles = async () => {
+    try {
+      // @ts-ignore — expo-image-picker only available in dev builds
+      const mod = await import(/* webpackIgnore: true */ 'expo-image-picker')
+      const result = await mod.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        selectionLimit: 5 - files.length,
+      })
+      if (!result.canceled && result.assets) {
+        const picked = result.assets.map((a: any) => ({
+          uri: a.uri,
+          name: a.fileName || `photo_${Date.now()}.jpg`,
+          type: a.mimeType || 'image/jpeg',
+        }))
+        setFiles(prev => [...prev, ...picked].slice(0, 5))
+      }
+    } catch {
+      Alert.alert('Not Available', 'File picker requires a development build.\nRun: npx expo run:android')
+    }
+  }
+
+  const removeFile = (idx: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleSubmit = async () => {
+    if (!isValid || submitting) return
+    setSubmitting(true)
+    try {
+      const settlementPlan = Array.from({ length: installments }, (_, i) => ({
+        amount: instAmounts[i] || 0,
+        date: instDates[i] || '',
+      }))
+      const payload = {
+        allocationId: c.id,
+        partyId: c.partyId,
+        settlementAmount: sAmount,
+        advancePayment: advAmount,
+        repaymentMode: mode,
+        isLokAdalat: lokAdalat,
+        settlementReason: reason,
+        settlementDescription: desc,
+        dpd: c.dpd || 0,
+        assetClassification: c.assetClassification || '',
+        settlementPlan,
+      }
+      await submitSettlement(payload, files)
+      triggerReroute()
+      setSubmitted(true)
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to submit settlement')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const sAmount   = parseFloat(settAmount) || 0
   const advAmount = parseFloat(advance) || 0
@@ -389,12 +452,49 @@ export default function SettlementScreen({ navigation, route }: Props) {
           </View>
         )}
 
+        {/* File Upload */}
+        <View className="bg-white rounded-[24px] p-4" style={{ elevation: 1 }}>
+          <Text className="text-xs font-semibold text-black/50 uppercase tracking-wider mb-3">Supporting Documents</Text>
+          <Text className="text-xs text-black/40 mb-3">Upload proof (images or PDFs) — max 5 files</Text>
+
+          {files.length > 0 && (
+            <View className="gap-2 mb-3">
+              {files.map((f, i) => (
+                <View key={i} className="flex-row items-center justify-between bg-[#F0F4F7] rounded-xl px-3 py-2" style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
+                  <View className="flex-1 mr-2">
+                    <Text className="text-xs text-[rgba(0,0,0,0.9)] font-medium" numberOfLines={1}>{f.name}</Text>
+                    <Text className="text-[10px] text-black/40">{f.type}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => removeFile(i)} className="w-6 h-6 rounded-full bg-red-100 items-center justify-center">
+                    <Text className="text-red-500 text-xs font-bold">✕</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {files.length < 5 && (
+            <TouchableOpacity
+              onPress={pickFiles}
+              className="border-2 border-dashed border-[#D30AD7]/30 rounded-[18px] py-4 items-center"
+              style={{ backgroundColor: '#FAE2FA20' }}
+            >
+              <Text className="text-[#D30AD7] text-2xl mb-1">+</Text>
+              <Text className="text-[#D30AD7] text-xs font-semibold">Pick Files</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <TouchableOpacity
-          onPress={() => isValid && setSubmitted(true)}
-          disabled={!isValid}
-          className={`w-full py-3.5 rounded-full items-center mb-6 ${isValid ? 'bg-[#D30AD7]' : 'bg-[#EAEBED]'}`}
+          onPress={handleSubmit}
+          disabled={!isValid || submitting}
+          className={`w-full py-3.5 rounded-full items-center mb-6 ${isValid && !submitting ? 'bg-[#D30AD7]' : 'bg-[#EAEBED]'}`}
         >
-          <Text className={`text-sm font-semibold ${isValid ? 'text-white' : 'text-black/40'}`}>Submit Settlement</Text>
+          {submitting ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text className={`text-sm font-semibold ${isValid ? 'text-white' : 'text-black/40'}`}>Submit Settlement</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>

@@ -1,4 +1,4 @@
-import { apiFetch } from './client'
+import { apiFetch, getToken, API_BASE } from './client'
 
 export type AllocationStatus = 'pending' | 'visited'
 
@@ -156,4 +156,47 @@ export function getTodayVisits() {
 
 export function getVisits(filter?: 'today' | '7days' | 'earlier') {
   return apiFetch<any[]>('/visits', { params: filter ? { filter } : undefined })
+}
+
+export function createAppointment(payload: any) {
+  return apiFetch<any>('/appointments', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function getAppointmentByAllocation(allocationId: string) {
+  return apiFetch<any>(`/appointments/allocation/${allocationId}`)
+}
+
+export function rescheduleAppointment(id: string, payload: any) {
+  return apiFetch<any>(`/appointments/${id}/reschedule`, { method: 'PATCH', body: JSON.stringify(payload) })
+}
+
+export function cancelAppointment(id: string) {
+  return apiFetch<any>(`/appointments/${id}/cancel`, { method: 'PATCH' })
+}
+
+export function getTodayAppointments() {
+  return apiFetch<any[]>('/appointments/today')
+}
+
+export async function submitSettlement(payload: any, files: { uri: string; name: string; type: string }[]) {
+  const form = new FormData()
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      form.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value))
+    }
+  })
+  for (const file of files) {
+    form.append('files', { uri: file.uri, name: file.name, type: file.type } as any)
+  }
+  const token = getToken()
+  const res = await fetch(`${API_BASE}/settlement`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`API ${res.status}: ${body}`)
+  }
+  return res.json()
 }

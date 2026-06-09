@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { getBucketColor } from '../utils/bucketColors'
+import AppointmentWidget from '../components/AppointmentWidget'
+import { useAgent } from '../navigation/AgentContext'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>
 
@@ -21,6 +23,7 @@ function isCallAllowed() {
 
 export default function CustomerDetailScreen({ navigation, route }: Props) {
   const { customer: c, fromScreen } = route.params
+  const { triggerReroute } = useAgent()
   const [callBlocked, setCallBlocked] = useState(false)
 
   const bc = getBucketColor(c.assetClassification || c.assetClass || '')
@@ -195,6 +198,9 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
           </View>
           <Text className="text-[#D30AD7] text-[10px] font-semibold mt-1.5">Open in Google Maps →</Text>
         </TouchableOpacity>
+
+        {/* Appointment */}
+        <AppointmentWidget customer={c} onAppointmentChange={triggerReroute} />
 
       </ScrollView>
 
