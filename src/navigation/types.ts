@@ -25,6 +25,7 @@ export type RootStackParamList = {
   Deposition: undefined
   Profile: undefined
   Escalate: { customer: any }
+  WaiverPending: { customer: any; waiverRequestId: string }
   // Sales screens
   SalesMain: undefined
   SalesMerchantDetail: { merchant: Merchant; fromScreen: string }

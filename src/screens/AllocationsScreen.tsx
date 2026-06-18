@@ -12,6 +12,8 @@ import { useAllocations } from '../hooks/useAllocations'
 import { getBucketColor } from '../utils/bucketColors'
 import { getActivity } from '../data/activityLog'
 import { haversine } from '../data/routingEngine'
+import { getBorrowData } from '../data/emis'
+import { getCCBill } from '../data/ccBills'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Allocations'>,
@@ -31,7 +33,7 @@ type SortKey = 'distance' | 'amount' | 'ptpSoonest' | 'riskHigh' | 'lastVisited'
 type DistFilter = 'all' | '2' | '5' | '10'
 type PtpFilter = 'all' | 'active' | 'broken' | 'none'
 
-const STAGE_OPTIONS = ['NPA', 'SMA-0', 'SMA-1', 'SMA-2', 'Settlement', 'Standard', 'Write-Off']
+const STAGE_OPTIONS = ['NPA', 'SMA-0', 'SMA-1', 'SMA-2', 'Settlement', 'Standard', 'Write-Off', 'BKT-1', 'BKT-2', 'BKT-3', 'BKT-4', 'BKT-5', 'BKT-6+']
 const DIST_OPTIONS: { id: DistFilter; label: string }[] = [
   { id: 'all', label: 'Any distance' },
   { id: '2', label: 'Within 2 km' },
@@ -94,7 +96,10 @@ export default function AllocationsScreen({ navigation, route }: Props) {
   })
 
   const filtered = sorted.filter((c: any) => {
-    if (stageFilter.length > 0 && !stageFilter.includes(c.assetClassification)) return false
+    const effectiveBucket = c.userType === 'borrow' ? (getBorrowData(c.partyId)?.bucketLabel ?? c.assetClassification)
+      : c.userType === 'cc' ? (getCCBill(c.partyId)?.bucketLabel ?? c.assetClassification)
+      : c.assetClassification
+    if (stageFilter.length > 0 && !stageFilter.includes(effectiveBucket)) return false
     if (distFilter !== 'all' && c.distKm > parseFloat(distFilter)) return false
     if (ptpFilter === 'active' && !c.hasPtp) return false
     if (ptpFilter === 'broken' && !c.ptpBroken) return false
@@ -109,7 +114,10 @@ export default function AllocationsScreen({ navigation, route }: Props) {
   const closeDropdown = () => setOpenDropdown('none')
 
   const renderItem = ({ item: c }: { item: any }) => {
-    const bc = getBucketColor(c.assetClassification)
+    const sliceBucket = c.userType === 'borrow' ? (getBorrowData(c.partyId)?.bucketLabel ?? c.assetClassification)
+      : c.userType === 'cc' ? (getCCBill(c.partyId)?.bucketLabel ?? c.assetClassification)
+      : c.assetClassification
+    const bc = getBucketColor(sliceBucket)
     const maskedId = c.partyId
       ? String(c.partyId).replace(/^(.{4})(.+)(.{4})$/, (_: string, a: string, m: string, z: string) => a + '·'.repeat(Math.min(4, m.length)) + z)
       : '—'
@@ -135,7 +143,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             <Text className="text-black/30 text-[11px] mt-0.5">{maskedId}</Text>
             <View className="flex-row items-center gap-2 mt-2 flex-wrap">
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
-                <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{c.assetClassification}</Text>
+                <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>
               </View>
               <Text className="text-[10px] text-black/40">{c.dpd} DPD</Text>
               <Text className="text-[10px] text-black/30">{c.distKm} km</Text>

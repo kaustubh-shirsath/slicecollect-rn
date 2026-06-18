@@ -22,6 +22,8 @@ export interface Customer {
   lat: number
   lng: number
   cibilAlert: boolean
+  // User type — determines disposition flow, UI, and metrics
+  userType: 'bank' | 'cc' | 'borrow'
   // Backward-compat aliases (populated by SmartScreen toCustomer helper)
   id?: string
   assetClass?: string
@@ -62,7 +64,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Gakul_Khanikar",
     "lat": 27.478377,
     "lng": 94.893,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000001108",
@@ -84,7 +87,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mampee_Tanti",
     "lat": 27.446801,
     "lng": 95.334528,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000001133",
@@ -109,7 +113,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mantu_Sonowal",
     "lat": 27.465259,
     "lng": 95.352668,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000001134",
@@ -131,7 +136,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mantu_Sonowal",
     "lat": 27.471487,
     "lng": 95.329078,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000001627",
@@ -153,7 +159,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Munmun_Duwarah",
     "lat": 26.931377,
     "lng": 94.633292,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000001813",
@@ -176,7 +183,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Janmoni_Saikia",
     "lat": 27.478246,
     "lng": 95.367714,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000001969",
@@ -201,7 +209,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mondira_Konwar",
     "lat": 27.470561,
     "lng": 95.355454,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000002590",
@@ -226,7 +235,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Bibhuti_Sonowal",
     "lat": 27.478795,
     "lng": 94.913798,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000002675",
@@ -251,7 +261,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Gakul_Khanikar",
     "lat": 27.141218,
     "lng": 94.755871,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000003210",
@@ -273,7 +284,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Amarjit_Gogoi7",
     "lat": 27.372477,
     "lng": 95.30036,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000004149",
@@ -295,7 +307,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Bibhuti_Sonowal",
     "lat": 27.485033,
     "lng": 94.919926,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000004455",
@@ -317,7 +330,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mantu_Sonowal",
     "lat": 27.44941,
     "lng": 95.331819,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000004492",
@@ -339,7 +353,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mampee_Tanti",
     "lat": 27.474089,
     "lng": 95.339064,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000005867",
@@ -362,7 +377,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Dipankar_Chutia",
     "lat": 27.21821,
     "lng": 94.086169,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000007148",
@@ -385,7 +401,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Parishmita_Borah",
     "lat": 26.9484,
     "lng": 94.656249,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000007244",
@@ -410,7 +427,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Parishmita_Borah",
     "lat": 26.946785,
     "lng": 94.661289,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000007948",
@@ -433,7 +451,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mantu_Sonowal",
     "lat": 27.457249,
     "lng": 95.364525,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000008266",
@@ -458,7 +477,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mantu_Sonowal",
     "lat": 27.450941,
     "lng": 95.347682,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000008872",
@@ -480,7 +500,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Amarjit_Gogoi7",
     "lat": 27.373276,
     "lng": 95.324841,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000009418",
@@ -502,7 +523,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Amarjit_Gogoi7",
     "lat": 27.374568,
     "lng": 95.323194,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000010081",
@@ -525,7 +547,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Bibhuti_Sonowal",
     "lat": 27.480983,
     "lng": 94.893833,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000010122",
@@ -548,7 +571,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Bibhuti_Sonowal",
     "lat": 27.461916,
     "lng": 94.903576,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000010416",
@@ -573,7 +597,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mondira_Konwar",
     "lat": 27.472692,
     "lng": 95.356812,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000010596",
@@ -596,7 +621,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Janmoni_Saikia",
     "lat": 27.47354,
     "lng": 95.358619,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000010608",
@@ -620,7 +646,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Anita_Robidas",
     "lat": 27.494927,
     "lng": 95.362093,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000010816",
@@ -645,7 +672,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Preetirekha_Borah",
     "lat": 26.929307,
     "lng": 94.64048,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000011624",
@@ -668,7 +696,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Pankaj_Sil",
     "lat": 26.507379,
     "lng": 93.667466,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000011652",
@@ -693,7 +722,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Lakhyajit_Gogoi",
     "lat": 27.240421,
     "lng": 94.106665,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000012055",
@@ -716,7 +746,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Dipankar_Chutia",
     "lat": 27.221346,
     "lng": 94.111465,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000012148",
@@ -740,7 +771,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Dipankar_Chutia",
     "lat": 27.221036,
     "lng": 94.097478,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000012551",
@@ -765,7 +797,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Gayatree_Boruah",
     "lat": 27.171981,
     "lng": 94.7579,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000012843",
@@ -787,7 +820,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Gautam_Chamuah7",
     "lat": 27.154678,
     "lng": 94.759685,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000013759",
@@ -809,7 +843,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Bhrigu_Prasad",
     "lat": 27.248214,
     "lng": 94.11334,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000013815",
@@ -834,7 +869,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Dhonmoni_Das",
     "lat": 27.223662,
     "lng": 94.083584,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000013925",
@@ -857,7 +893,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Dipankar_Chutia",
     "lat": 27.227118,
     "lng": 94.09301,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000014880",
@@ -879,7 +916,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Munmun_Duwarah",
     "lat": 26.922939,
     "lng": 94.669816,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000015024",
@@ -901,7 +939,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Parishmita_Borah",
     "lat": 26.949555,
     "lng": 94.644687,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000015246",
@@ -925,7 +964,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mondira_Konwar",
     "lat": 27.495718,
     "lng": 95.363325,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000015373",
@@ -948,7 +988,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Anita_Robidas",
     "lat": 27.506082,
     "lng": 95.365854,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000015469",
@@ -972,7 +1013,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mondira_Konwar",
     "lat": 27.480095,
     "lng": 95.357365,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000016130",
@@ -997,7 +1039,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Gakul_Khanikar",
     "lat": 27.154855,
     "lng": 94.74281,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000017314",
@@ -1022,7 +1065,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Gakul_Khanikar",
     "lat": 27.155783,
     "lng": 94.768213,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000017886",
@@ -1044,7 +1088,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mantu_Sonowal",
     "lat": 27.451776,
     "lng": 95.334373,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000017898",
@@ -1066,7 +1111,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Mampee_Tanti",
     "lat": 27.475702,
     "lng": 95.345981,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000018324",
@@ -1089,7 +1135,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Munmun_Duwarah",
     "lat": 26.918136,
     "lng": 94.633985,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000018376",
@@ -1111,7 +1158,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Munmun_Duwarah",
     "lat": 26.918886,
     "lng": 94.657198,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000018874",
@@ -1135,7 +1183,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Munmun_Duwarah",
     "lat": 26.946183,
     "lng": 94.648986,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000019187",
@@ -1160,7 +1209,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Binoy_Borah",
     "lat": 26.499241,
     "lng": 93.645265,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
   },
   {
     "partyId": "170000019301",
@@ -1182,7 +1232,8 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Dhiraj_Pathak7",
     "lat": 27.254345,
     "lng": 94.103465,
-    "cibilAlert": true
+    "cibilAlert": true,
+    "userType": "bank"
   },
   {
     "partyId": "170000019338",
@@ -1204,6 +1255,607 @@ export const ALL_CUSTOMERS: Customer[] = [
     "username": "Dhiraj_Pathak7",
     "lat": 27.253343,
     "lng": 94.116731,
-    "cibilAlert": false
+    "cibilAlert": false,
+    "userType": "bank"
+  },
+  {
+    "partyId": "170000017314",
+    "name": "RANJIT KUMAR BORAH",
+    "mobile": "9864512301",
+    "mobile1": "7896123045",
+    "address_line2": "VILL HATIMURIA GAON PO DIBRUGARH DIST DIBRUGARH",
+    "address": "HATIMURIA GAON SUB DIVN DIBRUGARH Dibrugarh Assam",
+    "region": "NORTH EAST",
+    "branch": "DIBRUGARH",
+    "assetClassification": "NPA",
+    "dpd": 95,
+    "emiOs": 62000,
+    "outstandingBalance": 62000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 8500,
+    "emiAmt": 3200,
+    "lastPaymentDate": "2024-08-15",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 27.472,
+    "lng": 94.912,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017315",
+    "name": "PRIYANKA GOGOI",
+    "mobile": "8011234567",
+    "mobile1": "9954312678",
+    "address_line2": "WARD NO 5 TINSUKIA TOWN TINSUKIA",
+    "address": "TINSUKIA TOWN TINSUKIA Tinsukia Assam",
+    "region": "NORTH EAST",
+    "branch": "TINSUKIA",
+    "assetClassification": "NPA",
+    "dpd": 62,
+    "emiOs": 45000,
+    "outstandingBalance": 45000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 6200,
+    "emiAmt": 2800,
+    "lastPaymentDate": "2024-11-20",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 27.491,
+    "lng": 95.361,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017316",
+    "name": "DIPANKAR SONOWAL",
+    "mobile": "7896045123",
+    "mobile1": "6002781234",
+    "address_line2": "NALIAPOOL GAON JORHAT ASSAM",
+    "address": "NALIAPOOL GAON JORHAT Jorhat Assam",
+    "region": "NORTH EAST",
+    "branch": "JORHAT",
+    "assetClassification": "NPA",
+    "dpd": 120,
+    "emiOs": 75000,
+    "outstandingBalance": 75000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 10500,
+    "emiAmt": 4200,
+    "lastPaymentDate": "2024-06-10",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 26.751,
+    "lng": 94.208,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017317",
+    "name": "MOUSUMI DEKA",
+    "mobile": "9678901234",
+    "mobile1": "8134567890",
+    "address_line2": "GUWAHATI DISPUR KAMRUP ASSAM",
+    "address": "DISPUR GUWAHATI Kamrup Metropolitan Assam",
+    "region": "NORTH EAST",
+    "branch": "GUWAHATI",
+    "assetClassification": "NPA",
+    "dpd": 88,
+    "emiOs": 55000,
+    "outstandingBalance": 55000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 7800,
+    "emiAmt": 3500,
+    "lastPaymentDate": "2024-09-05",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 26.148,
+    "lng": 91.736,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017318",
+    "name": "BHASKAR HAZARIKA",
+    "mobile": "9365078912",
+    "mobile1": "7577890123",
+    "address_line2": "SIVASAGAR TOWN SIVASAGAR ASSAM",
+    "address": "SIVASAGAR TOWN Sivasagar Assam",
+    "region": "NORTH EAST",
+    "branch": "SIVASAGAR",
+    "assetClassification": "NPA",
+    "dpd": 200,
+    "emiOs": 80000,
+    "outstandingBalance": 80000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 12000,
+    "emiAmt": 4800,
+    "lastPaymentDate": "2024-03-18",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 26.986,
+    "lng": 94.640,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017319",
+    "name": "REKHA RANI BORAH",
+    "mobile": "8638234501",
+    "mobile1": "9706345678",
+    "address_line2": "CHABUA TOWN DIBRUGARH ASSAM",
+    "address": "CHABUA TOWN DIBRUGARH Dibrugarh Assam",
+    "region": "NORTH EAST",
+    "branch": "DIBRUGARH",
+    "assetClassification": "NPA",
+    "dpd": 150,
+    "emiOs": 38000,
+    "outstandingBalance": 38000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 5200,
+    "emiAmt": 2200,
+    "lastPaymentDate": "2024-05-22",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 27.479,
+    "lng": 95.159,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017320",
+    "name": "ANIL KUMAR KALITA",
+    "mobile": "6001890234",
+    "mobile1": "8472012345",
+    "address_line2": "JORHAT TOWN WARD NO 8 JORHAT ASSAM",
+    "address": "JORHAT TOWN Jorhat Assam",
+    "region": "NORTH EAST",
+    "branch": "JORHAT",
+    "assetClassification": "NPA",
+    "dpd": 75,
+    "emiOs": 52000,
+    "outstandingBalance": 52000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 7200,
+    "emiAmt": 3100,
+    "lastPaymentDate": "2024-10-14",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 26.743,
+    "lng": 94.215,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017321",
+    "name": "SUNITA DEVI CHETIA",
+    "mobile": "9854123456",
+    "mobile1": "6003456789",
+    "address_line2": "NAZIRA TOWN SIVASAGAR ASSAM",
+    "address": "NAZIRA TOWN Sivasagar Assam",
+    "region": "NORTH EAST",
+    "branch": "SIVASAGAR",
+    "assetClassification": "NPA",
+    "dpd": 300,
+    "emiOs": 68000,
+    "outstandingBalance": 68000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 9500,
+    "emiAmt": 3800,
+    "lastPaymentDate": "2024-01-30",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 26.914,
+    "lng": 94.732,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017322",
+    "name": "KAMAL BARUAH",
+    "mobile": "7896567890",
+    "mobile1": "9365234567",
+    "address_line2": "TINSUKIA WARD 12 TINSUKIA ASSAM",
+    "address": "WARD NO 12 TINSUKIA TOWN Tinsukia Assam",
+    "region": "NORTH EAST",
+    "branch": "TINSUKIA",
+    "assetClassification": "NPA",
+    "dpd": 45,
+    "emiOs": 29000,
+    "outstandingBalance": 29000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 4000,
+    "emiAmt": 1800,
+    "lastPaymentDate": "2025-01-08",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 27.495,
+    "lng": 95.368,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017323",
+    "name": "PURNIMA SAIKIA",
+    "mobile": "8011567890",
+    "mobile1": "9678456789",
+    "address_line2": "DIBRUGARH TOWN WARD 3 DIBRUGARH ASSAM",
+    "address": "WARD NO 3 DIBRUGARH TOWN Dibrugarh Assam",
+    "region": "NORTH EAST",
+    "branch": "DIBRUGARH",
+    "assetClassification": "NPA",
+    "dpd": 180,
+    "emiOs": 72000,
+    "outstandingBalance": 72000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 11000,
+    "emiAmt": 4500,
+    "lastPaymentDate": "2024-04-25",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 27.466,
+    "lng": 94.906,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017324",
+    "name": "MANASH JYOTI PHUKAN",
+    "mobile": "9707890123",
+    "mobile1": "8486789012",
+    "address_line2": "MORAN TOWN DIBRUGARH ASSAM",
+    "address": "MORAN TOWN Dibrugarh Assam",
+    "region": "NORTH EAST",
+    "branch": "DIBRUGARH",
+    "assetClassification": "NPA",
+    "dpd": 55,
+    "emiOs": 43000,
+    "outstandingBalance": 43000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 6000,
+    "emiAmt": 2600,
+    "lastPaymentDate": "2024-12-03",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 27.152,
+    "lng": 94.762,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017325",
+    "name": "ANJU BALA DAS",
+    "mobile": "6002345678",
+    "mobile1": "8899012345",
+    "address_line2": "GUWAHATI BELTOLA KAMRUP ASSAM",
+    "address": "BELTOLA GUWAHATI Kamrup Metropolitan Assam",
+    "region": "NORTH EAST",
+    "branch": "GUWAHATI",
+    "assetClassification": "NPA",
+    "dpd": 400,
+    "emiOs": 58000,
+    "outstandingBalance": 58000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 8200,
+    "emiAmt": 3300,
+    "lastPaymentDate": "2023-12-19",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 26.129,
+    "lng": 91.769,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017326",
+    "name": "HIREN KUMAR NATH",
+    "mobile": "9954890123",
+    "mobile1": "7577123456",
+    "address_line2": "JORHAT COLLEGE ROAD JORHAT ASSAM",
+    "address": "COLLEGE ROAD JORHAT Jorhat Assam",
+    "region": "NORTH EAST",
+    "branch": "JORHAT",
+    "assetClassification": "NPA",
+    "dpd": 90,
+    "emiOs": 48000,
+    "outstandingBalance": 48000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 6800,
+    "emiAmt": 2900,
+    "lastPaymentDate": "2024-07-11",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 26.757,
+    "lng": 94.201,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017327",
+    "name": "SABITRI DEVI GOGOI",
+    "mobile": "8761456789",
+    "mobile1": "9127567890",
+    "address_line2": "SIVASAGAR GAON SIVASAGAR ASSAM",
+    "address": "SIVASAGAR GAON Sivasagar Assam",
+    "region": "NORTH EAST",
+    "branch": "SIVASAGAR",
+    "assetClassification": "NPA",
+    "dpd": 240,
+    "emiOs": 35000,
+    "outstandingBalance": 35000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 5000,
+    "emiAmt": 2000,
+    "lastPaymentDate": "2024-02-27",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 26.974,
+    "lng": 94.651,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000017328",
+    "name": "TAPAN JYOTI BHUYAN",
+    "mobile": "9365678901",
+    "mobile1": "6003901234",
+    "address_line2": "TINSUKIA INDUSTRIAL AREA TINSUKIA ASSAM",
+    "address": "INDUSTRIAL AREA TINSUKIA Tinsukia Assam",
+    "region": "NORTH EAST",
+    "branch": "TINSUKIA",
+    "assetClassification": "NPA",
+    "dpd": 130,
+    "emiOs": 61000,
+    "outstandingBalance": 61000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 9000,
+    "emiAmt": 3700,
+    "lastPaymentDate": "2024-06-01",
+    "product": "Personal Loan",
+    "username": "Gakul_Khanikar",
+    "lat": 27.483,
+    "lng": 95.354,
+    "cibilAlert": false,
+    "userType": "borrow"
+  },
+  {
+    "partyId": "170000027001",
+    "name": "NIRMALI BORAH KONWAR",
+    "mobile": "9864001234",
+    "mobile1": "8011901234",
+    "address_line2": "GUWAHATI PANJABARI KAMRUP ASSAM",
+    "address": "PANJABARI GUWAHATI Kamrup Metropolitan Assam",
+    "region": "NORTH EAST",
+    "branch": "GUWAHATI",
+    "assetClassification": "NPA",
+    "dpd": 65,
+    "emiOs": 22000,
+    "outstandingBalance": 22000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 3500,
+    "emiAmt": 1800,
+    "lastPaymentDate": "2024-10-05",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 26.162,
+    "lng": 91.789,
+    "cibilAlert": false,
+    "userType": "cc"
+  },
+  {
+    "partyId": "170000027002",
+    "name": "SUBHASH CHANDRA DUTTA",
+    "mobile": "7896789012",
+    "mobile1": "9678012345",
+    "address_line2": "JORHAT NEAR DC OFFICE JORHAT ASSAM",
+    "address": "NEAR DC OFFICE JORHAT Jorhat Assam",
+    "region": "NORTH EAST",
+    "branch": "JORHAT",
+    "assetClassification": "NPA",
+    "dpd": 90,
+    "emiOs": 35000,
+    "outstandingBalance": 35000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 5500,
+    "emiAmt": 2500,
+    "lastPaymentDate": "2024-07-22",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 26.761,
+    "lng": 94.212,
+    "cibilAlert": false,
+    "userType": "cc"
+  },
+  {
+    "partyId": "170000027003",
+    "name": "BARNALI SAIKIA",
+    "mobile": "8638456789",
+    "mobile1": "9706567890",
+    "address_line2": "DIBRUGARH BARBARI GAON DIBRUGARH ASSAM",
+    "address": "BARBARI GAON DIBRUGARH Dibrugarh Assam",
+    "region": "NORTH EAST",
+    "branch": "DIBRUGARH",
+    "assetClassification": "NPA",
+    "dpd": 110,
+    "emiOs": 18000,
+    "outstandingBalance": 18000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 2800,
+    "emiAmt": 1500,
+    "lastPaymentDate": "2024-05-14",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 27.470,
+    "lng": 94.922,
+    "cibilAlert": false,
+    "userType": "cc"
+  },
+  {
+    "partyId": "170000027004",
+    "name": "JOGEN CHANDRA BORAH",
+    "mobile": "9954567890",
+    "mobile1": "8486901234",
+    "address_line2": "TINSUKIA DIGHALI GAON TINSUKIA ASSAM",
+    "address": "DIGHALI GAON TINSUKIA Tinsukia Assam",
+    "region": "NORTH EAST",
+    "branch": "TINSUKIA",
+    "assetClassification": "NPA",
+    "dpd": 45,
+    "emiOs": 27000,
+    "outstandingBalance": 27000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 4200,
+    "emiAmt": 2200,
+    "lastPaymentDate": "2025-01-17",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 27.489,
+    "lng": 95.376,
+    "cibilAlert": false,
+    "userType": "cc"
+  },
+  {
+    "partyId": "170000027005",
+    "name": "NILUFAR BEGUM",
+    "mobile": "6001234567",
+    "mobile1": "8011123456",
+    "address_line2": "SIVASAGAR CHARIALI SIVASAGAR ASSAM",
+    "address": "CHARIALI SIVASAGAR Sivasagar Assam",
+    "region": "NORTH EAST",
+    "branch": "SIVASAGAR",
+    "assetClassification": "NPA",
+    "dpd": 160,
+    "emiOs": 42000,
+    "outstandingBalance": 42000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 6500,
+    "emiAmt": 3000,
+    "lastPaymentDate": "2024-04-09",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 26.990,
+    "lng": 94.636,
+    "cibilAlert": false,
+    "userType": "cc"
+  },
+  {
+    "partyId": "170000027006",
+    "name": "HEMANTA KUMAR HAZARIKA",
+    "mobile": "9101456789",
+    "mobile1": "6002890123",
+    "address_line2": "GUWAHATI JALUKBARI KAMRUP ASSAM",
+    "address": "JALUKBARI GUWAHATI Kamrup Metropolitan Assam",
+    "region": "NORTH EAST",
+    "branch": "GUWAHATI",
+    "assetClassification": "NPA",
+    "dpd": 80,
+    "emiOs": 31000,
+    "outstandingBalance": 31000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 4800,
+    "emiAmt": 2400,
+    "lastPaymentDate": "2024-08-29",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 26.142,
+    "lng": 91.701,
+    "cibilAlert": false,
+    "userType": "cc"
+  },
+  {
+    "partyId": "170000027007",
+    "name": "MRIDULA DEVI PHUKAN",
+    "mobile": "7577678901",
+    "mobile1": "9365789012",
+    "address_line2": "JORHAT GAR ALI JORHAT ASSAM",
+    "address": "GAR ALI JORHAT Jorhat Assam",
+    "region": "NORTH EAST",
+    "branch": "JORHAT",
+    "assetClassification": "NPA",
+    "dpd": 50,
+    "emiOs": 15000,
+    "outstandingBalance": 15000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 2300,
+    "emiAmt": 1500,
+    "lastPaymentDate": "2024-11-30",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 26.769,
+    "lng": 94.196,
+    "cibilAlert": false,
+    "userType": "cc"
+  },
+  {
+    "partyId": "170000027008",
+    "name": "RATAN DEKA",
+    "mobile": "8472678901",
+    "mobile1": "9707789012",
+    "address_line2": "DIBRUGARH LAHOWAL GAON DIBRUGARH ASSAM",
+    "address": "LAHOWAL GAON DIBRUGARH Dibrugarh Assam",
+    "region": "NORTH EAST",
+    "branch": "DIBRUGARH",
+    "assetClassification": "NPA",
+    "dpd": 130,
+    "emiOs": 38000,
+    "outstandingBalance": 38000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 6000,
+    "emiAmt": 2800,
+    "lastPaymentDate": "2024-03-03",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 27.462,
+    "lng": 94.897,
+    "cibilAlert": false,
+    "userType": "cc"
+  },
+  {
+    "partyId": "170000027009",
+    "name": "SWAPNA RANI GOGOI",
+    "mobile": "9678567890",
+    "mobile1": "8761678901",
+    "address_line2": "TINSUKIA BORDOLOI NAGAR TINSUKIA ASSAM",
+    "address": "BORDOLOI NAGAR TINSUKIA Tinsukia Assam",
+    "region": "NORTH EAST",
+    "branch": "TINSUKIA",
+    "assetClassification": "NPA",
+    "dpd": 70,
+    "emiOs": 25000,
+    "outstandingBalance": 25000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 3800,
+    "emiAmt": 2000,
+    "lastPaymentDate": "2024-09-18",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 27.498,
+    "lng": 95.360,
+    "cibilAlert": false,
+    "userType": "cc"
+  },
+  {
+    "partyId": "170000027010",
+    "name": "BIKASH CHANDRA BARUAH",
+    "mobile": "8011789012",
+    "mobile1": "9954678901",
+    "address_line2": "SIVASAGAR DHODAR ALI SIVASAGAR ASSAM",
+    "address": "DHODAR ALI SIVASAGAR Sivasagar Assam",
+    "region": "NORTH EAST",
+    "branch": "SIVASAGAR",
+    "assetClassification": "NPA",
+    "dpd": 200,
+    "emiOs": 48000,
+    "outstandingBalance": 48000,
+    "rollbackAmount": 0,
+    "minimumAmountDue": 7500,
+    "emiAmt": 3200,
+    "lastPaymentDate": "2024-02-12",
+    "product": "Credit Card",
+    "username": "Gakul_Khanikar",
+    "lat": 26.982,
+    "lng": 94.645,
+    "cibilAlert": false,
+    "userType": "cc"
   }
 ]

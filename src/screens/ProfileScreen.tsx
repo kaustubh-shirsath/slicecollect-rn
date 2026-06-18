@@ -238,6 +238,14 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         )}
 
+        {/* Escalate */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Escalate', { customer: null })}
+          className="w-full bg-[#FAE2FA] rounded-full py-3 items-center mb-3"
+        >
+          <Text className="text-[#A008A3] font-medium text-sm">🚨 Escalate / Raise Request</Text>
+        </TouchableOpacity>
+
         {/* Logout */}
         <TouchableOpacity
           onPress={handleLogout}

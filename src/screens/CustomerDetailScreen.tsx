@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, Alert } f
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
+import { getBorrowData } from '../data/emis'
+import { getCCBill } from '../data/ccBills'
 import { getBucketColor } from '../utils/bucketColors'
 import { getActivity } from '../data/activityLog'
 import { getAppointmentForCustomer, setAppointment, cancelAppointment, getTimeSlotLabel, type TimeSlot, type Appointment } from '../data/appointments'
@@ -83,7 +85,12 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
     setShowApptForm(false)
   }
 
-  const bc = getBucketColor(c.assetClassification || c.assetClass || '')
+  const isSlice = c.userType === 'cc' || c.userType === 'borrow'
+  const borrowData = c.userType === 'borrow' ? getBorrowData(c.partyId) : undefined
+  const ccBill = c.userType === 'cc' ? getCCBill(c.partyId) : undefined
+  const sliceBucket = borrowData?.bucketLabel ?? ccBill?.bucketLabel ?? c.assetClassification
+  const displayBucket = isSlice ? sliceBucket : (c.assetClassification || c.assetClass || '')
+  const bc = getBucketColor(displayBucket)
   const activity = getActivity(c.partyId)
   const visitHistory = activity?.visitHistory ?? []
   const latestDisp = activity?.latestDisposition
@@ -135,7 +142,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
               <View className="flex-row items-center gap-1.5 mt-1.5 flex-wrap">
                 <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                   <Text className="text-[10px] font-semibold" style={{ color: bc.text }}>
-                    {c.assetClassification || c.assetClass}
+                    {displayBucket}
                   </Text>
                 </View>
                 {c.cibilAlert && (
@@ -173,39 +180,87 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Overdue highlight */}
-        <View className="bg-white rounded-[20px] px-4 py-3 flex-row items-center justify-between" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <View>
-            <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">Overdue</Text>
-            <Text className="text-[#CE1D26] text-2xl font-bold mt-0.5">{fmt(c.emiOs)}</Text>
-          </View>
-          <View className="items-end">
-            <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">Collected</Text>
-            <Text className={`text-xl font-bold mt-0.5 ${amtCollected > 0 ? 'text-[#00A63E]' : 'text-black/20'}`}>{fmt(amtCollected)}</Text>
-          </View>
-        </View>
-
-        {/* Loan Details */}
-        <View className="bg-white rounded-[20px] px-4 py-3" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-2.5">Loan Details</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {[
-              ['Product', fmtProduct(c.product || '')],
-              ['DPD', `${c.dpd} days`],
-              ['POS Amt', fmt(c.outstandingBalance || 0)],
-              ['EMI Amt', fmt(c.emiAmt || 0)],
-              ['Min Pay', fmt(c.minimumAmountDue || 0)],
-              ['Rollback', fmt(c.rollbackAmount || 0)],
-              ['Settlement', fmt(c.outstandingBalance || 0)],
-              ['Last Payment', c.lastPaymentDate || '—'],
-            ].map(([k, v]) => (
-              <View key={k} style={{ width: '45%' }}>
-                <Text className="text-[10px] text-black/40 font-medium">{k}</Text>
-                <Text className="text-xs font-semibold text-[rgba(0,0,0,0.85)] mt-0.5 leading-tight">{v}</Text>
+        {/* Financial summary — adapts per userType */}
+        {isSlice ? (
+          <View className="bg-white rounded-[20px] px-4 py-3" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">{c.userType === 'cc' ? 'Bill Summary' : 'Loan Summary'}</Text>
+              <View style={{ backgroundColor: '#FAE2FA', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+                <Text style={{ fontSize: 10, color: '#A008A3', fontWeight: '600' }}>{sliceBucket}</Text>
               </View>
-            ))}
+            </View>
+            {c.userType === 'cc' && ccBill ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {[
+                  ['Bill Amount', fmt(ccBill.billAmount)],
+                  ['Remaining', fmt(ccBill.remainingBillAmount)],
+                  ['Min Due', fmt(ccBill.minDueAmount)],
+                  ['Late Penalty', fmt(ccBill.remainingLatePenalty)],
+                  ['Late Fees', fmt(ccBill.remainingLateFees)],
+                  ['DPD', `${ccBill.currentDpd} days`],
+                  ['Due Since', ccBill.dueSince],
+                  ['Account', ccBill.accountStatus],
+                ].map(([k, v]) => (
+                  <View key={k} style={{ width: '45%' }}>
+                    <Text className="text-[10px] text-black/40 font-medium">{k}</Text>
+                    <Text className="text-xs font-semibold text-[rgba(0,0,0,0.85)] mt-0.5 leading-tight">{v}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : borrowData ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {[
+                  ['Current POS', fmt(borrowData.currentPos)],
+                  ['Min Due', fmt(borrowData.minDueAmount)],
+                  ['Late Interest', fmt(borrowData.lateInterest)],
+                  ['Late Penalty', fmt(borrowData.latePenalty)],
+                  ['Overdue EMIs', String(borrowData.totalEmisOverdue)],
+                  ['DPD', `${borrowData.currentDpd} days`],
+                  ['Due Since', borrowData.dueSince],
+                  ['Foreclosure', fmt(borrowData.foreclosureAmount)],
+                ].map(([k, v]) => (
+                  <View key={k} style={{ width: '45%' }}>
+                    <Text className="text-[10px] text-black/40 font-medium">{k}</Text>
+                    <Text className="text-xs font-semibold text-[rgba(0,0,0,0.85)] mt-0.5 leading-tight">{v}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
-        </View>
+        ) : (
+          <>
+            <View className="bg-white rounded-[20px] px-4 py-3 flex-row items-center justify-between" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+              <View>
+                <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">Overdue</Text>
+                <Text className="text-[#CE1D26] text-2xl font-bold mt-0.5">{fmt(c.emiOs)}</Text>
+              </View>
+              <View className="items-end">
+                <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">Collected</Text>
+                <Text className={`text-xl font-bold mt-0.5 ${amtCollected > 0 ? 'text-[#00A63E]' : 'text-black/20'}`}>{fmt(amtCollected)}</Text>
+              </View>
+            </View>
+            <View className="bg-white rounded-[20px] px-4 py-3" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+              <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-2.5">Loan Details</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {[
+                  ['Product', fmtProduct(c.product || '')],
+                  ['DPD', `${c.dpd} days`],
+                  ['POS Amt', fmt(c.outstandingBalance || 0)],
+                  ['EMI Amt', fmt(c.emiAmt || 0)],
+                  ['Min Pay', fmt(c.minimumAmountDue || 0)],
+                  ['Rollback', fmt(c.rollbackAmount || 0)],
+                  ['Settlement', fmt(c.outstandingBalance || 0)],
+                  ['Last Payment', c.lastPaymentDate || '—'],
+                ].map(([k, v]) => (
+                  <View key={k} style={{ width: '45%' }}>
+                    <Text className="text-[10px] text-black/40 font-medium">{k}</Text>
+                    <Text className="text-xs font-semibold text-[rgba(0,0,0,0.85)] mt-0.5 leading-tight">{v}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </>
+        )}
 
         {/* Contact */}
         <View className="bg-white rounded-[20px] overflow-hidden" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
@@ -485,16 +540,18 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
         <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 12, elevation: 16, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity
             onPress={() => navigation.navigate('Disposition', { customer: c, fromScreen })}
-            style={{ flex: 1, backgroundColor: '#D30AD7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+            style={{ flex: 2, backgroundColor: '#D30AD7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
           >
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', letterSpacing: 0.2 }}>Add Feedback</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Settlement', { customer: c })}
-            style={{ flex: 1, backgroundColor: '#F0F4F7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
-          >
-            <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 12, fontWeight: '600' }}>Settlement</Text>
-          </TouchableOpacity>
+          {!isSlice && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Settlement', { customer: c })}
+              style={{ flex: 1, backgroundColor: '#F0F4F7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+            >
+              <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 12, fontWeight: '600' }}>Settlement</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => navigation.navigate('PaymentLink', { customer: c })}
             style={{ flex: 1, backgroundColor: '#F0F4F7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}

@@ -23,6 +23,7 @@ import PaymentLinkScreen from './src/screens/PaymentLinkScreen'
 import ProfileScreen from './src/screens/ProfileScreen'
 import DepositionScreen from './src/screens/DepositionScreen'
 import EscalateScreen from './src/screens/EscalateScreen'
+import WaiverPendingScreen from './src/screens/WaiverPendingScreen'
 
 // Sales screens
 import SalesHomeScreen from './src/screens/sales/SalesHomeScreen'
@@ -245,6 +246,11 @@ export default function App() {
                 name="Escalate"
                 component={EscalateScreen}
                 options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="WaiverPending"
+                component={WaiverPendingScreen}
+                options={{ animation: 'slide_from_bottom' }}
               />
             </Stack.Navigator>
           </NavigationContainer>
