@@ -32,6 +32,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
   const [showApptForm, setShowApptForm] = useState(false)
   const [apptAddressIdx, setApptAddressIdx] = useState<number | null>(null)
   const [apptCustomAddress, setApptCustomAddress] = useState('')
+  const [apptAddressLabel, setApptAddressLabel] = useState<'Home' | 'Work' | 'Other'>('Home')
   const [apptDate, setApptDate] = useState('')
   const [apptSlot, setApptSlot] = useState<TimeSlot>('morning')
   const [showApptCalendar, setShowApptCalendar] = useState(false)
@@ -63,10 +64,10 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
     let addressLabel = 'Custom'
     if (apptAddressIdx !== null && apptAddressIdx < addressOptions.length) {
       selectedAddress = addressOptions[apptAddressIdx].value
-      addressLabel = addressOptions[apptAddressIdx].label
+      addressLabel = apptAddressLabel
     } else {
       selectedAddress = apptCustomAddress.trim()
-      addressLabel = 'Custom'
+      addressLabel = apptAddressLabel
     }
     if (!apptDate || !selectedAddress) return
     const newAppt = setAppointment({
@@ -120,7 +121,9 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             >
               <Text className="text-black/60 text-xl">←</Text>
             </TouchableOpacity>
-            <Text className="text-[#CE1D26] text-xs font-medium">Escalate</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Escalate', { customer: c })}>
+              <Text className="text-[#CE1D26] text-xs font-medium">Escalate</Text>
+            </TouchableOpacity>
           </View>
           <View className="flex-row items-center gap-3">
             <View className="w-12 h-12 rounded-full bg-[#FAE2FA] items-center justify-center">
@@ -259,36 +262,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
           <Text className="text-[#D30AD7] text-[10px] font-semibold mt-1.5">Open in Google Maps →</Text>
         </TouchableOpacity>
 
-        {/* Visit history */}
-        {visitHistory.length > 0 && (
-          <View className="bg-white rounded-[20px] overflow-hidden" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-            <View className="px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
-              <View className="flex-row items-center justify-between">
-                <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-sm">Visit History</Text>
-                <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full">
-                  <Text className="text-[10px] text-[#A008A3] font-medium">{visitHistory.length} visits</Text>
-                </View>
-              </View>
-            </View>
-            <View className="px-4 py-3 gap-3">
-              {visitHistory.map((v: any, i: number) => (
-                <View key={i} className="flex-row items-start gap-3">
-                  <View className="items-center">
-                    <View className="w-2.5 h-2.5 rounded-full bg-[#D30AD7] mt-1" />
-                    {i < visitHistory.length - 1 && <View className="w-0.5 flex-1 bg-black/10 mt-1" style={{ minHeight: 24 }} />}
-                  </View>
-                  <View className="flex-1 pb-3" style={i < visitHistory.length - 1 ? { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.04)' } : {}}>
-                    <View className="flex-row items-center justify-between mb-0.5">
-                      <Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{v.dispositionType}</Text>
-                      <Text className="text-[10px] text-black/40">{v.date}</Text>
-                    </View>
-                    <Text className="text-[10px] text-black/50 leading-relaxed">{v.summary}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
         {/* Appointment Section */}
         <View className="bg-white rounded-2xl p-4 mb-4" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
           <View className="flex-row items-center justify-between mb-2">
@@ -341,8 +314,8 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                       className="w-full px-3 py-2.5 rounded-xl border"
                       style={{ borderColor: apptAddressIdx === idx ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: apptAddressIdx === idx ? '#FAE2FA' : '#fff' }}
                     >
-                      <Text className="text-[11px] font-medium" style={{ color: apptAddressIdx === idx ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>
-                        {opt.label}: {opt.value}
+                      <Text className="text-[11px]" style={{ color: apptAddressIdx === idx ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>
+                        {opt.value}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -366,19 +339,49 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                 </View>
               </View>
 
+              {/* Address type label chips — always visible */}
+              <View>
+                <Text className="text-[10px] text-black/40 uppercase tracking-wide font-medium mb-1.5">Address Type</Text>
+                <View className="flex-row gap-2">
+                  {(['Home', 'Work', 'Other'] as const).map(lbl => (
+                    <TouchableOpacity
+                      key={lbl}
+                      onPress={() => setApptAddressLabel(lbl)}
+                      className="px-4 py-1.5 rounded-full border"
+                      style={{ borderColor: apptAddressLabel === lbl ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: apptAddressLabel === lbl ? '#FAE2FA' : '#fff' }}
+                    >
+                      <Text className="text-[11px] font-medium" style={{ color: apptAddressLabel === lbl ? '#A008A3' : 'rgba(0,0,0,0.6)' }}>{lbl}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
               {/* Date selection */}
               <View>
                 <Text className="text-[10px] text-black/40 uppercase tracking-wide font-medium mb-1.5">Select Date</Text>
-                <TouchableOpacity
-                  onPress={() => setShowApptCalendar(v => !v)}
-                  className="border rounded-xl px-3 py-2.5 flex-row items-center gap-2"
-                  style={{ borderColor: apptDate ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: apptDate ? '#FAE2FA' : '#fff' }}
-                >
-                  <Text>🗓</Text>
-                  <Text className="text-xs" style={{ color: apptDate ? '#A008A3' : 'rgba(0,0,0,0.35)' }}>
-                    {apptDate || 'Choose date'}
-                  </Text>
-                </TouchableOpacity>
+                <View className="flex-row gap-2 mb-2">
+                  {[
+                    { label: 'Today', ds: today.toISOString().split('T')[0] },
+                    { label: 'Tomorrow', ds: (() => { const d = new Date(today); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })() },
+                  ].map(({ label, ds }) => (
+                    <TouchableOpacity
+                      key={label}
+                      onPress={() => { setApptDate(ds); setShowApptCalendar(false) }}
+                      className="px-4 py-1.5 rounded-full border"
+                      style={{ borderColor: apptDate === ds ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: apptDate === ds ? '#FAE2FA' : '#fff' }}
+                    >
+                      <Text className="text-[11px] font-medium" style={{ color: apptDate === ds ? '#A008A3' : 'rgba(0,0,0,0.6)' }}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity
+                    onPress={() => setShowApptCalendar(v => !v)}
+                    className="px-4 py-1.5 rounded-full border flex-row items-center gap-1"
+                    style={{ borderColor: showApptCalendar || (apptDate && apptDate !== today.toISOString().split('T')[0] && apptDate !== (() => { const d = new Date(today); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })()) ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: showApptCalendar ? '#FAE2FA' : '#fff' }}
+                  >
+                    <Text style={{ fontSize: 11 }}>🗓</Text>
+                    <Text className="text-[11px] font-medium" style={{ color: showApptCalendar ? '#A008A3' : 'rgba(0,0,0,0.6)' }}>Pick date</Text>
+                  </TouchableOpacity>
+                </View>
                 {showApptCalendar && (
                   <View className="mt-2 border border-black/10 rounded-xl p-2 bg-white">
                     <View className="flex-row flex-wrap gap-1">
@@ -443,6 +446,37 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             </View>
           )}
         </View>
+
+        {/* Visit history */}
+        {visitHistory.length > 0 && (
+          <View className="bg-white rounded-[20px] overflow-hidden" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+            <View className="px-4 py-3" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
+              <View className="flex-row items-center justify-between">
+                <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-sm">Visit History</Text>
+                <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full">
+                  <Text className="text-[10px] text-[#A008A3] font-medium">{visitHistory.length} visits</Text>
+                </View>
+              </View>
+            </View>
+            <View className="px-4 py-3 gap-3">
+              {visitHistory.map((v: any, i: number) => (
+                <View key={i} className="flex-row items-start gap-3">
+                  <View className="items-center">
+                    <View className="w-2.5 h-2.5 rounded-full bg-[#D30AD7] mt-1" />
+                    {i < visitHistory.length - 1 && <View className="w-0.5 flex-1 bg-black/10 mt-1" style={{ minHeight: 24 }} />}
+                  </View>
+                  <View className="flex-1 pb-3" style={i < visitHistory.length - 1 ? { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.04)' } : {}}>
+                    <View className="flex-row items-center justify-between mb-0.5">
+                      <Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{v.dispositionType}</Text>
+                      <Text className="text-[10px] text-black/40">{v.date}</Text>
+                    </View>
+                    <Text className="text-[10px] text-black/50 leading-relaxed">{v.summary}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
       </ScrollView>
 

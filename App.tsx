@@ -22,6 +22,7 @@ import SettlementScreen from './src/screens/SettlementScreen'
 import PaymentLinkScreen from './src/screens/PaymentLinkScreen'
 import ProfileScreen from './src/screens/ProfileScreen'
 import DepositionScreen from './src/screens/DepositionScreen'
+import EscalateScreen from './src/screens/EscalateScreen'
 
 // Sales screens
 import SalesHomeScreen from './src/screens/sales/SalesHomeScreen'
@@ -238,6 +239,11 @@ export default function App() {
               <Stack.Screen
                 name="Deposition"
                 component={DepositionScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="Escalate"
+                component={EscalateScreen}
                 options={{ animation: 'slide_from_right' }}
               />
             </Stack.Navigator>

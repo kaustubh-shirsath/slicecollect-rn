@@ -24,6 +24,7 @@ export type RootStackParamList = {
   Import: undefined
   Deposition: undefined
   Profile: undefined
+  Escalate: { customer: any }
   // Sales screens
   SalesMain: undefined
   SalesMerchantDetail: { merchant: Merchant; fromScreen: string }
