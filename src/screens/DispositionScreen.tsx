@@ -645,7 +645,7 @@ function SliceDispositionScreen({ navigation, route }: Props) {
                         const sel = selectedEmiNos.includes(e.emiNo)
                         const overdueNos = borrowData.emis.filter(x => x.status === 'overdue').map(x => x.emiNo)
                         const maxSelected = selectedEmiNos.filter(n => overdueNos.includes(n)).length > 0 ? Math.max(...selectedEmiNos.filter(n => overdueNos.includes(n))) : 0
-                        const isNext = e.emiNo === (overdueNos.find(n => n > maxSelected) ?? overdueNos[0]) && !sel
+                        const isNext = selectedEmiNos.length === 0 && e.emiNo === (overdueNos[0]) && !sel
                         const total = e.pos + e.interest + e.penalty
                         return (
                           <TouchableOpacity
@@ -1652,7 +1652,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     {bankEmis.map(e => {
                       const sel = selectedEmiNos.includes(e.emiNo)
                       const maxSelected = selectedEmiNos.length > 0 ? Math.max(...selectedEmiNos) : 0
-                      const isNext = e.emiNo === maxSelected + 1 && !sel
+                      const isNext = selectedEmiNos.length === 0 && e.emiNo === 1
                       const total = e.pos + e.interest + e.penalty
                       return (
                         <TouchableOpacity
