@@ -197,7 +197,14 @@ function SliceDispositionScreen({ navigation, route }: Props) {
   })()
 
   function toggleEmi(emiNo: number) {
-    setSelectedEmiNos(prev => prev.includes(emiNo) ? prev.filter(n => n !== emiNo) : [...prev, emiNo])
+    setSelectedEmiNos(prev => {
+      if (prev.includes(emiNo)) {
+        return prev.filter(n => n < emiNo)
+      } else {
+        const allNosUpTo = Array.from({ length: emiNo }, (_, i) => i + 1)
+        return allNosUpTo
+      }
+    })
   }
 
   function handleSubmit() {
@@ -636,15 +643,21 @@ function SliceDispositionScreen({ navigation, route }: Props) {
                       )}
                       {borrowData.emis.filter(e => e.status === 'overdue').map(e => {
                         const sel = selectedEmiNos.includes(e.emiNo)
+                        const overdueNos = borrowData.emis.filter(x => x.status === 'overdue').map(x => x.emiNo)
+                        const maxSelected = selectedEmiNos.filter(n => overdueNos.includes(n)).length > 0 ? Math.max(...selectedEmiNos.filter(n => overdueNos.includes(n))) : 0
+                        const isNext = e.emiNo === (overdueNos.find(n => n > maxSelected) ?? overdueNos[0]) && !sel
                         const total = e.pos + e.interest + e.penalty
                         return (
                           <TouchableOpacity
                             key={e.emiNo}
                             onPress={() => toggleEmi(e.emiNo)}
-                            style={{ borderRadius: 14, borderWidth: 1.5, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: sel ? '#FAE2FA' : '#F9FAFB', padding: 12 }}
+                            style={{ borderRadius: 14, borderWidth: 1.5, borderColor: sel ? '#D30AD7' : isNext ? '#92400E' : 'rgba(0,0,0,0.1)', backgroundColor: sel ? '#FAE2FA' : isNext ? '#FFFBEB' : '#F9FAFB', padding: 12 }}
                           >
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                              <Text style={{ fontWeight: '600', fontSize: 13, color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>EMI #{e.emiNo}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ fontWeight: '600', fontSize: 13, color: sel ? '#A008A3' : isNext ? '#92400E' : 'rgba(0,0,0,0.85)' }}>EMI #{e.emiNo}</Text>
+                                {isNext && <Text style={{ fontSize: 10, color: '#92400E', backgroundColor: '#FDE68A', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, fontWeight: '600' }}>Oldest unpaid</Text>}
+                              </View>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <Text style={{ fontSize: 13, fontWeight: '700', color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>{fmt2(total)}</Text>
                                 <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.2)', backgroundColor: sel ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
@@ -1221,7 +1234,14 @@ function BankDispositionScreen({ navigation, route }: Props) {
   })()
 
   function toggleEmi(emiNo: number) {
-    setSelectedEmiNos(prev => prev.includes(emiNo) ? prev.filter(n => n !== emiNo) : [...prev, emiNo])
+    setSelectedEmiNos(prev => {
+      if (prev.includes(emiNo)) {
+        return prev.filter(n => n < emiNo)
+      } else {
+        const allNosUpTo = Array.from({ length: emiNo }, (_, i) => i + 1)
+        return allNosUpTo
+      }
+    })
   }
 
   function handleSubmit() {
@@ -1631,15 +1651,20 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     )}
                     {bankEmis.map(e => {
                       const sel = selectedEmiNos.includes(e.emiNo)
+                      const maxSelected = selectedEmiNos.length > 0 ? Math.max(...selectedEmiNos) : 0
+                      const isNext = e.emiNo === maxSelected + 1 && !sel
                       const total = e.pos + e.interest + e.penalty
                       return (
                         <TouchableOpacity
                           key={e.emiNo}
                           onPress={() => toggleEmi(e.emiNo)}
-                          style={{ borderRadius: 14, borderWidth: 1.5, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: sel ? '#FAE2FA' : '#F9FAFB', padding: 12 }}
+                          style={{ borderRadius: 14, borderWidth: 1.5, borderColor: sel ? '#D30AD7' : isNext ? '#92400E' : 'rgba(0,0,0,0.1)', backgroundColor: sel ? '#FAE2FA' : isNext ? '#FFFBEB' : '#F9FAFB', padding: 12 }}
                         >
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <Text style={{ fontWeight: '600', fontSize: 13, color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>EMI #{e.emiNo}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text style={{ fontWeight: '600', fontSize: 13, color: sel ? '#A008A3' : isNext ? '#92400E' : 'rgba(0,0,0,0.85)' }}>EMI #{e.emiNo}</Text>
+                              {isNext && <Text style={{ fontSize: 10, color: '#92400E', backgroundColor: '#FDE68A', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, fontWeight: '600' }}>Oldest unpaid</Text>}
+                            </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                               <Text style={{ fontSize: 13, fontWeight: '700', color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>{fmt(total)}</Text>
                               <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.2)', backgroundColor: sel ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
