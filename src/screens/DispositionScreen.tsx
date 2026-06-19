@@ -1162,6 +1162,9 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const [photoCaptured, setPhotoCaptured] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [paymentMode, setPaymentMode] = useState('')
+  const [bankPostState, setBankPostState] = useState<'idle' | 'payment_link_sent' | 'payment_received' | 'waiver_submitted'>('idle')
+  const [pendingReceiptData, setPendingReceiptData] = useState<any>(null)
 
   const isCollected    = category === 'Collected'
   const isContactedPos = category === 'Contacted Positive'
@@ -1189,7 +1192,13 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const grossAmount = getBankGrossAmount(paymentType, c, selectedEmis, customAmount)
   const netCollectible = Math.max(0, grossAmount - bankWaiverAmount)
 
-  const step1Valid = category !== null && subcode !== ''
+  const step1Valid = category !== null && subcode !== '' &&
+    (!isCollected || (
+      paymentType !== '' && paymentMode !== '' &&
+      (paymentType !== 'Overdue EMIs' || selectedEmiNos.length > 0) &&
+      (paymentType !== 'Partial Repayment' || !!customAmount) &&
+      (paymentType !== 'Settlement Instalment' || !!customAmount)
+    ))
 
   const step2Valid = (() => {
     if (isCollected) {
@@ -1265,13 +1274,21 @@ function BankDispositionScreen({ navigation, route }: Props) {
         actionType: subcode,
         amount: netCollectible,
         advanceAmount: 0,
-        paymentMode: 'Cash',
+        paymentMode: paymentMode || 'Cash',
         agentName: agentInfo?.name || '',
         branchName: agentInfo?.branch || c.branch || '',
         glCode: agentInfo?.glCode || '',
         createdAt: new Date().toISOString(),
       }
-      navigation.replace('Receipt', { receipt, backTo: fromScreen || 'Main' })
+      if (waiverPct > 0) {
+        setPendingReceiptData(receipt)
+        setBankPostState('waiver_submitted')
+      } else if (paymentMode === 'Payment Link') {
+        setPendingReceiptData(receipt)
+        setBankPostState('payment_link_sent')
+      } else {
+        navigation.replace('Receipt', { receipt, backTo: fromScreen || 'Main' })
+      }
     } else {
       setSubmitted(true)
     }
@@ -1279,13 +1296,14 @@ function BankDispositionScreen({ navigation, route }: Props) {
 
   // ── Step indicator ────────────────────────────────────────────────────────
   function BankStepIndicator() {
-    const labels = ['Type', 'Details', 'Submit']
+    const labels = isCollected ? ['Details', 'Submit'] : ['Type', 'Details', 'Submit']
+    const displayStep = isCollected ? (step === 1 ? 1 : 2) : step
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, paddingHorizontal: 24, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
         {labels.map((label, idx) => {
           const num = idx + 1
-          const active = step === num
-          const done = step > num
+          const active = displayStep === num
+          const done = displayStep > num
           return (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', flex: idx < labels.length - 1 ? 1 : undefined }}>
               <View style={{ alignItems: 'center' }}>
@@ -1307,6 +1325,116 @@ function BankDispositionScreen({ navigation, route }: Props) {
           )
         })}
       </View>
+    )
+  }
+
+  // ── Bank post-submit screens ──────────────────────────────────────────────
+  if (bankPostState === 'payment_link_sent') {
+    const maskedMobile = 'XXXXXX' + (c.mobile ?? '').slice(-4)
+    const refNo = 'REF-' + String(c.partyId).slice(-6).toUpperCase() + '-' + String(Date.now()).slice(-6)
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', elevation: 1 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 28, color: '#7C3AED' }}>✓</Text>
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: 'rgba(0,0,0,0.9)', marginBottom: 6 }}>Payment Link Sent</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.55)', textAlign: 'center', marginBottom: 20 }}>
+              Link for {fmt(netCollectible)} sent to {maskedMobile}
+            </Text>
+            <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', width: '100%', marginBottom: 16 }} />
+            <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, width: '100%', marginBottom: 16 }}>
+              <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Reference No.</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.8)', fontFamily: 'monospace' }}>{refNo}</Text>
+            </View>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', textAlign: 'center', marginBottom: 20 }}>
+              Waiting for customer to complete payment...
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                if (pendingReceiptData) {
+                  navigation.replace('Receipt', { receipt: pendingReceiptData, backTo: fromScreen || 'Main' })
+                } else {
+                  setBankPostState('payment_received')
+                }
+              }}
+              style={{ borderWidth: 1.5, borderColor: '#7C3AED', borderRadius: 24, paddingVertical: 12, alignItems: 'center', width: '100%', marginBottom: 10 }}
+            >
+              <Text style={{ color: '#7C3AED', fontWeight: '600', fontSize: 14 }}>Mark Payment Received</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Main')}
+              style={{ backgroundColor: '#F3F4F6', borderRadius: 24, paddingVertical: 12, alignItems: 'center', width: '100%' }}
+            >
+              <Text style={{ color: 'rgba(0,0,0,0.6)', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  if (bankPostState === 'waiver_submitted') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center', elevation: 1, marginBottom: 12 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 28 }}>⏳</Text>
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: 'rgba(0,0,0,0.9)', marginBottom: 6 }}>Waiver Request Submitted</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.55)', textAlign: 'center' }}>Pending Agency Manager approval</Text>
+          </View>
+          <View style={{ backgroundColor: '#FFF7ED', borderRadius: 20, padding: 16, marginBottom: 12 }}>
+            <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Waiver Details</Text>
+            {[
+              ['Payment Type', paymentType],
+              ['Waiver %', `${waiverPct}%`],
+              ['Waiver Amount', fmt(bankWaiverAmount)],
+              ['Gross Amount', fmt(grossAmount)],
+              ['Net Collectible (post approval)', fmt(netCollectible)],
+            ].map(([k, v]) => (
+              <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ fontSize: 13, color: '#92400E' }}>{k}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#92400E' }}>{v}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 12, elevation: 1 }}>
+            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Agency Manager</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FAE2FA', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#A008A3' }}>RK</Text>
+              </View>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>Rajesh Kumar</Text>
+                <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Agency Manager · {agentInfo?.branch ?? 'Branch'}</Text>
+              </View>
+            </View>
+          </View>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 20, elevation: 1 }}>
+            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>What Happens Next</Text>
+            {[
+              ['AM reviews waiver request', '📋'],
+              ['Approval triggers payment link to customer', '🔗'],
+              ['Customer completes payment', '✅'],
+              ['Receipt auto-generated', '🧾'],
+            ].map(([text, icon]) => (
+              <View key={text} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                <Text style={{ fontSize: 16 }}>{icon}</Text>
+                <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.7)', flex: 1 }}>{text}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Main')}
+            style={{ backgroundColor: '#D30AD7', borderRadius: 24, paddingVertical: 14, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
     )
   }
 
@@ -1389,6 +1517,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                       setWaiverPct(0)
                       setPtpDate('')
                       setPtpAmount('')
+                      setPaymentMode('')
                     }}
                     style={{
                       width: '47%',
@@ -1439,8 +1568,243 @@ function BankDispositionScreen({ navigation, route }: Props) {
               </View>
             )}
 
+            {/* Collected: payment type + waiver + payment mode inline in step 1 */}
+            {isCollected && (
+              <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 14 }}>
+                {/* Loan summary */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                  {[
+                    ['Outstanding', fmt(c.outstandingBalance || 0)],
+                    ['EMI Amount', fmt(c.emiAmt || c.emiAmount || 0)],
+                    ['Overdue (EMI OS)', fmt(c.emiOs || 0)],
+                    ['Min Due', fmt(c.minimumAmountDue || c.minDue || 0)],
+                  ].map(([k, v]) => (
+                    <View key={k} style={{ width: '45%' }}>
+                      <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', marginBottom: 2 }}>{k}</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>{v}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.06)' }} />
+
+                {/* Payment type chips */}
+                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>
+                  Payment Type <Text style={{ color: '#CE1D26' }}>*</Text>
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {BANK_PAYMENT_TYPES.map(pt => (
+                    <TouchableOpacity
+                      key={pt}
+                      onPress={() => { setPaymentType(pt); setSelectedEmiNos([]); setCustomAmount('') }}
+                      style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: paymentType === pt ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentType === pt ? '#FAE2FA' : '#fff' }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: paymentType === pt ? '600' : '400', color: paymentType === pt ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>{pt}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* EMI selector */}
+                {paymentType === 'Overdue EMIs' && (
+                  <View style={{ gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Select EMIs</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          const allNos = bankEmis.map(e => e.emiNo)
+                          const allSelected = allNos.every(n => selectedEmiNos.includes(n))
+                          setSelectedEmiNos(allSelected ? [] : allNos)
+                        }}
+                        style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: '#FAE2FA' }}
+                      >
+                        <Text style={{ fontSize: 11, color: '#A008A3', fontWeight: '600' }}>
+                          {bankEmis.every(e => selectedEmiNos.includes(e.emiNo)) ? 'Deselect All' : 'Select All'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {selectedEmiNos.length > 0 && (
+                      <View style={{ backgroundColor: '#F0FDF4', borderRadius: 10, padding: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 12, color: '#166534' }}>{selectedEmiNos.length} EMI{selectedEmiNos.length > 1 ? 's' : ''} selected</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#166534' }}>{fmt(grossAmount)}</Text>
+                      </View>
+                    )}
+                    {bankEmis.map(e => {
+                      const sel = selectedEmiNos.includes(e.emiNo)
+                      const total = e.pos + e.interest + e.penalty
+                      return (
+                        <TouchableOpacity
+                          key={e.emiNo}
+                          onPress={() => toggleEmi(e.emiNo)}
+                          style={{ borderRadius: 14, borderWidth: 1.5, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: sel ? '#FAE2FA' : '#F9FAFB', padding: 12 }}
+                        >
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <Text style={{ fontWeight: '600', fontSize: 13, color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>EMI #{e.emiNo}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <Text style={{ fontSize: 13, fontWeight: '700', color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>{fmt(total)}</Text>
+                              <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.2)', backgroundColor: sel ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                                {sel && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text>}
+                              </View>
+                            </View>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 12 }}>
+                            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>POS: {fmt(e.pos)}</Text>
+                            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>Interest: {fmt(e.interest)}</Text>
+                            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>Penalty: {fmt(e.penalty)}</Text>
+                          </View>
+                          <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)', marginTop: 4 }}>Due: {e.dueDate}</Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                )}
+
+                {/* Custom amount */}
+                {(paymentType === 'Partial Repayment' || paymentType === 'Settlement Instalment') && (
+                  <View>
+                    <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
+                      {paymentType === 'Settlement Instalment' ? 'Instalment Amount' : 'Repayment Amount'} <Text style={{ color: '#CE1D26' }}>*</Text>
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: customAmount ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingBottom: 8 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: 'rgba(0,0,0,0.7)', marginRight: 6 }}>₹</Text>
+                      <TextInput
+                        value={customAmount}
+                        onChangeText={v => setCustomAmount(v.replace(/\D/g, ''))}
+                        keyboardType="numeric"
+                        placeholder="Enter amount"
+                        placeholderTextColor="rgba(0,0,0,0.3)"
+                        style={{ flex: 1, fontSize: 16, color: 'rgba(0,0,0,0.9)' }}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Locked amount */}
+                {paymentType !== '' && paymentType !== 'Partial Repayment' && paymentType !== 'Settlement Instalment' && paymentType !== 'Overdue EMIs' && (
+                  <View style={{ backgroundColor: '#F0F4F7', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)' }}>Amount (system calculated)</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.85)' }}>{fmt(grossAmount)}</Text>
+                      <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)' }}>🔒</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Waiver */}
+                {paymentType !== '' && (
+                  <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 14, gap: 12 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Waiver on Interest + Penalty</Text>
+                      <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Base: {fmt(bankWaiverableBase)}</Text>
+                    </View>
+                    {bankWaiverableBase === 0 ? (
+                      <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', fontStyle: 'italic' }}>No penalty data available</Text>
+                    ) : <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Custom %:</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#D30AD7', flex: 1 }}>
+                          <TextInput
+                            value={String(waiverPct)}
+                            onChangeText={v => {
+                              const n = parseInt(v.replace(/\D/g, ''), 10)
+                              if (!isNaN(n)) setWaiverPct(Math.min(100, Math.max(0, n)))
+                              else if (v === '') setWaiverPct(0)
+                            }}
+                            keyboardType="numeric"
+                            maxLength={3}
+                            style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 6 }}
+                          />
+                          <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.5)', paddingRight: 4 }}>%</Text>
+                        </View>
+                      </View>
+                      <View
+                        style={{ height: 36, justifyContent: 'center' }}
+                        onLayout={e => setSliderWidth(e.nativeEvent.layout.width)}
+                        onStartShouldSetResponder={() => true}
+                        onResponderGrant={e => {
+                          const pct = Math.round(Math.min(100, Math.max(0, (e.nativeEvent.locationX / (sliderWidth || 1)) * 100)))
+                          setWaiverPct(pct)
+                        }}
+                        onResponderMove={e => {
+                          const pct = Math.round(Math.min(100, Math.max(0, (e.nativeEvent.locationX / (sliderWidth || 1)) * 100)))
+                          setWaiverPct(pct)
+                        }}
+                      >
+                        <View style={{ height: 6, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 3, overflow: 'visible' }}>
+                          <View style={{ height: 6, backgroundColor: '#D30AD7', borderRadius: 3, width: `${waiverPct}%` }} />
+                        </View>
+                        <View style={{
+                          position: 'absolute',
+                          left: `${waiverPct}%`,
+                          width: 22, height: 22, borderRadius: 11,
+                          backgroundColor: '#fff',
+                          borderWidth: 2, borderColor: '#D30AD7',
+                          marginLeft: -11, top: 7,
+                          shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+                          elevation: 3,
+                        }} />
+                      </View>
+                      {waiverPct > 0 ? (
+                        <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 12, gap: 6 }}>
+                          <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>Waiver Breakdown</Text>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: '#92400E' }}>Gross Amount</Text>
+                            <Text style={{ fontSize: 12, color: '#92400E', fontWeight: '600' }}>{fmt(grossAmount)}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: '#92400E' }}>Waiver ({waiverPct}% of {fmt(bankWaiverableBase)})</Text>
+                            <Text style={{ fontSize: 12, color: '#CE1D26', fontWeight: '600' }}>− {fmt(bankWaiverAmount)}</Text>
+                          </View>
+                          <View style={{ height: 1, backgroundColor: 'rgba(146,64,14,0.2)', marginVertical: 2 }} />
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 13, color: '#92400E', fontWeight: '700' }}>Net Collectible</Text>
+                            <Text style={{ fontSize: 15, color: '#92400E', fontWeight: '800' }}>{fmt(netCollectible)}</Text>
+                          </View>
+                          <Text style={{ fontSize: 10, color: '#B45309', marginTop: 4 }}>⚠ Waiver noted in receipt summary</Text>
+                        </View>
+                      ) : (
+                        grossAmount > 0 && (
+                          <View style={{ backgroundColor: '#F0FDF4', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 13, color: '#166534', fontWeight: '600' }}>Net Collectible</Text>
+                            <Text style={{ fontSize: 16, color: '#166534', fontWeight: '800' }}>{fmt(netCollectible)}</Text>
+                          </View>
+                        )
+                      )}
+                    </>}
+                  </View>
+                )}
+
+                {/* Payment Mode */}
+                {paymentType !== '' && (
+                  <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 14, gap: 10 }}>
+                    <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>
+                      Payment Mode <Text style={{ color: '#CE1D26' }}>*</Text>
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {(['Cash', 'UPI', 'Payment Link', 'Cheque'] as const).map(mode => (
+                        <TouchableOpacity
+                          key={mode}
+                          onPress={() => setPaymentMode(mode)}
+                          style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: paymentMode === mode ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentMode === mode ? '#FAE2FA' : '#fff' }}
+                        >
+                          <Text style={{ fontSize: 12, fontWeight: paymentMode === mode ? '600' : '400', color: paymentMode === mode ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>
+                            {mode === 'Cash' ? '💵 Cash' : mode === 'UPI' ? '📱 UPI' : mode === 'Payment Link' ? '🔗 Payment Link' : '📄 Cheque'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {paymentMode === 'Payment Link' && (
+                      <View style={{ backgroundColor: '#EFF6FF', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ fontSize: 12 }}>ℹ️</Text>
+                        <Text style={{ fontSize: 12, color: '#1D4ED8', flex: 1 }}>Link sent to registered mobile after submission</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+
             <TouchableOpacity
-              onPress={() => setStep(2)}
+              onPress={() => isCollected ? setStep(3) : setStep(2)}
               disabled={!step1Valid}
               style={{ backgroundColor: step1Valid ? '#D30AD7' : 'rgba(0,0,0,0.1)', borderRadius: 24, paddingVertical: 15, alignItems: 'center', marginTop: 8 }}
             >
@@ -1452,221 +1816,6 @@ function BankDispositionScreen({ navigation, route }: Props) {
         {/* ── STEP 2: Details ── */}
         {step === 2 && (
           <>
-            {/* Collected flow */}
-            {isCollected && (
-              <>
-                {/* Loan Summary card */}
-                <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
-                  <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, fontWeight: '600' }}>Loan Summary</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                    {[
-                      ['Outstanding', fmt(c.outstandingBalance || 0)],
-                      ['EMI Amount', fmt(c.emiAmt || c.emiAmount || 0)],
-                      ['Overdue (EMI OS)', fmt(c.emiOs || 0)],
-                      ['Min Due', fmt(c.minimumAmountDue || c.minDue || 0)],
-                    ].map(([k, v]) => (
-                      <View key={k} style={{ width: '45%' }}>
-                        <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', marginBottom: 2 }}>{k}</Text>
-                        <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>{v}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Payment type chips */}
-                <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 14 }}>
-                  <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Payment Type</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    {BANK_PAYMENT_TYPES.map(pt => (
-                      <TouchableOpacity
-                        key={pt}
-                        onPress={() => { setPaymentType(pt); setSelectedEmiNos([]); setCustomAmount('') }}
-                        style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: paymentType === pt ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentType === pt ? '#FAE2FA' : '#fff' }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: paymentType === pt ? '600' : '400', color: paymentType === pt ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>{pt}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  {/* EMI selector — Overdue EMIs */}
-                  {paymentType === 'Overdue EMIs' && (
-                    <View style={{ gap: 8 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Select EMIs to Collect</Text>
-                        <TouchableOpacity
-                          onPress={() => {
-                            const allNos = bankEmis.map(e => e.emiNo)
-                            const allSelected = allNos.every(n => selectedEmiNos.includes(n))
-                            setSelectedEmiNos(allSelected ? [] : allNos)
-                          }}
-                          style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: '#FAE2FA' }}
-                        >
-                          <Text style={{ fontSize: 11, color: '#A008A3', fontWeight: '600' }}>
-                            {bankEmis.every(e => selectedEmiNos.includes(e.emiNo)) ? 'Deselect All' : 'Select All'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                      {selectedEmiNos.length > 0 && (
-                        <View style={{ backgroundColor: '#F0FDF4', borderRadius: 10, padding: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={{ fontSize: 12, color: '#166534' }}>{selectedEmiNos.length} EMI{selectedEmiNos.length > 1 ? 's' : ''} selected</Text>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#166534' }}>{fmt(grossAmount)}</Text>
-                        </View>
-                      )}
-                      {bankEmis.map(e => {
-                        const sel = selectedEmiNos.includes(e.emiNo)
-                        const total = e.pos + e.interest + e.penalty
-                        return (
-                          <TouchableOpacity
-                            key={e.emiNo}
-                            onPress={() => toggleEmi(e.emiNo)}
-                            style={{ borderRadius: 14, borderWidth: 1.5, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: sel ? '#FAE2FA' : '#F9FAFB', padding: 12 }}
-                          >
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                              <Text style={{ fontWeight: '600', fontSize: 13, color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>EMI #{e.emiNo}</Text>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                <Text style={{ fontSize: 13, fontWeight: '700', color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>{fmt(total)}</Text>
-                                <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.2)', backgroundColor: sel ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                                  {sel && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text>}
-                                </View>
-                              </View>
-                            </View>
-                            <View style={{ flexDirection: 'row', gap: 12 }}>
-                              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>POS: {fmt(e.pos)}</Text>
-                              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>Interest: {fmt(e.interest)}</Text>
-                              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>Penalty: {fmt(e.penalty)}</Text>
-                            </View>
-                            <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)', marginTop: 4 }}>Due: {e.dueDate}</Text>
-                          </TouchableOpacity>
-                        )
-                      })}
-                    </View>
-                  )}
-
-                  {/* Custom amount — Partial Repayment / Settlement Instalment */}
-                  {(paymentType === 'Partial Repayment' || paymentType === 'Settlement Instalment') && (
-                    <View>
-                      <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
-                        {paymentType === 'Settlement Instalment' ? 'Instalment Amount' : 'Repayment Amount'}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: customAmount ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingBottom: 8 }}>
-                        <Text style={{ fontSize: 16, fontWeight: '600', color: 'rgba(0,0,0,0.7)', marginRight: 6 }}>₹</Text>
-                        <TextInput
-                          value={customAmount}
-                          onChangeText={v => setCustomAmount(v.replace(/\D/g, ''))}
-                          keyboardType="numeric"
-                          placeholder="Enter amount"
-                          placeholderTextColor="rgba(0,0,0,0.3)"
-                          style={{ flex: 1, fontSize: 16, color: 'rgba(0,0,0,0.9)' }}
-                        />
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Locked amount for non-custom, non-EMI types */}
-                  {paymentType !== '' && paymentType !== 'Partial Repayment' && paymentType !== 'Settlement Instalment' && paymentType !== 'Overdue EMIs' && (
-                    <View style={{ backgroundColor: '#F0F4F7', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)' }}>Amount (system calculated)</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.85)' }}>{fmt(grossAmount)}</Text>
-                        <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)' }}>🔒</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Waiver section — show for Collected or isPTPSubcode */}
-                  {(isCollected || isPTPSubcode) && (
-                    <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 14, gap: 12 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Waiver on Interest + Penalty</Text>
-                        <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Base: {fmt(bankWaiverableBase)}</Text>
-                      </View>
-
-                      {bankWaiverableBase === 0 && (
-                        <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', fontStyle: 'italic' }}>No penalty data available</Text>
-                      )}
-
-                      {bankWaiverableBase > 0 && <>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                          <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Custom %:</Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#D30AD7', flex: 1 }}>
-                            <TextInput
-                              value={String(waiverPct)}
-                              onChangeText={v => {
-                                const n = parseInt(v.replace(/\D/g, ''), 10)
-                                if (!isNaN(n)) setWaiverPct(Math.min(100, Math.max(0, n)))
-                                else if (v === '') setWaiverPct(0)
-                              }}
-                              keyboardType="numeric"
-                              maxLength={3}
-                              style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 6 }}
-                            />
-                            <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.5)', paddingRight: 4 }}>%</Text>
-                          </View>
-                        </View>
-
-                        {/* Touch slider */}
-                        <View
-                          style={{ height: 36, justifyContent: 'center' }}
-                          onLayout={e => setSliderWidth(e.nativeEvent.layout.width)}
-                          onStartShouldSetResponder={() => true}
-                          onResponderGrant={e => {
-                            const pct = Math.round(Math.min(100, Math.max(0, (e.nativeEvent.locationX / (sliderWidth || 1)) * 100)))
-                            setWaiverPct(pct)
-                          }}
-                          onResponderMove={e => {
-                            const pct = Math.round(Math.min(100, Math.max(0, (e.nativeEvent.locationX / (sliderWidth || 1)) * 100)))
-                            setWaiverPct(pct)
-                          }}
-                        >
-                          <View style={{ height: 6, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 3, overflow: 'visible' }}>
-                            <View style={{ height: 6, backgroundColor: '#D30AD7', borderRadius: 3, width: `${waiverPct}%` }} />
-                          </View>
-                          <View style={{
-                            position: 'absolute',
-                            left: `${waiverPct}%`,
-                            width: 22, height: 22, borderRadius: 11,
-                            backgroundColor: '#fff',
-                            borderWidth: 2, borderColor: '#D30AD7',
-                            marginLeft: -11,
-                            top: 7,
-                            shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-                            elevation: 3,
-                          }} />
-                        </View>
-
-                        {/* Waiver breakdown card */}
-                        {waiverPct > 0 ? (
-                          <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 12, gap: 6 }}>
-                            <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>Waiver Breakdown</Text>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                              <Text style={{ fontSize: 12, color: '#92400E' }}>Gross Amount</Text>
-                              <Text style={{ fontSize: 12, color: '#92400E', fontWeight: '600' }}>{fmt(grossAmount)}</Text>
-                            </View>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                              <Text style={{ fontSize: 12, color: '#92400E' }}>Waiver ({waiverPct}% of {fmt(bankWaiverableBase)})</Text>
-                              <Text style={{ fontSize: 12, color: '#CE1D26', fontWeight: '600' }}>− {fmt(bankWaiverAmount)}</Text>
-                            </View>
-                            <View style={{ height: 1, backgroundColor: 'rgba(146,64,14,0.2)', marginVertical: 2 }} />
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                              <Text style={{ fontSize: 13, color: '#92400E', fontWeight: '700' }}>Net Collectible</Text>
-                              <Text style={{ fontSize: 15, color: '#92400E', fontWeight: '800' }}>{fmt(netCollectible)}</Text>
-                            </View>
-                            <Text style={{ fontSize: 10, color: '#B45309', marginTop: 4 }}>⚠ Waiver noted in receipt summary</Text>
-                          </View>
-                        ) : (
-                          grossAmount > 0 && (
-                            <View style={{ backgroundColor: '#F0FDF4', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Text style={{ fontSize: 13, color: '#166534', fontWeight: '600' }}>Net Collectible</Text>
-                              <Text style={{ fontSize: 16, color: '#166534', fontWeight: '800' }}>{fmt(netCollectible)}</Text>
-                            </View>
-                          )
-                        )}
-                      </>}
-                    </View>
-                  )}
-                </View>
-              </>
-            )}
 
             {/* PTP / CPTP subcode — date + amount */}
             {isPTPSubcode && (
@@ -1977,6 +2126,8 @@ function BankDispositionScreen({ navigation, route }: Props) {
               <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
                 {waiverPct > 0
                   ? 'Submit for Waiver Approval →'
+                  : isCollected && paymentMode === 'Payment Link'
+                  ? 'Send Payment Link →'
                   : isCollected
                   ? 'Submit & Record Collection →'
                   : 'Submit Disposition →'}
