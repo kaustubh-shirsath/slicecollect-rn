@@ -1192,13 +1192,14 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const grossAmount = getBankGrossAmount(paymentType, c, selectedEmis, customAmount)
   const netCollectible = Math.max(0, grossAmount - bankWaiverAmount)
 
-  const step1Valid = category !== null && subcode !== '' &&
-    (!isCollected || (
-      paymentType !== '' && paymentMode !== '' &&
-      (paymentType !== 'Overdue EMIs' || selectedEmiNos.length > 0) &&
-      (paymentType !== 'Partial Repayment' || !!customAmount) &&
-      (paymentType !== 'Settlement Instalment' || !!customAmount)
-    ))
+  const step1Valid = category !== null && (
+    isCollected
+      ? paymentType !== '' && paymentMode !== '' &&
+        (paymentType !== 'Overdue EMIs' || selectedEmiNos.length > 0) &&
+        (paymentType !== 'Partial Repayment' || !!customAmount) &&
+        (paymentType !== 'Settlement Instalment' || !!customAmount)
+      : subcode !== ''
+  )
 
   const step2Valid = (() => {
     if (isCollected) {
@@ -1241,7 +1242,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
     updateActivity(c.partyId, {
       latestDisposition: {
         type: category || 'Unknown',
-        code: subcode,
+        code: isCollected ? paymentType : subcode,
         date: todayStr,
         ptpDate: ptpDate || undefined,
         ptpAmount: ptpAmount ? Number(ptpAmount) : undefined,
@@ -1253,7 +1254,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
         ...(existing?.visitHistory ?? []),
         {
           date: todayStr,
-          dispositionType: `${category} — ${subcode}`,
+          dispositionType: isCollected ? `${category} — ${paymentType}` : `${category} — ${subcode}`,
           summary: remarks || (isCollected ? `Collected ${fmt(netCollectible)}` : `${subcode} recorded`),
           amount: isCollected ? netCollectible : 0,
           contactPerson, contactPlace,
@@ -1271,7 +1272,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
         partyId: c.partyId,
         customerName: c.name,
         dispositionType: category || '',
-        actionType: subcode,
+        actionType: isCollected ? paymentType : subcode,
         amount: netCollectible,
         advanceAmount: 0,
         paymentMode: paymentMode || 'Cash',
@@ -1450,7 +1451,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
         <View style={{ backgroundColor: '#F0F4F7', borderRadius: 16, padding: 12, width: '100%', gap: 8, marginBottom: 20 }}>
           {([
             ['Category', category],
-            ['Code', subcode],
+            ['Code', isCollected ? paymentType : subcode],
             contactPerson ? ['Contact Person', contactPerson] : null,
             ptpDate ? ['PTP Date', ptpDate] : null,
             remarks ? ['Remarks', remarks] : null,
@@ -1537,7 +1538,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
             </View>
 
             {/* Subcode list — shown inline below tiles once category selected */}
-            {category !== null && (
+            {category !== null && !isCollected && (
               <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 10 }}>
                 <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 2 }}>Disposition Code <Text style={{ color: '#CE1D26' }}>*</Text></Text>
                 {BANK_SUBCODES[category].map(sc => {
@@ -1780,14 +1781,14 @@ function BankDispositionScreen({ navigation, route }: Props) {
                       Payment Mode <Text style={{ color: '#CE1D26' }}>*</Text>
                     </Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {(['Cash', 'UPI', 'Payment Link', 'Cheque'] as const).map(mode => (
+                      {(['Cash', 'Payment Link'] as const).map(mode => (
                         <TouchableOpacity
                           key={mode}
                           onPress={() => setPaymentMode(mode)}
                           style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: paymentMode === mode ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentMode === mode ? '#FAE2FA' : '#fff' }}
                         >
                           <Text style={{ fontSize: 12, fontWeight: paymentMode === mode ? '600' : '400', color: paymentMode === mode ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>
-                            {mode === 'Cash' ? '💵 Cash' : mode === 'UPI' ? '📱 UPI' : mode === 'Payment Link' ? '🔗 Payment Link' : '📄 Cheque'}
+                            {mode === 'Cash' ? '💵 Cash' : '🔗 Payment Link'}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -1940,7 +1941,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
             {/* Title card — summary pills */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
               <View style={{ backgroundColor: '#FAE2FA', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 24 }}>
-                <Text style={{ fontSize: 12, color: '#A008A3', fontWeight: '600' }}>{category} — {subcode}</Text>
+                <Text style={{ fontSize: 12, color: '#A008A3', fontWeight: '600' }}>{category}{isCollected ? ` — ${paymentType}` : subcode ? ` — ${subcode}` : ''}</Text>
               </View>
               {isCollected && netCollectible > 0 && (
                 <View style={{ backgroundColor: '#F0FDF4', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 24 }}>
