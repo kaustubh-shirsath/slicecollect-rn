@@ -102,6 +102,25 @@ export function getAgentPerf(username: string): AgentPerf | null {
   }
 }
 
+export function getOverallLeaderboard(): LeaderboardEntry[] {
+  const rows = AGENTS.map(agent => {
+    const myCases = ALL_CUSTOMERS.filter(c => c.username === agent.username)
+    const thisMonth = new Date().getMonth()
+    const thisYear = new Date().getFullYear()
+    const collected = myCases.reduce((sum, c) => {
+      const act = getActivity(c.partyId)
+      if (!act) return sum
+      return sum + act.collections.filter(col => {
+        const [y, m] = col.date.split('-').map(Number)
+        return m - 1 === thisMonth && y === thisYear
+      }).reduce((s, col) => s + col.amount, 0)
+    }, 0)
+    return { username: agent.username, name: agent.name, collected, cases: myCases.length }
+  })
+  rows.sort((a, b) => b.collected - a.collected)
+  return rows.map((r, i) => ({ ...r, rank: i + 1 }))
+}
+
 export function getBranchLeaderboard(branch: string): LeaderboardEntry[] {
   const branchAgents = AGENTS.filter(a => a.branch === branch)
 

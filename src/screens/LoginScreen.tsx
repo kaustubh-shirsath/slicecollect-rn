@@ -14,10 +14,12 @@ export default function LoginScreen({ navigation }: Props) {
   const [empId, setEmpId] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('Collections')
+  const [portfolioType, setPortfolioType] = useState<'bank' | 'slice'>('bank')
   const { setAgentInfo } = useAgent()
 
   function handleLogin() {
     const agent = findAgent(empId)
+    const pt = role === 'Collections' ? portfolioType : 'bank'
     if (agent) {
       setAgentInfo({
         id: agent.employeeCode,
@@ -30,9 +32,9 @@ export default function LoginScreen({ navigation }: Props) {
         employeeCode: (agent as any).employeeCode || empId,
         lat: agent.lat || 27.4728,
         lng: agent.lng || 94.9120,
+        portfolioType: pt,
       })
     } else {
-      // Fallback agent for demo
       setAgentInfo({
         id: empId || 'demo',
         username: empId || 'agent001',
@@ -44,6 +46,7 @@ export default function LoginScreen({ navigation }: Props) {
         employeeCode: empId || 'EMP001',
         lat: 27.4728,
         lng: 94.9120,
+        portfolioType: pt,
       })
     }
     if (role === 'Collections') {
@@ -106,7 +109,7 @@ export default function LoginScreen({ navigation }: Props) {
           </View>
 
           {/* Role toggle */}
-          <View className="mb-8">
+          <View className="mb-5">
             <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-2">Role</Text>
             <View className="flex-row gap-3">
               {['Collections', 'Sales'].map(r => (
@@ -120,6 +123,25 @@ export default function LoginScreen({ navigation }: Props) {
               ))}
             </View>
           </View>
+
+          {/* Portfolio type — only for Collections */}
+          {role === 'Collections' && (
+            <View className="mb-8">
+              <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-2">Portfolio</Text>
+              <View className="flex-row gap-3">
+                {([['bank', 'Bank', 'Field collections'], ['slice', 'Slice', 'CC & Borrow']] as const).map(([val, label, sub]) => (
+                  <TouchableOpacity
+                    key={val}
+                    onPress={() => setPortfolioType(val)}
+                    className={`flex-1 py-3 rounded-2xl items-center border ${portfolioType === val ? 'bg-[#D30AD7] border-[#D30AD7]' : 'bg-white border-black/10'}`}
+                  >
+                    <Text className={`text-sm font-semibold ${portfolioType === val ? 'text-white' : 'text-[rgba(0,0,0,0.8)]'}`}>{label}</Text>
+                    <Text className={`text-[10px] mt-0.5 ${portfolioType === val ? 'text-white/70' : 'text-black/40'}`}>{sub}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* Login button */}
           <TouchableOpacity

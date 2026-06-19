@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
@@ -122,10 +122,11 @@ function CalendarModal({ visible, onClose, onSelect, minDate }: {
 
 export default function SettlementScreen({ navigation, route }: Props) {
   const { customer: c } = route.params
+  const isSlice = c?.userType === 'cc' || c?.userType === 'borrow'
   const [settAmount, setSettAmount] = useState((c.emiOs ?? c.overdue ?? 0).toString())
   const [advance, setAdvance] = useState('')
+  const [settlementImage, setSettlementImage] = useState<string | null>(null)
   const [mode, setMode] = useState('Cash')
-  const [lokAdalat, setLokAdalat] = useState(false)
   const [installments, setInstallments] = useState(1)
   const [reason, setReason] = useState('')
   const [desc, setDesc] = useState('')
@@ -141,7 +142,7 @@ export default function SettlementScreen({ navigation, route }: Props) {
   const totalCheck = advAmount + instSum
   const isBalanced = sAmount > 0 ? Math.abs(totalCheck - sAmount) < 1 : true
   const allDatesSet = instDates.slice(0, installments).every(d => d !== '')
-  const isValid = sAmount > 0 && advAmount >= 0 && advAmount <= sAmount && reason !== '' && allDatesSet && isBalanced
+  const isValid = sAmount > 0 && (isSlice || (advAmount >= 0 && advAmount <= sAmount)) && reason !== '' && allDatesSet && isBalanced
 
   useEffect(() => {
     setInstAmounts(prev => {
@@ -169,7 +170,7 @@ export default function SettlementScreen({ navigation, route }: Props) {
       <View className="bg-[#FAE2FA] border border-[#D30AD7]/30 rounded-[24px] p-4 w-full mb-4 gap-1">
         <Text className="text-xs text-[#D30AD7] font-semibold mb-1">Settlement Summary</Text>
         <View className="flex-row justify-between"><Text className="text-xs text-black/50">Settlement Amount</Text><Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{fmt(sAmount)}</Text></View>
-        {advAmount > 0 && <View className="flex-row justify-between"><Text className="text-xs text-black/50">Advance</Text><Text className="text-xs font-semibold text-[#00A63E]">{fmt(advAmount)}</Text></View>}
+        {!isSlice && advAmount > 0 && <View className="flex-row justify-between"><Text className="text-xs text-black/50">Advance</Text><Text className="text-xs font-semibold text-[#00A63E]">{fmt(advAmount)}</Text></View>}
         <View className="flex-row justify-between"><Text className="text-xs text-black/50">Installments</Text><Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{installments}</Text></View>
         <View className="flex-row justify-between"><Text className="text-xs text-black/50">Mode</Text><Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{mode}</Text></View>
       </View>
@@ -207,19 +208,21 @@ export default function SettlementScreen({ navigation, route }: Props) {
           </View>
 
           {/* Advance */}
-          <View className="bg-[#FFF9F0] rounded-[24px] p-3" style={{ borderWidth: 1, borderColor: '#FFD580' }}>
-            <Text className="text-xs font-semibold text-[#B45309] uppercase tracking-wider mb-1.5">Advance Payment (₹) — Paid Today</Text>
-            <TextInput
-              keyboardType="numeric"
-              value={advance}
-              onChangeText={setAdvance}
-              placeholder="Upfront amount collected now"
-              placeholderTextColor="rgba(0,0,0,0.3)"
-              className="w-full bg-white rounded-xl px-3 py-2.5 text-sm"
-              style={{ borderWidth: 1, borderColor: '#FFD580' }}
-            />
-            {advAmount > 0 && <Text className="text-xs text-[#B45309] mt-1 font-medium">Remaining: {fmt(Math.max(0, sAmount - advAmount))}</Text>}
-          </View>
+          {!isSlice && (
+            <View className="bg-[#FFF9F0] rounded-[24px] p-3" style={{ borderWidth: 1, borderColor: '#FFD580' }}>
+              <Text className="text-xs font-semibold text-[#B45309] uppercase tracking-wider mb-1.5">Advance Payment (₹) — Paid Today</Text>
+              <TextInput
+                keyboardType="numeric"
+                value={advance}
+                onChangeText={setAdvance}
+                placeholder="Upfront amount collected now"
+                placeholderTextColor="rgba(0,0,0,0.3)"
+                className="w-full bg-white rounded-xl px-3 py-2.5 text-sm"
+                style={{ borderWidth: 1, borderColor: '#FFD580' }}
+              />
+              {advAmount > 0 && <Text className="text-xs text-[#B45309] mt-1 font-medium">Remaining: {fmt(Math.max(0, sAmount - advAmount))}</Text>}
+            </View>
+          )}
 
           {/* Mode */}
           <View>
@@ -235,20 +238,6 @@ export default function SettlementScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-
-          {/* Lok Adalat toggle */}
-          <View className="flex-row items-center justify-between py-2">
-            <View>
-              <Text className="text-sm font-semibold text-[rgba(0,0,0,0.9)]">Lok Adalat</Text>
-              <Text className="text-xs text-black/40">Under Lok Adalat order?</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => setLokAdalat(!lokAdalat)}
-              style={{ width: 48, height: 24, borderRadius: 12, backgroundColor: lokAdalat ? '#D30AD7' : '#EAEBED', justifyContent: 'center', paddingHorizontal: 2 }}
-            >
-              <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'white', transform: [{ translateX: lokAdalat ? 24 : 0 }] }} />
-            </TouchableOpacity>
           </View>
 
           {/* Installments */}
@@ -388,6 +377,25 @@ export default function SettlementScreen({ navigation, route }: Props) {
             </View>
           </View>
         )}
+
+        <TouchableOpacity
+          onPress={() => Alert.alert('Upload Settlement Form', 'Choose an option', [
+            { text: 'Take Photo', onPress: () => setSettlementImage('captured') },
+            { text: 'Choose from Gallery', onPress: () => setSettlementImage('gallery') },
+            { text: 'Cancel', style: 'cancel' }
+          ])}
+          style={{ borderWidth: 1.5, borderColor: '#D30AD7', borderStyle: 'dashed', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12 }}
+        >
+          {settlementImage ? (
+            <Text style={{ color: '#D30AD7', fontWeight: '600' }}>✓ Settlement form attached</Text>
+          ) : (
+            <>
+              <Text style={{ fontSize: 24 }}>📄</Text>
+              <Text style={{ color: '#D30AD7', fontWeight: '600', marginTop: 4 }}>Upload Settlement Form</Text>
+              <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>Photo or gallery</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => isValid && setSubmitted(true)}

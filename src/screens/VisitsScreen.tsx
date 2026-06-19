@@ -167,8 +167,8 @@ export default function VisitsScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Cash to deposit widget */}
-        <View className="mx-4 my-3 bg-[#D30AD7] rounded-[24px] px-4 py-3.5" style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } }}>
+        {/* Cash to deposit widget — bank only */}
+        {agentInfo?.portfolioType !== 'slice' && <View className="mx-4 my-3 bg-[#D30AD7] rounded-[24px] px-4 py-3.5" style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } }}>
           <View className="flex-row items-start justify-between mb-2.5">
             <View>
               <Text className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-0.5">Cash to Deposit</Text>
@@ -189,7 +189,7 @@ export default function VisitsScreen({ navigation }: Props) {
             <Text className="text-[9px] text-white/50">{fmt(cashToDeposit)} pending</Text>
             <Text className="text-[9px] text-white/50">₹80,00,000 limit</Text>
           </View>
-        </View>
+        </View>}
 
         {/* Tab bar */}
         <View className="flex-row bg-white" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>

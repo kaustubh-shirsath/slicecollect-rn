@@ -1,6 +1,8 @@
 // TODO backend: GET /api/home/summary?agent={username}
 import { ALL_CUSTOMERS } from './customers'
 import { getActivity } from './activityLog'
+import { getBorrowData } from './emis'
+import { getCCBill } from './ccBills'
 
 export interface BucketSummary {
   name: string
@@ -24,8 +26,12 @@ export interface HomeData {
   donut: { full: number; partial: number; notAttempted: number }
 }
 
-export function getHomeData(username: string): HomeData {
-  const myCases = ALL_CUSTOMERS.filter(c => c.username === username)
+export function getHomeData(username: string, portfolioType?: 'bank' | 'slice'): HomeData {
+  const myCases = ALL_CUSTOMERS.filter(c => {
+    if (c.username !== username) return false
+    if (!portfolioType) return true
+    return portfolioType === 'bank' ? c.userType === 'bank' : c.userType !== 'bank'
+  })
   const today = new Date().toDateString()
   const thisMonth = new Date().getMonth()
 
@@ -36,10 +42,23 @@ export function getHomeData(username: string): HomeData {
   const bucketMap: Record<string, BucketSummary> = {}
 
   for (const c of myCases) {
-    const b = c.assetClassification
+    let b: string
+    let overdueAmt: number
+    if (c.userType === 'borrow') {
+      const bd = getBorrowData(String(c.partyId))
+      b = bd?.bucketLabel ?? c.assetClassification
+      overdueAmt = bd?.totalOverdue ?? c.emiOs
+    } else if (c.userType === 'cc') {
+      const cc = getCCBill(String(c.partyId))
+      b = cc?.bucketLabel ?? c.assetClassification
+      overdueAmt = cc?.minDueAmount ?? c.emiOs
+    } else {
+      b = c.assetClassification
+      overdueAmt = c.emiOs
+    }
     if (!bucketMap[b]) bucketMap[b] = { name: b, cases: 0, overdue: 0, collected: 0, collectedCases: 0 }
     bucketMap[b].cases++
-    bucketMap[b].overdue += c.emiOs
+    bucketMap[b].overdue += overdueAmt
 
     const act = getActivity(c.partyId)
     if (!act?.latestDisposition) { pendingVisits++; notAttempted++; continue }
@@ -58,15 +77,21 @@ export function getHomeData(username: string): HomeData {
       if (isToday && !col.deposited && col.mode === 'Cash') { cashToDeposit += col.amount; pendingReceiptCount++ }
     }
 
-    if (totalCollected >= c.emiOs) fullOD++
+    if (totalCollected >= overdueAmt) fullOD++
     else if (totalCollected > 0) partial++
     else notAttempted++
   }
 
+  const overdueTotal = myCases.reduce((s, c) => {
+    if (c.userType === 'borrow') return s + (getBorrowData(String(c.partyId))?.totalOverdue ?? c.emiOs)
+    if (c.userType === 'cc') return s + (getCCBill(String(c.partyId))?.minDueAmount ?? c.emiOs)
+    return s + c.emiOs
+  }, 0)
+
   return {
     agentUsername: username,
     totalCases: myCases.length,
-    overdueTotal: myCases.reduce((s, c) => s + c.emiOs, 0),
+    overdueTotal,
     collectedToday,
     monthlyCollected,
     pendingVisits,

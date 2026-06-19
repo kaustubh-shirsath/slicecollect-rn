@@ -11,6 +11,7 @@ export interface AgentInfo {
   employeeCode: string
   lat: number
   lng: number
+  portfolioType: 'bank' | 'slice'  // controls which customers are shown
 }
 
 interface AgentContextValue {
@@ -38,6 +39,7 @@ const DEFAULT_AGENT: AgentInfo = {
   employeeCode: 'EMP-DBR-001',
   lat: 27.4728,
   lng: 94.9120,
+  portfolioType: 'bank',
 }
 
 export function AgentProvider({ children }: { children: ReactNode }) {

@@ -64,41 +64,85 @@ function SimpleSelect({ value, onChange, options, placeholder }: {
 
 // ─── Slice Disposition Flow (CC + Borrow) ────────────────────────────────────
 
-const SLICE_ACTION_TYPES = ['Collected', 'PTP', 'Broken PTP', 'Not Contactable', 'Not Reachable', 'Dispute', 'Partial Payment'] as const
-type SliceActionType = typeof SLICE_ACTION_TYPES[number]
+type SliceActionType = 'Collected' | 'PTP' | 'Broken PTP' | 'Not Contactable' | 'Not Reachable' | 'Dispute'
+type PostSubmitState = 'payment_sent' | 'payment_received' | 'waiver_submitted' | 'success'
 
-const BORROW_PAYMENT_TYPES = ['Min Due', 'Overdue EMIs', 'Full Outstanding', 'Custom Amount', 'Foreclose'] as const
-const CC_PAYMENT_TYPES = ['Min Due', 'Total Bill', 'Custom Amount'] as const
+const SLICE_ACTION_TILES: { label: SliceActionType; icon: string; color: string; bg: string }[] = [
+  { label: 'Collected',        icon: '✓',  color: '#166534', bg: '#F0FDF4' },
+  { label: 'PTP',              icon: '📅', color: '#1D4ED8', bg: '#EFF6FF' },
+  { label: 'Broken PTP',       icon: '⚡', color: '#92400E', bg: '#FFF7ED' },
+  { label: 'Not Contactable',  icon: '📵', color: '#374151', bg: '#F3F4F6' },
+  { label: 'Not Reachable',    icon: '📍', color: '#374151', bg: '#F3F4F6' },
+  { label: 'Dispute',          icon: '⚠',  color: '#991B1B', bg: '#FEF2F2' },
+]
+
+const CC_PAYMENT_TYPES = ['Min Due', 'Pay Overdue', 'Full Outstanding', 'Custom Amount'] as const
+const BORROW_PAYMENT_TYPES = ['Min Due', 'Pay Overdue', 'Overdue EMIs', 'Foreclose', 'Full Outstanding', 'Custom Amount'] as const
 
 function fmt2(n: number) { return '₹' + Math.round(n).toLocaleString('en-IN') }
 
 function SliceDispositionScreen({ navigation, route }: Props) {
-  const { customer: c, fromScreen } = route.params
+  const { customer: c } = route.params
   const { agentInfo, triggerReroute } = useAgent()
   const isCC = c.userType === 'cc'
   const borrowData = !isCC ? getBorrowData(c.partyId) : undefined
   const ccBill = isCC ? getCCBill(c.partyId) : undefined
 
+  // Step state
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [postSubmit, setPostSubmit] = useState<PostSubmitState | null>(null)
+  const [repaymentId] = useState(() => 'RPY' + String(Date.now()).slice(-10))
+
+  // Step 1
   const [sliceAction, setSliceAction] = useState<SliceActionType | null>(null)
+
+  // Step 2 — Collected
   const [paymentType, setPaymentType] = useState('')
   const [selectedEmiNos, setSelectedEmiNos] = useState<number[]>([])
   const [customAmount, setCustomAmount] = useState('')
   const [waiverPct, setWaiverPct] = useState(0)
+  const [sliderWidth, setSliderWidth] = useState(0)
+
+  // Step 2 — PTP
+  const [ptpDate, setPtpDate] = useState('')
+  const [ptpAmount, setPtpAmount] = useState('')
+
+  // Step 3 — contact (all types)
+  const [visitedAddress, setVisitedAddress] = useState('')
   const [contactPerson, setContactPerson] = useState('')
   const [contactPlace, setContactPlace] = useState('')
   const [contactNumber, setContactNumber] = useState('')
-  const [ptpDate, setPtpDate] = useState('')
   const [remarks, setRemarks] = useState('')
   const [photoCaptured, setPhotoCaptured] = useState(false)
-  const [step, setStep] = useState(1)
-  const [submitted, setSubmitted] = useState(false)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
 
-  const paymentTypes = isCC ? CC_PAYMENT_TYPES : BORROW_PAYMENT_TYPES
-  const isCollected = sliceAction === 'Collected' || sliceAction === 'Partial Payment'
+  const isCollected = sliceAction === 'Collected'
   const isPTP = sliceAction === 'PTP'
-  const needsContactInfo = sliceAction !== null && sliceAction !== 'Not Reachable'
+  const isBrokenPTP = sliceAction === 'Broken PTP'
+  const isDispute = sliceAction === 'Dispute'
+  const isNotReachable = sliceAction === 'Not Reachable'
+  const isNotContactable = sliceAction === 'Not Contactable'
+  const paymentTypes = isCC ? CC_PAYMENT_TYPES : BORROW_PAYMENT_TYPES
 
-  // Compute amounts from selected EMIs or bill
+  // Contact field matrix (strict bank rules)
+  // Collected: person=REQ, place=REQ, number=OPT
+  // PTP: person=REQ, place=REQ, number=REQ
+  // Broken PTP: person=REQ, place=REQ, number=REQ
+  // Dispute: person=REQ, place=REQ, number=REQ
+  // Not Contactable: person=HIDDEN, place=HIDDEN, number=OPT
+  // Not Reachable: person=HIDDEN, place=HIDDEN, number=HIDDEN
+  const requireContactPerson  = isCollected || isPTP || isBrokenPTP || isDispute
+  const requireContactPlace   = isCollected || isPTP || isBrokenPTP || isDispute
+  const requireContactNumber  = isPTP || isBrokenPTP || isDispute
+  const showContactPerson     = requireContactPerson  // hidden for Not Contactable & Not Reachable
+  const showContactPlace      = requireContactPlace
+  const showContactNumber     = !isNotReachable
+  const showContactSection    = !isNotReachable && !(isNotContactable)
+    ? true
+    : isNotContactable  // show number (optional) but hide person/place
+  const remarksRequired       = sliceAction !== 'Collected'
+
+  // Amount calculations
   const selectedEmis = (borrowData?.emis ?? []).filter(e => selectedEmiNos.includes(e.emiNo))
   const selectedPos = selectedEmis.reduce((s, e) => s + e.pos, 0)
   const selectedInterest = selectedEmis.reduce((s, e) => s + e.interest, 0)
@@ -106,37 +150,54 @@ function SliceDispositionScreen({ navigation, route }: Props) {
   const waiverableBase = isCC
     ? (ccBill ? ccBill.remainingLatePenalty + ccBill.remainingLateFees : 0)
     : selectedInterest + selectedPenalty
-
   const waiverAmount = Math.round(waiverableBase * waiverPct / 100)
 
   function getGrossAmount(): number {
-    if (paymentType === 'Min Due') return isCC ? (ccBill?.minDueAmount ?? 0) : (borrowData?.minDueAmount ?? 0)
-    if (paymentType === 'Total Bill') return ccBill?.remainingBillAmount ?? 0
-    if (paymentType === 'Full Outstanding') return borrowData?.totalOverdue ?? 0
-    if (paymentType === 'Foreclose') return borrowData?.foreclosureAmount ?? 0
-    if (paymentType === 'Overdue EMIs') return selectedPos + selectedInterest + selectedPenalty
-    if (paymentType === 'Custom Amount') return Number(customAmount) || 0
+    if (!isCC) {
+      if (paymentType === 'Min Due') return borrowData?.minDueAmount ?? 0
+      if (paymentType === 'Pay Overdue') return borrowData?.totalOverdue ?? 0
+      if (paymentType === 'Overdue EMIs') return selectedPos + selectedInterest + selectedPenalty
+      if (paymentType === 'Foreclose') return borrowData?.foreclosureAmount ?? 0
+      if (paymentType === 'Full Outstanding') return borrowData?.currentPos ?? 0
+      if (paymentType === 'Custom Amount') return Number(customAmount) || 0
+    } else {
+      if (paymentType === 'Min Due') return ccBill?.minDueAmount ?? 0
+      if (paymentType === 'Pay Overdue') return ccBill?.remainingBillAmount ?? 0
+      if (paymentType === 'Full Outstanding') return ccBill?.billAmount ?? 0
+      if (paymentType === 'Custom Amount') return Number(customAmount) || 0
+    }
     return 0
   }
-
   const grossAmount = getGrossAmount()
   const netCollectible = Math.max(0, grossAmount - waiverAmount)
 
+  // Validation per step
   const step1Valid = sliceAction !== null
   const step2Valid = (() => {
-    if (!isCollected) return true
-    if (paymentType === '') return false
-    if (paymentType === 'Overdue EMIs' && selectedEmiNos.length === 0) return false
-    if (paymentType === 'Custom Amount' && !customAmount) return false
+    if (isCollected) {
+      if (!paymentType) return false
+      if (paymentType === 'Overdue EMIs' && selectedEmiNos.length === 0) return false
+      if (paymentType === 'Custom Amount' && !customAmount) return false
+    }
+    if (isPTP && !ptpDate) return false
     return true
   })()
-  const step3Valid = needsContactInfo ? contactPerson !== '' && contactPlace !== '' : true
+  const step3Valid = (() => {
+    if (requireContactPerson && !contactPerson) return false
+    if (requireContactPlace && !contactPlace) return false
+    if (requireContactNumber && contactNumber.length !== 10) return false
+    if (!photoCaptured) return false
+    if (remarksRequired && remarks.length < 15) return false
+    return true
+  })()
 
   function toggleEmi(emiNo: number) {
     setSelectedEmiNos(prev => prev.includes(emiNo) ? prev.filter(n => n !== emiNo) : [...prev, emiNo])
   }
 
   function handleSubmit() {
+    setSubmitAttempted(true)
+    if (!step3Valid) return
     const todayStr = new Date().toISOString().split('T')[0]
     const existing = getActivity(c.partyId)
     const newVisitHistory = [
@@ -146,7 +207,7 @@ function SliceDispositionScreen({ navigation, route }: Props) {
         dispositionType: `${sliceAction}${paymentType ? ` — ${paymentType}` : ''}`,
         summary: remarks || (isCollected ? `Net collectible: ${fmt2(netCollectible)}` : `${sliceAction} recorded`),
         amount: isCollected ? netCollectible : 0,
-        contactPerson, contactPlace, contactNumber,
+        contactPerson, contactPlace,
         ptpDate: isPTP ? ptpDate : undefined,
         waiverPct: waiverPct > 0 ? waiverPct : undefined,
         waiverAmount: waiverAmount > 0 ? waiverAmount : undefined,
@@ -169,9 +230,8 @@ function SliceDispositionScreen({ navigation, route }: Props) {
     recordActualVisit(c.partyId, new Date().toISOString(), 0)
     triggerReroute()
 
-    // Waiver applied → maker-checker flow
     if (isCollected && waiverPct > 0) {
-      const req = submitWaiverRequest({
+      submitWaiverRequest({
         partyId: c.partyId,
         agentUsername: agentInfo?.username ?? '',
         userType: c.userType as 'borrow' | 'cc',
@@ -185,335 +245,764 @@ function SliceDispositionScreen({ navigation, route }: Props) {
         dispositionType: sliceAction || '',
         remarks,
       })
-      navigation.replace('WaiverPending', { customer: c, waiverRequestId: req.id })
+      setPostSubmit('waiver_submitted')
       return
     }
 
-    setSubmitted(true)
+    if (isCollected && waiverPct === 0) {
+      setPostSubmit('payment_sent')
+      return
+    }
+
+    setPostSubmit('success')
   }
 
-  if (submitted) {
+  // ── Step indicator ────────────────────────────────────────────────────────
+  function StepIndicator() {
+    const labels = ['Type', 'Details', 'Submit']
     return (
-      <View style={{ flex: 1, backgroundColor: '#F0F4F7', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
-        <View style={{ backgroundColor: '#fff', borderRadius: 24, padding: 32, alignItems: 'center', width: '100%', elevation: 2 }}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#E0F4E8', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 28 }}>✅</Text>
-          </View>
-          <Text style={{ fontSize: 17, fontWeight: '600', color: 'rgba(0,0,0,0.9)', marginBottom: 4 }}>Disposition Submitted</Text>
-          <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', marginBottom: 16 }}>Recorded for {c.name}</Text>
-          {isCollected && (
-            <View style={{ backgroundColor: '#FFF7ED', borderRadius: 16, padding: 16, width: '100%', marginBottom: 16, gap: 8 }}>
-              <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>Payment Pending</Text>
-              <Text style={{ fontSize: 13, color: '#92400E' }}>Send payment link to customer to complete collection of {fmt2(netCollectible)}</Text>
-              <TouchableOpacity
-                onPress={() => navigation.navigate('PaymentLink', { customer: c })}
-                style={{ backgroundColor: '#D30AD7', borderRadius: 20, paddingVertical: 10, alignItems: 'center', marginTop: 4 }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>Send Payment Link →</Text>
-              </TouchableOpacity>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, paddingHorizontal: 24, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+        {labels.map((label, idx) => {
+          const num = idx + 1
+          const active = step === num
+          const done = step > num
+          return (
+            <View key={label} style={{ flexDirection: 'row', alignItems: 'center', flex: idx < labels.length - 1 ? 1 : undefined }}>
+              <View style={{ alignItems: 'center' }}>
+                <View style={{
+                  width: 28, height: 28, borderRadius: 14,
+                  backgroundColor: done ? '#D30AD7' : active ? '#D30AD7' : 'rgba(0,0,0,0.08)',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: (active || done) ? '#fff' : 'rgba(0,0,0,0.3)' }}>
+                    {done ? '✓' : String(num)}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 10, marginTop: 4, color: active ? '#D30AD7' : done ? '#A008A3' : 'rgba(0,0,0,0.35)', fontWeight: active ? '600' : '400' }}>{label}</Text>
+              </View>
+              {idx < labels.length - 1 && (
+                <View style={{ flex: 1, height: 2, backgroundColor: done ? '#D30AD7' : 'rgba(0,0,0,0.08)', marginHorizontal: 6, marginBottom: 14 }} />
+              )}
             </View>
-          )}
-          <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ backgroundColor: '#D30AD7', borderRadius: 24, paddingVertical: 14, alignItems: 'center', width: '100%' }}>
-            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
-          </TouchableOpacity>
-        </View>
+          )
+        })}
       </View>
     )
   }
 
+  // ── Post-submit screens ───────────────────────────────────────────────────
+  if (postSubmit === 'payment_sent') {
+    const maskedMobile = 'XXXXXX' + (c.mobile ?? '').slice(-4)
+    const refNo = 'REF-' + c.partyId.slice(-6).toUpperCase() + '-' + String(Date.now()).slice(-6)
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', elevation: 1 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 28, color: '#7C3AED' }}>✓</Text>
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: 'rgba(0,0,0,0.9)', marginBottom: 6 }}>Payment Link Sent</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.55)', textAlign: 'center', marginBottom: 20 }}>
+              Link for {fmt2(netCollectible)} sent to {maskedMobile}
+            </Text>
+            <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', width: '100%', marginBottom: 16 }} />
+            <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, width: '100%', marginBottom: 16 }}>
+              <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Reference No.</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.8)', fontFamily: 'monospace' }}>{refNo}</Text>
+            </View>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', textAlign: 'center', marginBottom: 20 }}>
+              Waiting for customer to complete payment...
+            </Text>
+            <TouchableOpacity
+              onPress={() => setPostSubmit('payment_received')}
+              style={{ borderWidth: 1.5, borderColor: '#7C3AED', borderRadius: 24, paddingVertical: 12, alignItems: 'center', width: '100%', marginBottom: 10 }}
+            >
+              <Text style={{ color: '#7C3AED', fontWeight: '600', fontSize: 14 }}>Simulate Payment Received</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Main')}
+              style={{ backgroundColor: '#F3F4F6', borderRadius: 24, paddingVertical: 12, alignItems: 'center', width: '100%' }}
+            >
+              <Text style={{ color: 'rgba(0,0,0,0.6)', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  if (postSubmit === 'payment_received') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', elevation: 1 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 28, color: '#16A34A' }}>✓</Text>
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: 'rgba(0,0,0,0.9)', marginBottom: 6 }}>Payment Received!</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.55)', textAlign: 'center', marginBottom: 20 }}>Disposition successfully submitted</Text>
+            <View style={{ backgroundColor: '#F0FDF4', borderRadius: 12, padding: 14, width: '100%', gap: 8, marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, color: '#166534' }}>Customer</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#166534' }}>{c.name}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, color: '#166534' }}>Amount</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#166534' }}>{fmt2(netCollectible)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, color: '#166534' }}>Type</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#166534' }}>{paymentType}</Text>
+              </View>
+              <View style={{ height: 1, backgroundColor: 'rgba(22,101,52,0.15)', marginVertical: 2 }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, color: '#166534' }}>Repayment ID</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#166534', fontFamily: 'monospace' }}>{repaymentId}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Main')}
+              style={{ backgroundColor: '#D30AD7', borderRadius: 24, paddingVertical: 14, alignItems: 'center', width: '100%' }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  if (postSubmit === 'waiver_submitted') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center', elevation: 1, marginBottom: 12 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 28 }}>⏳</Text>
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: 'rgba(0,0,0,0.9)', marginBottom: 6 }}>Waiver Request Submitted</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.55)', textAlign: 'center' }}>Pending Agency Manager approval</Text>
+          </View>
+
+          <View style={{ backgroundColor: '#FFF7ED', borderRadius: 20, padding: 16, marginBottom: 12 }}>
+            <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Waiver Details</Text>
+            {[
+              ['Waiver %', `${waiverPct}%`],
+              ['Waiver Amount', fmt2(waiverAmount)],
+              ['Gross Amount', fmt2(grossAmount)],
+              ['Net Collectible (post approval)', fmt2(netCollectible)],
+            ].map(([k, v]) => (
+              <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ fontSize: 13, color: '#92400E' }}>{k}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#92400E' }}>{v}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 12, elevation: 1 }}>
+            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Agency Manager</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FAE2FA', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#A008A3' }}>RK</Text>
+              </View>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>Rajesh Kumar</Text>
+                <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Agency Manager · {agentInfo?.branch ?? 'Branch'}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 20, elevation: 1 }}>
+            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>What Happens Next</Text>
+            {[
+              'Agency Manager reviews your waiver request',
+              'On approval, payment link is auto-sent to customer',
+              'Disposition marked complete on payment',
+            ].map((txt, i) => (
+              <View key={i} style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#FAE2FA', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#A008A3' }}>{i + 1}</Text>
+                </View>
+                <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.7)', flex: 1 }}>{txt}</Text>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Main')}
+            style={{ backgroundColor: '#D30AD7', borderRadius: 24, paddingVertical: 14, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    )
+  }
+
+  if (postSubmit === 'success') {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', elevation: 1 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 28, color: '#16A34A' }}>✓</Text>
+            </View>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: 'rgba(0,0,0,0.9)', marginBottom: 6 }}>Disposition Submitted</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.55)', textAlign: 'center', marginBottom: 20 }}>
+              {sliceAction} recorded for {c.name}
+            </Text>
+            <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, width: '100%', gap: 8, marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Action</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(0,0,0,0.8)' }}>{sliceAction}</Text>
+              </View>
+              {contactPerson ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Spoke with</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(0,0,0,0.8)' }}>{contactPerson}</Text>
+                </View>
+              ) : null}
+              {ptpDate ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>PTP Date</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(0,0,0,0.8)' }}>{ptpDate}</Text>
+                </View>
+              ) : null}
+            </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Main')}
+              style={{ backgroundColor: '#D30AD7', borderRadius: 24, paddingVertical: 14, alignItems: 'center', width: '100%' }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  // ── Main form ─────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
       {/* Header */}
       <View style={{ backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12, elevation: 1 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
+        <TouchableOpacity
+          onPress={() => {
+            if (step === 1) navigation.goBack()
+            else setStep((step - 1) as 1 | 2 | 3)
+          }}
+          style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+        >
           <Text style={{ fontSize: 20, color: 'rgba(0,0,0,0.6)' }}>←</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(0,0,0,0.9)' }}>Add Feedback</Text>
-          <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)' }}>{c.name} · {c.userType.toUpperCase()}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(0,0,0,0.9)' }}>{c.name}</Text>
+          <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)' }}>Add Disposition</Text>
         </View>
-        <View style={{ backgroundColor: '#FAE2FA', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
-          <Text style={{ fontSize: 11, color: '#A008A3', fontWeight: '600' }}>{c.userType === 'cc' ? 'Credit Card' : 'Borrow'}</Text>
+        <View style={{ backgroundColor: isCC ? '#DBEAFE' : '#FAE2FA', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+          <Text style={{ fontSize: 11, color: isCC ? '#1D4ED8' : '#A008A3', fontWeight: '700' }}>{isCC ? '💳 CC' : '🏦 Borrow'}</Text>
         </View>
       </View>
 
+      {/* Step indicator */}
+      <StepIndicator />
+
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
 
-        {/* Financial summary card */}
-        <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
-          <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, fontWeight: '600' }}>
-            {isCC ? 'Bill Summary' : 'Loan Summary'}
-          </Text>
-          {isCC && ccBill ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-              {[
-                ['Bill Amount', fmt2(ccBill.billAmount)],
-                ['Remaining', fmt2(ccBill.remainingBillAmount)],
-                ['Min Due', fmt2(ccBill.minDueAmount)],
-                ['Late Penalty', fmt2(ccBill.remainingLatePenalty)],
-                ['Late Fees', fmt2(ccBill.remainingLateFees)],
-                ['Bucket', ccBill.bucketLabel],
-              ].map(([k, v]) => (
-                <View key={k} style={{ width: '30%' }}>
-                  <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', marginBottom: 2 }}>{k}</Text>
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>{v}</Text>
+        {/* ── STEP 1: Disposition Type ── */}
+        {step === 1 && (
+          <>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', marginBottom: 4 }}>Select a disposition type to proceed</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {SLICE_ACTION_TILES.map(tile => {
+                const selected = sliceAction === tile.label
+                return (
+                  <TouchableOpacity
+                    key={tile.label}
+                    onPress={() => { setSliceAction(tile.label); setPaymentType(''); setSelectedEmiNos([]); setCustomAmount(''); setWaiverPct(0) }}
+                    style={{
+                      width: '47%',
+                      backgroundColor: selected ? tile.bg : '#fff',
+                      borderRadius: 16,
+                      padding: 16,
+                      borderWidth: selected ? 2 : 1,
+                      borderColor: selected ? tile.color : 'rgba(0,0,0,0.08)',
+                      elevation: selected ? 2 : 1,
+                    }}
+                  >
+                    <Text style={{ fontSize: 22, marginBottom: 8 }}>{tile.icon}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: selected ? '700' : '500', color: selected ? tile.color : 'rgba(0,0,0,0.75)' }}>{tile.label}</Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setStep(2)}
+              disabled={!step1Valid}
+              style={{ backgroundColor: step1Valid ? '#D30AD7' : 'rgba(0,0,0,0.1)', borderRadius: 24, paddingVertical: 15, alignItems: 'center', marginTop: 8 }}
+            >
+              <Text style={{ color: step1Valid ? '#fff' : 'rgba(0,0,0,0.3)', fontWeight: '600', fontSize: 14 }}>Next →</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* ── STEP 2: Details ── */}
+        {step === 2 && (
+          <>
+            {/* Collected flow */}
+            {isCollected && (
+              <>
+                {/* Financial summary card */}
+                <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
+                  <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, fontWeight: '600' }}>
+                    {isCC ? 'Bill Summary' : 'Loan Summary'}
+                  </Text>
+                  {isCC && ccBill ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                      {[
+                        ['Bill Amount', fmt2(ccBill.billAmount)],
+                        ['Min Due', fmt2(ccBill.minDueAmount)],
+                        ['Late Penalty', fmt2(ccBill.remainingLatePenalty)],
+                      ].map(([k, v]) => (
+                        <View key={k} style={{ width: '30%' }}>
+                          <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', marginBottom: 2 }}>{k}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>{v}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : borrowData ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                      {[
+                        ['Current POS', fmt2(borrowData.currentPos)],
+                        ['Min Due', fmt2(borrowData.minDueAmount)],
+                        ['Late Interest', fmt2(borrowData.lateInterest)],
+                        ['Late Penalty', fmt2(borrowData.latePenalty)],
+                      ].map(([k, v]) => (
+                        <View key={k} style={{ width: '45%' }}>
+                          <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', marginBottom: 2 }}>{k}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>{v}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
                 </View>
-              ))}
-            </View>
-          ) : borrowData ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-              {[
-                ['Current POS', fmt2(borrowData.currentPos)],
-                ['Min Due', fmt2(borrowData.minDueAmount)],
-                ['Late Interest', fmt2(borrowData.lateInterest)],
-                ['Late Penalty', fmt2(borrowData.latePenalty)],
-                ['Overdue EMIs', String(borrowData.totalEmisOverdue)],
-                ['Bucket', borrowData.bucketLabel],
-              ].map(([k, v]) => (
-                <View key={k} style={{ width: '30%' }}>
-                  <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', marginBottom: 2 }}>{k}</Text>
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>{v}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)' }}>No financial data</Text>
-          )}
-        </View>
 
-        {/* Step 1 — Action type */}
-        <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
-          <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, fontWeight: '600' }}>Disposition Type</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {SLICE_ACTION_TYPES.map(a => (
-              <TouchableOpacity
-                key={a}
-                onPress={() => { setSliceAction(a); setPaymentType(''); setSelectedEmiNos([]); setCustomAmount(''); setWaiverPct(0) }}
-                style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: sliceAction === a ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: sliceAction === a ? '#FAE2FA' : '#fff' }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: sliceAction === a ? '600' : '400', color: sliceAction === a ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>{a}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+                {/* Payment type chips */}
+                <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 14 }}>
+                  <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Payment Type</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {paymentTypes.map(pt => (
+                      <TouchableOpacity
+                        key={pt}
+                        onPress={() => { setPaymentType(pt); setSelectedEmiNos([]); setCustomAmount('') }}
+                        style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: paymentType === pt ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentType === pt ? '#FAE2FA' : '#fff' }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: paymentType === pt ? '600' : '400', color: paymentType === pt ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>{pt}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
 
-        {/* Step 2 — Payment type + EMI selector (only for Collected/Partial) */}
-        {isCollected && (
-          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 16 }}>
-            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Payment Type</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {paymentTypes.map(pt => (
-                <TouchableOpacity
-                  key={pt}
-                  onPress={() => { setPaymentType(pt); setSelectedEmiNos([]); setCustomAmount('') }}
-                  style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: paymentType === pt ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentType === pt ? '#FAE2FA' : '#fff' }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: paymentType === pt ? '600' : '400', color: paymentType === pt ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>{pt}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  {/* EMI selector — only for Borrow + Overdue EMIs */}
+                  {paymentType === 'Overdue EMIs' && borrowData && (
+                    <View style={{ gap: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Select EMIs to Collect</Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            const allNos = borrowData.emis.filter(e => e.status === 'overdue').map(e => e.emiNo)
+                            const allSelected = allNos.every(n => selectedEmiNos.includes(n))
+                            setSelectedEmiNos(allSelected ? [] : allNos)
+                          }}
+                          style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: '#FAE2FA' }}
+                        >
+                          <Text style={{ fontSize: 11, color: '#A008A3', fontWeight: '600' }}>
+                            {borrowData.emis.filter(e => e.status === 'overdue').every(e => selectedEmiNos.includes(e.emiNo)) ? 'Deselect All' : 'Select All'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      {selectedEmiNos.length > 0 && (
+                        <View style={{ backgroundColor: '#F0FDF4', borderRadius: 10, padding: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 12, color: '#166534' }}>{selectedEmiNos.length} EMI{selectedEmiNos.length > 1 ? 's' : ''} selected</Text>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#166534' }}>{fmt2(grossAmount)}</Text>
+                        </View>
+                      )}
+                      {borrowData.emis.filter(e => e.status === 'overdue').map(e => {
+                        const sel = selectedEmiNos.includes(e.emiNo)
+                        const total = e.pos + e.interest + e.penalty
+                        return (
+                          <TouchableOpacity
+                            key={e.emiNo}
+                            onPress={() => toggleEmi(e.emiNo)}
+                            style={{ borderRadius: 14, borderWidth: 1.5, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: sel ? '#FAE2FA' : '#F9FAFB', padding: 12 }}
+                          >
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <Text style={{ fontWeight: '600', fontSize: 13, color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>EMI #{e.emiNo}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: sel ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>{fmt2(total)}</Text>
+                                <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.2)', backgroundColor: sel ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                                  {sel && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text>}
+                                </View>
+                              </View>
+                            </View>
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>POS: {fmt2(e.pos)}</Text>
+                              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>Interest: {fmt2(e.interest)}</Text>
+                              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>Penalty: {fmt2(e.penalty)}</Text>
+                            </View>
+                            <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)', marginTop: 4 }}>Due: {e.dueDate}</Text>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                  )}
 
-            {/* EMI selector for Borrow */}
-            {paymentType === 'Overdue EMIs' && borrowData && (
-              <View style={{ gap: 8 }}>
-                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Select EMIs to Collect</Text>
-                {borrowData.emis.filter(e => e.status === 'overdue').map(e => {
-                  const selected = selectedEmiNos.includes(e.emiNo)
-                  const total = e.pos + e.interest + e.penalty
-                  return (
-                    <TouchableOpacity
-                      key={e.emiNo}
-                      onPress={() => toggleEmi(e.emiNo)}
-                      style={{ borderRadius: 14, borderWidth: 1.5, borderColor: selected ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: selected ? '#FAE2FA' : '#F9FAFB', padding: 12 }}
-                    >
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <Text style={{ fontWeight: '600', fontSize: 13, color: selected ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>EMI #{e.emiNo}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: selected ? '#A008A3' : 'rgba(0,0,0,0.85)' }}>{fmt2(total)}</Text>
-                          <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: selected ? '#D30AD7' : 'rgba(0,0,0,0.2)', backgroundColor: selected ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                            {selected && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text>}
-                          </View>
+                  {/* Custom amount */}
+                  {paymentType === 'Custom Amount' && (
+                    <View>
+                      <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>Amount</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: customAmount ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingBottom: 8 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: 'rgba(0,0,0,0.7)', marginRight: 6 }}>₹</Text>
+                        <TextInput
+                          value={customAmount}
+                          onChangeText={v => setCustomAmount(v.replace(/\D/g, ''))}
+                          keyboardType="numeric"
+                          placeholder="Enter amount"
+                          placeholderTextColor="rgba(0,0,0,0.3)"
+                          style={{ flex: 1, fontSize: 16, color: 'rgba(0,0,0,0.9)' }}
+                        />
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Locked amount for non-custom, non-EMI types */}
+                  {paymentType !== '' && paymentType !== 'Custom Amount' && paymentType !== 'Overdue EMIs' && (
+                    <View style={{ backgroundColor: '#F0F4F7', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)' }}>Amount (system calculated)</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.85)' }}>{fmt2(grossAmount)}</Text>
+                        <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)' }}>🔒</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Waiver section — redesigned with slider */}
+                  {(isCollected || isPTP) && (
+                    <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 14, gap: 12 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Waiver on Interest + Penalty</Text>
+                        <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Base: {fmt2(waiverableBase)}</Text>
+                      </View>
+
+                      {waiverableBase === 0 && (
+                        <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', fontStyle: 'italic' }}>No interest/penalty base to waive for this payment type</Text>
+                      )}
+
+                      {/* Custom text input + slider + breakdown — only when base exists */}
+                      {waiverableBase > 0 && <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Custom %:</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#D30AD7', flex: 1 }}>
+                          <TextInput
+                            value={String(waiverPct)}
+                            onChangeText={v => {
+                              const n = parseInt(v.replace(/\D/g, ''), 10)
+                              if (!isNaN(n)) setWaiverPct(Math.min(100, Math.max(0, n)))
+                              else if (v === '') setWaiverPct(0)
+                            }}
+                            keyboardType="numeric"
+                            maxLength={3}
+                            style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 6 }}
+                          />
+                          <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.5)', paddingRight: 4 }}>%</Text>
                         </View>
                       </View>
-                      <View style={{ flexDirection: 'row', gap: 12 }}>
-                        <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>POS: {fmt2(e.pos)}</Text>
-                        <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>Interest: {fmt2(e.interest)}</Text>
-                        <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.5)' }}>Penalty: {fmt2(e.penalty)}</Text>
+
+                      {/* Touch slider */}
+                      <View
+                        style={{ height: 36, justifyContent: 'center' }}
+                        onLayout={e => setSliderWidth(e.nativeEvent.layout.width)}
+                        onStartShouldSetResponder={() => true}
+                        onResponderGrant={e => {
+                          const pct = Math.round(Math.min(100, Math.max(0, (e.nativeEvent.locationX / (sliderWidth || 1)) * 100)))
+                          setWaiverPct(pct)
+                        }}
+                        onResponderMove={e => {
+                          const pct = Math.round(Math.min(100, Math.max(0, (e.nativeEvent.locationX / (sliderWidth || 1)) * 100)))
+                          setWaiverPct(pct)
+                        }}
+                      >
+                        {/* Track background */}
+                        <View style={{ height: 6, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 3, overflow: 'visible' }}>
+                          {/* Filled portion */}
+                          <View style={{ height: 6, backgroundColor: '#A008A3', borderRadius: 3, width: `${waiverPct}%` }} />
+                        </View>
+                        {/* Thumb */}
+                        <View style={{
+                          position: 'absolute',
+                          left: `${waiverPct}%`,
+                          width: 22, height: 22, borderRadius: 11,
+                          backgroundColor: '#fff',
+                          borderWidth: 2, borderColor: '#A008A3',
+                          marginLeft: -11,
+                          top: 7,
+                          shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+                          elevation: 3,
+                        }} />
                       </View>
-                      <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)', marginTop: 4 }}>Due: {e.dueDate}</Text>
-                    </TouchableOpacity>
-                  )
-                })}
-              </View>
+
+                      {/* Waiver breakdown card */}
+                      {waiverPct > 0 ? (
+                        <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 12, gap: 6 }}>
+                          <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>Waiver Breakdown</Text>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: '#92400E' }}>Gross Amount</Text>
+                            <Text style={{ fontSize: 12, color: '#92400E', fontWeight: '600' }}>{fmt2(grossAmount)}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 12, color: '#92400E' }}>Waiver ({waiverPct}% of {fmt2(waiverableBase)})</Text>
+                            <Text style={{ fontSize: 12, color: '#CE1D26', fontWeight: '600' }}>− {fmt2(waiverAmount)}</Text>
+                          </View>
+                          <View style={{ height: 1, backgroundColor: 'rgba(146,64,14,0.2)', marginVertical: 2 }} />
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ fontSize: 13, color: '#92400E', fontWeight: '700' }}>Net Collectible</Text>
+                            <Text style={{ fontSize: 15, color: '#92400E', fontWeight: '800' }}>{fmt2(netCollectible)}</Text>
+                          </View>
+                          <Text style={{ fontSize: 10, color: '#B45309', marginTop: 4 }}>⚠ Waiver requires Agency Manager approval</Text>
+                        </View>
+                      ) : (
+                        grossAmount > 0 && (
+                          <View style={{ backgroundColor: '#F0FDF4', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ fontSize: 13, color: '#166534', fontWeight: '600' }}>Net Collectible</Text>
+                            <Text style={{ fontSize: 16, color: '#166534', fontWeight: '800' }}>{fmt2(netCollectible)}</Text>
+                          </View>
+                        )
+                      )}
+                      </>}
+                    </View>
+                  )}
+                </View>
+              </>
             )}
 
-            {/* Custom amount input */}
-            {paymentType === 'Custom Amount' && (
-              <View>
-                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>Amount</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: customAmount ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingBottom: 8 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '600', color: 'rgba(0,0,0,0.7)', marginRight: 6 }}>₹</Text>
+            {/* PTP flow */}
+            {isPTP && (
+              <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 16 }}>
+                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>PTP Details</Text>
+                <View>
+                  <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Promise Date <Text style={{ color: '#CE1D26' }}>*</Text></Text>
                   <TextInput
-                    value={customAmount}
-                    onChangeText={v => setCustomAmount(v.replace(/\D/g, ''))}
-                    keyboardType="numeric"
-                    placeholder="Enter amount"
+                    value={ptpDate}
+                    onChangeText={setPtpDate}
+                    placeholder="DD/MM/YYYY"
                     placeholderTextColor="rgba(0,0,0,0.3)"
-                    style={{ flex: 1, fontSize: 16, color: 'rgba(0,0,0,0.9)' }}
+                    style={{ borderBottomWidth: 1, borderBottomColor: ptpDate ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingVertical: 10, fontSize: 14, color: 'rgba(0,0,0,0.9)' }}
                   />
                 </View>
-              </View>
-            )}
-
-            {/* Locked amount display */}
-            {paymentType !== '' && paymentType !== 'Custom Amount' && paymentType !== 'Overdue EMIs' && (
-              <View style={{ backgroundColor: '#F0F4F7', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)' }}>Amount (system calculated)</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.85)' }}>{fmt2(grossAmount)}</Text>
-                  <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)' }}>🔒</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Waiver section */}
-            {paymentType !== '' && grossAmount > 0 && waiverableBase > 0 && (
-              <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 16, gap: 12 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Waiver on Interest + Penalty</Text>
-                  <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Base: {fmt2(waiverableBase)}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                  {[0, 10, 15, 20, 25, 30, 50].map(pct => (
-                    <TouchableOpacity
-                      key={pct}
-                      onPress={() => setWaiverPct(pct)}
-                      style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: waiverPct === pct ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: waiverPct === pct ? '#FAE2FA' : '#fff' }}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: waiverPct === pct ? '700' : '400', color: waiverPct === pct ? '#A008A3' : 'rgba(0,0,0,0.6)' }}>{pct === 0 ? 'No Waiver' : `${pct}%`}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* Calculation breakdown */}
-                {waiverPct > 0 && (
-                  <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 12, gap: 6 }}>
-                    <Text style={{ fontSize: 11, color: '#92400E', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 }}>Waiver Breakdown</Text>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <Text style={{ fontSize: 12, color: '#92400E' }}>Gross Amount</Text>
-                      <Text style={{ fontSize: 12, color: '#92400E', fontWeight: '600' }}>{fmt2(grossAmount)}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <Text style={{ fontSize: 12, color: '#92400E' }}>Waiver ({waiverPct}% of {fmt2(waiverableBase)})</Text>
-                      <Text style={{ fontSize: 12, color: '#CE1D26', fontWeight: '600' }}>− {fmt2(waiverAmount)}</Text>
-                    </View>
-                    <View style={{ height: 1, backgroundColor: 'rgba(146,64,14,0.2)', marginVertical: 2 }} />
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <Text style={{ fontSize: 13, color: '#92400E', fontWeight: '700' }}>Net Collectible</Text>
-                      <Text style={{ fontSize: 15, color: '#92400E', fontWeight: '800' }}>{fmt2(netCollectible)}</Text>
-                    </View>
-                    <Text style={{ fontSize: 10, color: '#B45309', marginTop: 4 }}>⚠ Waiver requires Agency Manager approval. Payment link will be sent after approval.</Text>
+                <View>
+                  <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>PTP Amount (Optional)</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)', paddingBottom: 8 }}>
+                    <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.5)', marginRight: 6 }}>₹</Text>
+                    <TextInput
+                      value={ptpAmount}
+                      onChangeText={v => setPtpAmount(v.replace(/\D/g, ''))}
+                      keyboardType="numeric"
+                      placeholder="Enter expected amount"
+                      placeholderTextColor="rgba(0,0,0,0.3)"
+                      style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)' }}
+                    />
                   </View>
-                )}
-                {waiverPct === 0 && grossAmount > 0 && (
-                  <View style={{ backgroundColor: '#F0FDF4', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 13, color: '#166534', fontWeight: '600' }}>Net Collectible</Text>
-                    <Text style={{ fontSize: 16, color: '#166534', fontWeight: '800' }}>{fmt2(netCollectible)}</Text>
-                  </View>
-                )}
+                </View>
               </View>
             )}
-          </View>
-        )}
 
-        {/* PTP date for PTP action */}
-        {isPTP && (
-          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
-            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>Promise Date</Text>
-            <TextInput
-              value={ptpDate}
-              onChangeText={setPtpDate}
-              placeholder="DD/MM/YYYY"
-              placeholderTextColor="rgba(0,0,0,0.3)"
-              style={{ borderBottomWidth: 1, borderBottomColor: ptpDate ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingVertical: 10, fontSize: 14, color: 'rgba(0,0,0,0.9)' }}
-            />
-          </View>
-        )}
+            {/* Non-collected, non-PTP: no financial details needed */}
+            {!isCollected && !isPTP && (
+              <View style={{ backgroundColor: '#EFF6FF', borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Text style={{ fontSize: 18 }}>ℹ️</Text>
+                <Text style={{ fontSize: 13, color: '#1E40AF', flex: 1 }}>No financial details needed. Contact information will be captured next.</Text>
+              </View>
+            )}
 
-        {/* Contact info */}
-        {needsContactInfo && (
-          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 16 }}>
-            <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Contact Details</Text>
-            <View>
-              <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Spoke With</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {['Self', 'Spouse', 'Parent', 'Sibling', 'Neighbor', 'Other'].map(p => (
-                  <TouchableOpacity key={p} onPress={() => setContactPerson(p)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: contactPerson === p ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: contactPerson === p ? '#FAE2FA' : '#fff' }}>
-                    <Text style={{ fontSize: 12, color: contactPerson === p ? '#A008A3' : 'rgba(0,0,0,0.7)', fontWeight: contactPerson === p ? '600' : '400' }}>{p}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View>
-              <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Location</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {['Home', 'Phone', 'Field', 'Office', 'Other'].map(p => (
-                  <TouchableOpacity key={p} onPress={() => setContactPlace(p)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: contactPlace === p ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: contactPlace === p ? '#FAE2FA' : '#fff' }}>
-                    <Text style={{ fontSize: 12, color: contactPlace === p ? '#A008A3' : 'rgba(0,0,0,0.7)', fontWeight: contactPlace === p ? '600' : '400' }}>{p}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View>
-              <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Contact Number</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.15)', paddingBottom: 8 }}>
-                <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', marginRight: 6, fontWeight: '500' }}>+91</Text>
-                <TextInput
-                  value={contactNumber}
-                  onChangeText={t => setContactNumber(t.replace(/\D/g, '').slice(0, 10))}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  placeholder="10-digit number"
-                  placeholderTextColor="rgba(0,0,0,0.3)"
-                  style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)' }}
-                />
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Remarks */}
-        <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
-          <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>Remarks</Text>
-          <TextInput
-            value={remarks}
-            onChangeText={setRemarks}
-            placeholder="Add notes about this visit..."
-            placeholderTextColor="rgba(0,0,0,0.3)"
-            multiline
-            numberOfLines={3}
-            style={{ fontSize: 14, color: 'rgba(0,0,0,0.85)', borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)', borderRadius: 12, padding: 12, minHeight: 80, textAlignVertical: 'top' }}
-          />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-            <TouchableOpacity onPress={() => setPhotoCaptured(v => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: photoCaptured ? '#D30AD7' : 'rgba(0,0,0,0.2)', backgroundColor: photoCaptured ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                {photoCaptured && <Text style={{ color: '#fff', fontSize: 10 }}>✓</Text>}
-              </View>
-              <Text style={{ fontSize: 12, color: photoCaptured ? '#A008A3' : 'rgba(0,0,0,0.5)' }}>📷 Photo captured</Text>
+            <TouchableOpacity
+              onPress={() => setStep(3)}
+              disabled={!step2Valid}
+              style={{ backgroundColor: step2Valid ? '#D30AD7' : 'rgba(0,0,0,0.1)', borderRadius: 24, paddingVertical: 15, alignItems: 'center', marginTop: 4 }}
+            >
+              <Text style={{ color: step2Valid ? '#fff' : 'rgba(0,0,0,0.3)', fontWeight: '600', fontSize: 14 }}>Next →</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </>
+        )}
 
-        {/* Submit */}
-        <TouchableOpacity
-          onPress={handleSubmit}
-          disabled={!step1Valid || !step2Valid}
-          style={{ backgroundColor: step1Valid && step2Valid ? '#D30AD7' : 'rgba(0,0,0,0.1)', borderRadius: 24, paddingVertical: 16, alignItems: 'center', marginTop: 4 }}
-        >
-          <Text style={{ color: step1Valid && step2Valid ? '#fff' : 'rgba(0,0,0,0.3)', fontWeight: '600', fontSize: 14 }}>
-            {isCollected && waiverPct > 0 ? 'Submit for Waiver Approval →' : isCollected ? 'Submit & Send Payment Link →' : 'Submit Disposition →'}
-          </Text>
-        </TouchableOpacity>
+        {/* ── STEP 3: Contact & Submit ── */}
+        {step === 3 && (
+          <>
+            {/* 1. Summary pill(s) */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+              <View style={{ backgroundColor: '#FAE2FA', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 24 }}>
+                <Text style={{ fontSize: 12, color: '#A008A3', fontWeight: '600' }}>{sliceAction}{paymentType ? ` — ${paymentType}` : ''}</Text>
+              </View>
+              {isCollected && netCollectible > 0 && (
+                <View style={{ backgroundColor: '#F0FDF4', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 24 }}>
+                  <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>{fmt2(netCollectible)}</Text>
+                </View>
+              )}
+              {isPTP && ptpDate ? (
+                <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 24 }}>
+                  <Text style={{ fontSize: 12, color: '#1D4ED8', fontWeight: '600' }}>PTP: {ptpDate}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            {/* 2. Contact section — conditional per field matrix */}
+            {/* For Not Reachable: person=HIDDEN, place=HIDDEN, number=HIDDEN — skip contact section entirely */}
+            {/* For Not Contactable: person=HIDDEN, place=HIDDEN, number=OPTIONAL — show only number */}
+            {!isNotReachable && (
+              <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 16 }}>
+                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Contact Details</Text>
+
+                {/* Contact Person — REQUIRED for Collected, PTP, Broken PTP, Dispute; HIDDEN for Not Contactable */}
+                {showContactPerson && (
+                  <View>
+                    <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                      Spoke With{requireContactPerson ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
+                    </Text>
+                    <SimpleSelect
+                      value={contactPerson}
+                      onChange={setContactPerson}
+                      options={['Self', 'Spouse', 'Parent', 'Sibling', 'Neighbor', 'Other']}
+                      placeholder="Select contact person"
+                    />
+                  </View>
+                )}
+
+                {/* Contact Place — REQUIRED for Collected, PTP, Broken PTP, Dispute; HIDDEN for Not Contactable */}
+                {showContactPlace && (
+                  <View>
+                    <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                      Met At{requireContactPlace ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
+                    </Text>
+                    <SimpleSelect
+                      value={contactPlace}
+                      onChange={setContactPlace}
+                      options={['Home', 'Phone', 'Field', 'Office', 'Other']}
+                      placeholder="Select contact place"
+                    />
+                  </View>
+                )}
+
+                {/* 3. Contact Number — OPTIONAL for Collected/Not Contactable, REQUIRED for PTP/Broken PTP/Dispute, HIDDEN for Not Reachable */}
+                {showContactNumber && (
+                  <View>
+                    <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                      Contact Number{requireContactNumber ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: contactNumber.length > 0 && contactNumber.length !== 10 ? '#CE1D26' : contactNumber.length === 10 ? '#D30AD7' : 'rgba(0,0,0,0.15)' }}>
+                      <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10, paddingRight: 6, fontWeight: '500' }}>+91</Text>
+                      <TextInput
+                        keyboardType="phone-pad"
+                        value={contactNumber}
+                        onChangeText={t => setContactNumber(t.replace(/\D/g, '').slice(0, 10))}
+                        placeholder={c.mobile ? 'XXXXXX' + c.mobile.slice(-4) : '10-digit number'}
+                        placeholderTextColor="rgba(0,0,0,0.3)"
+                        maxLength={10}
+                        style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}
+                      />
+                      {contactNumber.length > 0 && (
+                        <Text style={{ fontSize: 11, color: contactNumber.length === 10 ? '#00A63E' : '#CE1D26' }}>{contactNumber.length}/10</Text>
+                      )}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Address selection */}
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
+              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
+                Address Visited <Text style={{ color: 'rgba(0,0,0,0.3)', fontWeight: '400', fontSize: 10 }}>(Optional)</Text>
+              </Text>
+              <SimpleSelect
+                value={visitedAddress}
+                onChange={setVisitedAddress}
+                options={[
+                  c.address && `Home: ${c.address.slice(0, 40)}`,
+                  c.address_line2 && `Alt: ${c.address_line2.slice(0, 40)}`,
+                  c.address_line3 && `Other: ${c.address_line3.slice(0, 40)}`,
+                ].filter(Boolean) as string[]}
+                placeholder="Select address visited"
+              />
+            </View>
+
+            {/* 4. Remarks — OPTIONAL for Collected, REQUIRED(15+) for all others */}
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
+              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
+                Remarks {remarksRequired ? <Text style={{ color: '#CE1D26' }}>* (Min 15 chars)</Text> : '(Optional)'}
+              </Text>
+              <TextInput
+                value={remarks}
+                onChangeText={setRemarks}
+                placeholder={remarksRequired ? 'Describe what happened (min 15 characters)...' : 'Add notes about this visit...'}
+                placeholderTextColor="rgba(0,0,0,0.3)"
+                multiline
+                numberOfLines={4}
+                style={{ fontSize: 14, color: 'rgba(0,0,0,0.85)', borderWidth: 1, borderColor: remarksRequired && submitAttempted && remarks.length < 15 ? '#CE1D26' : 'rgba(0,0,0,0.1)', borderRadius: 12, padding: 12, minHeight: 90, textAlignVertical: 'top' }}
+              />
+              {remarksRequired && remarks.length > 0 && remarks.length < 15 && (
+                <Text style={{ fontSize: 11, color: '#CE1D26', marginTop: 4 }}>{15 - remarks.length} more characters needed</Text>
+              )}
+            </View>
+
+            {/* 5. Photo capture — REQUIRED for ALL */}
+            <TouchableOpacity
+              onPress={() => setPhotoCaptured(v => !v)}
+              style={{
+                backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1,
+                flexDirection: 'row', alignItems: 'center', gap: 12,
+                borderWidth: submitAttempted && !photoCaptured ? 1.5 : 0,
+                borderColor: submitAttempted && !photoCaptured ? '#CE1D26' : 'transparent',
+              }}
+            >
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: photoCaptured ? '#F0FDF4' : '#FEF2F2', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 18 }}>{photoCaptured ? '✅' : '📷'}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: photoCaptured ? '#166534' : '#991B1B' }}>
+                  {photoCaptured ? 'Photo Captured' : 'Capture Photo *'}
+                </Text>
+                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)' }}>
+                  {photoCaptured ? 'Tap to retake' : 'Required for all dispositions'}
+                </Text>
+              </View>
+              {photoCaptured && <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>✓</Text>}
+            </TouchableOpacity>
+
+            {/* 6. Validation hint */}
+            {submitAttempted && !step3Valid && (
+              <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 12, gap: 4 }}>
+                {requireContactPerson && !contactPerson && <Text style={{ fontSize: 11, color: '#92400E' }}>• Select who you spoke with</Text>}
+                {requireContactPlace && !contactPlace && <Text style={{ fontSize: 11, color: '#92400E' }}>• Select where you met</Text>}
+                {requireContactNumber && contactNumber.length !== 10 && <Text style={{ fontSize: 11, color: '#92400E' }}>• Enter valid 10-digit contact number</Text>}
+                {!photoCaptured && <Text style={{ fontSize: 11, color: '#92400E' }}>• Photo is required</Text>}
+                {remarksRequired && remarks.length < 15 && <Text style={{ fontSize: 11, color: '#92400E' }}>• Remarks must be at least 15 characters</Text>}
+              </View>
+            )}
+
+            {/* 7. Submit button */}
+            <TouchableOpacity
+              onPress={handleSubmit}
+              style={{ backgroundColor: '#D30AD7', borderRadius: 24, paddingVertical: 16, alignItems: 'center', marginTop: 4, opacity: step3Valid ? 1 : 0.7 }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                {isCollected && waiverPct > 0
+                  ? 'Submit for Waiver Approval →'
+                  : isCollected
+                  ? 'Submit & Send Payment Link →'
+                  : 'Submit Disposition →'}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -546,6 +1035,8 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const [photoCaptured, setPhotoCaptured] = useState(false)
   const [remarks, setRemarks] = useState('')
   const [sfConfirm, setSfConfirm] = useState(false)
+  const [bankWaiverPct, setBankWaiverPct] = useState(0)
+  const [bankSliderWidth, setBankSliderWidth] = useState(0)
   const [submitted, setSubmitted] = useState(false)
   const [showDateModal, setShowDateModal] = useState(false)
   const [calMonth, setCalMonth] = useState(new Date())
@@ -573,6 +1064,10 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const showFollowUpDate   = isPTP
   const remarksRequired    = !isCollected
 
+  const bankWaiverableBase = isCollected ? (c.latePenalty ?? c.penaltyOs ?? 0) + (c.lateFees ?? c.interestOs ?? 0) : 0
+  const bankWaiverAmount = Math.round(bankWaiverableBase * bankWaiverPct / 100)
+  const bankNetCollectible = Math.max(0, (Number(amount) || 0) - bankWaiverAmount)
+
   const remarksMinChars = 15
   const remarksValid = !remarksRequired || remarks.length >= remarksMinChars
 
@@ -586,7 +1081,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
 
   function resetStep2() {
     setAmount(''); setPayMode(''); setContactPerson(''); setContactPlace(''); setContactNumber('')
-    setFollowUpDate(''); setAltAddress(''); setAltNumber('')
+    setFollowUpDate(''); setAltAddress(''); setAltNumber(''); setBankWaiverPct(0)
   }
 
   function handleSubmit() {
@@ -856,6 +1351,72 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     ))}
                   </View>
                 </View>
+              </View>
+            )}
+
+            {/* Waiver — Bank */}
+            {isCollected && (
+              <View className="bg-white rounded-[24px] p-4 gap-4" style={{ elevation: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider">Waiver on Penalty + Fees</Text>
+                  <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)' }}>Base: ₹{bankWaiverableBase.toLocaleString('en-IN')}</Text>
+                </View>
+                {bankWaiverableBase === 0 ? (
+                  <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', fontStyle: 'italic' }}>No penalty/fees to waive for this customer</Text>
+                ) : (
+                  <>
+                    {/* Text input */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Waiver %:</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#D30AD7', flex: 1 }}>
+                        <TextInput
+                          value={String(bankWaiverPct)}
+                          onChangeText={v => {
+                            const n = parseInt(v.replace(/\D/g, ''), 10)
+                            if (!isNaN(n)) setBankWaiverPct(Math.min(100, Math.max(0, n)))
+                            else if (v === '') setBankWaiverPct(0)
+                          }}
+                          keyboardType="numeric"
+                          maxLength={3}
+                          style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 6 }}
+                        />
+                        <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.5)', paddingRight: 4 }}>%</Text>
+                      </View>
+                    </View>
+                    {/* Touch slider */}
+                    <View
+                      style={{ height: 36, justifyContent: 'center' }}
+                      onLayout={e => setBankSliderWidth(e.nativeEvent.layout.width)}
+                      onStartShouldSetResponder={() => true}
+                      onResponderGrant={e => setBankWaiverPct(Math.round(Math.min(100, Math.max(0, (e.nativeEvent.locationX / (bankSliderWidth || 1)) * 100))))}
+                      onResponderMove={e => setBankWaiverPct(Math.round(Math.min(100, Math.max(0, (e.nativeEvent.locationX / (bankSliderWidth || 1)) * 100))))}
+                    >
+                      <View style={{ height: 6, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 3 }}>
+                        <View style={{ height: 6, backgroundColor: '#D30AD7', borderRadius: 3, width: `${bankWaiverPct}%` }} />
+                      </View>
+                      <View style={{ position: 'absolute', left: `${bankWaiverPct}%`, width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff', borderWidth: 2, borderColor: '#D30AD7', marginLeft: -11, top: 7, elevation: 3 }} />
+                    </View>
+                    {/* Breakdown */}
+                    {bankWaiverPct > 0 && (
+                      <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 12, gap: 6 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                          <Text style={{ fontSize: 12, color: '#92400E' }}>Collected Amount</Text>
+                          <Text style={{ fontSize: 12, color: '#92400E', fontWeight: '600' }}>₹{(Number(amount)||0).toLocaleString('en-IN')}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                          <Text style={{ fontSize: 12, color: '#92400E' }}>Waiver ({bankWaiverPct}%)</Text>
+                          <Text style={{ fontSize: 12, color: '#CE1D26', fontWeight: '600' }}>− ₹{bankWaiverAmount.toLocaleString('en-IN')}</Text>
+                        </View>
+                        <View style={{ height: 1, backgroundColor: 'rgba(146,64,14,0.2)' }} />
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                          <Text style={{ fontSize: 13, color: '#92400E', fontWeight: '700' }}>Net Collectible</Text>
+                          <Text style={{ fontSize: 15, color: '#92400E', fontWeight: '800' }}>₹{bankNetCollectible.toLocaleString('en-IN')}</Text>
+                        </View>
+                        <Text style={{ fontSize: 10, color: '#B45309', marginTop: 4 }}>⚠ Waiver requires supervisor approval</Text>
+                      </View>
+                    )}
+                  </>
+                )}
               </View>
             )}
 

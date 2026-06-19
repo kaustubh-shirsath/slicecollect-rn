@@ -35,7 +35,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [search, setSearch] = useState('')
   const [showTierInfo, setShowTierInfo] = useState(false)
 
-  const homeData = useMemo(() => getHomeData(agentInfo?.username ?? ''), [agentInfo?.username, dataVersion])
+  const homeData = useMemo(() => getHomeData(agentInfo?.username ?? '', agentInfo?.portfolioType), [agentInfo?.username, agentInfo?.portfolioType, dataVersion])
 
   const buckets = homeData.bucketSummary
   const totalOverdue = homeData.overdueTotal
@@ -174,7 +174,7 @@ export default function HomeScreen({ navigation }: Props) {
         <Text className="text-center text-xs text-black/40">{fmtL(totalCollected)} collected of {fmtL(totalOverdue)} total</Text>
 
         {/* ═══ EARNINGS TRACKER ═══ */}
-        <View style={{ backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
+        {agentInfo?.portfolioType !== 'slice' && <View style={{ backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
           {/* Header */}
           <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -272,7 +272,7 @@ export default function HomeScreen({ navigation }: Props) {
               </View>
             </View>
           )}
-        </View>
+        </View>}
       </ScrollView>
 
       {/* Tier Info Modal */}

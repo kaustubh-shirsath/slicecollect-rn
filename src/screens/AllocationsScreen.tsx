@@ -63,14 +63,15 @@ export default function AllocationsScreen({ navigation, route }: Props) {
   const [distFilter, setDistFilter] = useState<DistFilter>('all')
   const [ptpFilter, setPtpFilter] = useState<PtpFilter>('all')
   const [sortBy, setSortBy] = useState<SortKey>('distance')
-  const [openDropdown, setOpenDropdown] = useState<'none' | 'bucket' | 'distance' | 'ptp' | 'sort'>('none')
+  const [visitedFilter, setVisitedFilter] = useState<'all' | 'visited' | 'notVisited'>('all')
+  const [openDropdown, setOpenDropdown] = useState<'none' | 'bucket' | 'distance' | 'ptp' | 'sort' | 'visited'>('none')
 
   useEffect(() => {
     if (defaultBucket && defaultBucket !== 'All') setStageFilter([defaultBucket])
     else if (defaultBucket === 'All') setStageFilter([])
   }, [defaultBucket])
 
-  const { allocations, loading, isFallback } = useAllocations('All', search, agentInfo?.username)
+  const { allocations, loading, isFallback } = useAllocations('All', search, agentInfo?.username, agentInfo?.portfolioType)
 
   const today = new Date().toDateString()
 
@@ -105,11 +106,17 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     if (ptpFilter === 'broken' && !c.ptpBroken) return false
     if (ptpFilter === 'none' && (c.hasPtp || c.ptpBroken)) return false
     if (highChancesOnly && !c.cibilAlert) return false
+    if (visitedFilter !== 'all') {
+      const activity = getActivity(c.partyId)
+      const hasVisit = activity?.latestDisposition != null
+      if (visitedFilter === 'visited' && !hasVisit) return false
+      if (visitedFilter === 'notVisited' && hasVisit) return false
+    }
     return true
   })
 
   const activeCount = (stageFilter.length > 0 ? 1 : 0) + (distFilter !== 'all' ? 1 : 0) +
-    (ptpFilter !== 'all' ? 1 : 0) + (highChancesOnly ? 1 : 0)
+    (ptpFilter !== 'all' ? 1 : 0) + (highChancesOnly ? 1 : 0) + (visitedFilter !== 'all' ? 1 : 0)
 
   const closeDropdown = () => setOpenDropdown('none')
 
@@ -145,6 +152,16 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                 <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>
               </View>
+              {c.userType === 'cc' && (
+                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: '#DBEAFE' }}>
+                  <Text className="text-[10px] font-bold" style={{ color: '#1D4ED8' }}>💳 CC</Text>
+                </View>
+              )}
+              {c.userType === 'borrow' && (
+                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: '#FAE2FA' }}>
+                  <Text className="text-[10px] font-bold" style={{ color: '#A008A3' }}>🏦 Borrow</Text>
+                </View>
+              )}
               <Text className="text-[10px] text-black/40">{c.dpd} DPD</Text>
               <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
               {c.risk === 'High' && (
@@ -243,6 +260,18 @@ export default function AllocationsScreen({ navigation, route }: Props) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 pb-3" contentContainerStyle={{ gap: 8, flexDirection: 'row' }}>
             <TouchableOpacity
               onPress={() => {
+                if (visitedFilter !== 'all') { setVisitedFilter('all'); setOpenDropdown('none') }
+                else setOpenDropdown(prev => prev === 'visited' ? 'none' : 'visited')
+              }}
+              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${visitedFilter !== 'all' ? 'bg-[#3B3B3B]' : 'bg-[#F0F4F7]'}`}
+            >
+              <Text className={`text-xs font-medium ${visitedFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
+                {visitedFilter === 'all' ? 'Visited ▾' : visitedFilter === 'visited' ? 'Visited: Yes ✕' : 'Visited: No ✕'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
                 if (stageFilter.length > 0) { setStageFilter([]); setOpenDropdown('none') }
                 else setOpenDropdown(prev => prev === 'bucket' ? 'none' : 'bucket')
               }}
@@ -288,13 +317,35 @@ export default function AllocationsScreen({ navigation, route }: Props) {
 
             {activeCount > 0 && (
               <TouchableOpacity
-                onPress={() => { setStageFilter([]); setDistFilter('all'); setPtpFilter('all'); setHighChancesOnly(false); closeDropdown() }}
+                onPress={() => { setStageFilter([]); setDistFilter('all'); setPtpFilter('all'); setHighChancesOnly(false); setVisitedFilter('all'); closeDropdown() }}
                 className="px-3 py-1.5 rounded-full bg-[#F9E4E5]"
               >
                 <Text className="text-xs font-medium text-[#CE1D26]">Clear all</Text>
               </TouchableOpacity>
             )}
           </ScrollView>
+
+          {/* Visited Dropdown */}
+          {openDropdown === 'visited' && (
+            <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
+              <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
+                {[
+                  { id: 'visited', label: 'Yes — Visited' },
+                  { id: 'notVisited', label: 'No — Not Visited' },
+                ].map(opt => (
+                  <TouchableOpacity
+                    key={opt.id}
+                    onPress={() => { setVisitedFilter(opt.id as 'visited' | 'notVisited'); closeDropdown() }}
+                    className="flex-row items-center justify-between px-4 py-3"
+                    style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}
+                  >
+                    <Text className="text-sm text-[rgba(0,0,0,0.8)]">{opt.label}</Text>
+                    {visitedFilter === opt.id && <Text style={{ color: '#D30AD7' }}>✓</Text>}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Bucket Dropdown */}
           {openDropdown === 'bucket' && (

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, Alert, Modal } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
@@ -28,6 +28,19 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
   const { customer: c, fromScreen } = route.params
   const { agentInfo } = useAgent()
   const [callBlocked, setCallBlocked] = useState(false)
+  const [showAllAddresses, setShowAllAddresses] = useState(false)
+  const [showAllPhones, setShowAllPhones] = useState(false)
+  const [localAddresses, setLocalAddresses] = useState<{ label: string; value: string }[]>(() =>
+    [
+      c.address && { label: 'Home', value: c.address },
+      c.address_line2 && { label: 'Address 2', value: c.address_line2 },
+      c.address_line3 && { label: 'Address 3', value: c.address_line3 },
+    ].filter(Boolean) as { label: string; value: string }[]
+  )
+  const [editingAddr, setEditingAddr] = useState<{ idx: number; label: string; value: string } | null>(null)
+  const [addingAddr, setAddingAddr] = useState(false)
+  const [newAddrLabel, setNewAddrLabel] = useState<'Home' | 'Work' | 'Other'>('Home')
+  const [newAddrValue, setNewAddrValue] = useState('')
 
   // Appointment state
   const [appt, setAppt] = useState<Appointment | undefined>(() => getAppointmentForCustomer(c.partyId))
@@ -145,6 +158,16 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                     {displayBucket}
                   </Text>
                 </View>
+                {c.userType === 'cc' && (
+                  <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: '#DBEAFE' }}>
+                    <Text className="text-[10px] font-bold" style={{ color: '#1D4ED8' }}>💳 CC</Text>
+                  </View>
+                )}
+                {c.userType === 'borrow' && (
+                  <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: '#FAE2FA' }}>
+                    <Text className="text-[10px] font-bold" style={{ color: '#A008A3' }}>🏦 Borrow</Text>
+                  </View>
+                )}
                 {c.cibilAlert && (
                   <View className="bg-[#FFF0E0] px-2 py-0.5 rounded-full">
                     <Text className="text-[10px] text-[#C05000] font-semibold">⚠ CIBIL</Text>
@@ -263,59 +286,84 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
         )}
 
         {/* Contact */}
-        <View className="bg-white rounded-[20px] overflow-hidden" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <View className="px-4 pt-3 pb-2.5" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
-            <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-2">Primary</Text>
-            <View className="flex-row items-center justify-between">
-              <Text className="text-sm font-semibold text-[rgba(0,0,0,0.9)] tracking-wide">XXXXXX{c.mobile?.slice(-4)}</Text>
-              <View className="flex-row items-center gap-2">
-                <TouchableOpacity
-                  onPress={() => handleCall(c.mobile)}
-                  className="w-9 h-9 rounded-full bg-[#D30AD7] items-center justify-center"
-                >
-                  <Text className="text-white text-sm">📞</Text>
+        {(() => {
+          const allPhones = [
+            c.mobile && { label: 'Primary', number: c.mobile },
+            c.mobile1 && { label: 'Alternate', number: c.mobile1 },
+            c.mobile2 && { label: 'Alternate 2', number: c.mobile2 },
+          ].filter(Boolean) as { label: string; number: string }[]
+          const visiblePhones = showAllPhones ? allPhones : allPhones.slice(0, 1)
+          return (
+            <View className="bg-white rounded-[20px] overflow-hidden" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+              {visiblePhones.map((ph, i) => (
+                <View key={i} className="px-4 py-2.5" style={i < visiblePhones.length - 1 || allPhones.length > 1 ? { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' } : {}}>
+                  <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-2">{ph.label}</Text>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-sm font-semibold text-[rgba(0,0,0,0.9)] tracking-wide">XXXXXX{ph.number.slice(-4)}</Text>
+                    <View className="flex-row items-center gap-2">
+                      <TouchableOpacity onPress={() => handleCall(ph.number)} className="w-9 h-9 rounded-full bg-[#D30AD7] items-center justify-center">
+                        <Text className="text-white text-sm">📞</Text>
+                      </TouchableOpacity>
+                      {i === 0 && (
+                        <TouchableOpacity onPress={() => openWhatsApp(ph.number)} className="w-9 h-9 rounded-full bg-[#25D366] items-center justify-center">
+                          <Text style={{ color: '#fff', fontSize: 15 }}>💬</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ))}
+              {allPhones.length > 1 && (
+                <TouchableOpacity onPress={() => setShowAllPhones(v => !v)} className="px-4 py-2.5 flex-row items-center gap-1.5">
+                  <Text className="text-[#D30AD7] text-xs font-semibold">
+                    {showAllPhones ? 'Show less' : `+${allPhones.length - 1} more number${allPhones.length - 2 > 0 ? 's' : ''}`}
+                  </Text>
+                  <Text className="text-[#D30AD7] text-xs">{showAllPhones ? '▴' : '▾'}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => openWhatsApp(c.mobile)}
-                  className="w-9 h-9 rounded-full bg-[#25D366] items-center justify-center"
-                >
-                  <Text style={{ color: '#fff', fontSize: 15 }}>💬</Text>
-                </TouchableOpacity>
-              </View>
+              )}
             </View>
-          </View>
-          {c.mobile1 && (
-            <View className="px-4 py-2.5">
-              <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-2">Alternate</Text>
-              <View className="flex-row items-center justify-between">
-                <Text className="text-sm font-semibold text-[rgba(0,0,0,0.9)] tracking-wide">XXXXXX{c.mobile1.slice(-4)}</Text>
-                <TouchableOpacity
-                  onPress={() => handleCall(c.mobile1)}
-                  className="w-9 h-9 rounded-full border-2 border-[#D30AD7] items-center justify-center"
-                >
-                  <Text className="text-[#D30AD7] text-sm">📞</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </View>
+          )
+        })()}
 
         {/* Address */}
-        <TouchableOpacity
-          onPress={() => openMaps(c.address)}
-          className="w-full bg-white rounded-[20px] px-4 py-3"
-          style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}
-        >
-          <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-1.5">Address</Text>
-          <View className="flex-row items-start gap-2">
-            <Text className="text-[#D30AD7] mt-0.5">📍</Text>
-            <Text className="text-xs font-medium text-[rgba(0,0,0,0.85)] leading-relaxed flex-1">{c.address}</Text>
-            <View className="w-8 h-8 rounded-full bg-[#FAE2FA] items-center justify-center">
-              <Text>📍</Text>
-            </View>
+        <View className="bg-white rounded-[20px] overflow-hidden" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+          {/* Header row with + add button */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
+            <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: '600' }}>Addresses</Text>
+            <TouchableOpacity onPress={() => { setNewAddrLabel('Home'); setNewAddrValue(''); setAddingAddr(true) }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ color: '#D30AD7', fontSize: 18, fontWeight: '300', lineHeight: 20 }}>+</Text>
+              <Text style={{ color: '#D30AD7', fontSize: 11, fontWeight: '600' }}>Add</Text>
+            </TouchableOpacity>
           </View>
-          <Text className="text-[#D30AD7] text-[10px] font-semibold mt-1.5">Open in Google Maps →</Text>
-        </TouchableOpacity>
+          {/* Address rows */}
+          {(showAllAddresses ? localAddresses : localAddresses.slice(0, 1)).map((addr, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: i < (showAllAddresses ? localAddresses : localAddresses.slice(0, 1)).length - 1 ? 1 : 0, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
+              <TouchableOpacity onPress={() => openMaps(addr.value)} style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 12 }}>
+                <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '500', marginBottom: 4 }}>{addr.label}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                  <Text style={{ color: '#D30AD7', fontSize: 12, marginTop: 1 }}>📍</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.85)', flex: 1, lineHeight: 18 }}>{addr.value}</Text>
+                </View>
+                <Text style={{ color: '#D30AD7', fontSize: 10, fontWeight: '600', marginTop: 4 }}>Open in Maps →</Text>
+              </TouchableOpacity>
+              {/* Pencil edit icon */}
+              <TouchableOpacity
+                onPress={() => setEditingAddr({ idx: i, label: addr.label, value: addr.value })}
+                style={{ paddingHorizontal: 14, paddingVertical: 12, alignSelf: 'stretch', justifyContent: 'center' }}
+              >
+                <Text style={{ fontSize: 16 }}>✏️</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          {localAddresses.length > 1 && (
+            <TouchableOpacity onPress={() => setShowAllAddresses(v => !v)} style={{ paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 4, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' }}>
+              <Text style={{ color: '#D30AD7', fontSize: 12, fontWeight: '600' }}>
+                {showAllAddresses ? 'Show less' : `+${localAddresses.length - 1} more`}
+              </Text>
+              <Text style={{ color: '#D30AD7', fontSize: 10 }}>{showAllAddresses ? '▴' : '▾'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Appointment Section */}
         <View className="bg-white rounded-2xl p-4 mb-4" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
@@ -535,28 +583,117 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
 
       </ScrollView>
 
+      {/* Edit Address Modal */}
+      <Modal visible={editingAddr !== null} transparent animationType="slide" onRequestClose={() => setEditingAddr(null)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setEditingAddr(null)}>
+          <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 }}>
+            <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
+            <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(0,0,0,0.9)', marginBottom: 16 }}>Edit Address</Text>
+            {/* Address type chips */}
+            <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Label</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+              {(['Home', 'Work', 'Other'] as const).map(lbl => (
+                <TouchableOpacity
+                  key={lbl}
+                  onPress={() => setEditingAddr(prev => prev ? { ...prev, label: lbl } : null)}
+                  style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: editingAddr?.label === lbl ? '#D30AD7' : 'rgba(0,0,0,0.15)', backgroundColor: editingAddr?.label === lbl ? '#FAE2FA' : '#fff' }}
+                >
+                  <Text style={{ fontSize: 13, color: editingAddr?.label === lbl ? '#A008A3' : 'rgba(0,0,0,0.6)', fontWeight: editingAddr?.label === lbl ? '600' : '400' }}>{lbl}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {/* Address text input */}
+            <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Address</Text>
+            <TextInput
+              value={editingAddr?.value ?? ''}
+              onChangeText={v => setEditingAddr(prev => prev ? { ...prev, value: v } : null)}
+              multiline
+              numberOfLines={3}
+              style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)', borderRadius: 12, padding: 12, fontSize: 14, color: 'rgba(0,0,0,0.9)', textAlignVertical: 'top', minHeight: 80, marginBottom: 16 }}
+              placeholder="Enter full address..."
+            />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity onPress={() => setEditingAddr(null)} style={{ flex: 1, paddingVertical: 14, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)', alignItems: 'center' }}>
+                <Text style={{ fontWeight: '500', color: 'rgba(0,0,0,0.7)' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  if (editingAddr) {
+                    setLocalAddresses(prev => prev.map((a, i) => i === editingAddr.idx ? { label: editingAddr.label, value: editingAddr.value } : a))
+                    setEditingAddr(null)
+                  }
+                }}
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 24, backgroundColor: '#D30AD7', alignItems: 'center' }}
+              >
+                <Text style={{ fontWeight: '600', color: '#fff' }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Add Address Modal */}
+      <Modal visible={addingAddr} transparent animationType="slide" onRequestClose={() => setAddingAddr(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setAddingAddr(false)}>
+          <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 }}>
+            <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
+            <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(0,0,0,0.9)', marginBottom: 16 }}>Add Address</Text>
+            <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Label</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+              {(['Home', 'Work', 'Other'] as const).map(lbl => (
+                <TouchableOpacity
+                  key={lbl}
+                  onPress={() => setNewAddrLabel(lbl)}
+                  style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: newAddrLabel === lbl ? '#D30AD7' : 'rgba(0,0,0,0.15)', backgroundColor: newAddrLabel === lbl ? '#FAE2FA' : '#fff' }}
+                >
+                  <Text style={{ fontSize: 13, color: newAddrLabel === lbl ? '#A008A3' : 'rgba(0,0,0,0.6)', fontWeight: newAddrLabel === lbl ? '600' : '400' }}>{lbl}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Address</Text>
+            <TextInput
+              value={newAddrValue}
+              onChangeText={setNewAddrValue}
+              multiline
+              numberOfLines={3}
+              style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)', borderRadius: 12, padding: 12, fontSize: 14, color: 'rgba(0,0,0,0.9)', textAlignVertical: 'top', minHeight: 80, marginBottom: 16 }}
+              placeholder="Enter full address..."
+            />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity onPress={() => setAddingAddr(false)} style={{ flex: 1, paddingVertical: 14, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)', alignItems: 'center' }}>
+                <Text style={{ fontWeight: '500', color: 'rgba(0,0,0,0.7)' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  if (newAddrValue.trim()) {
+                    setLocalAddresses(prev => [...prev, { label: newAddrLabel, value: newAddrValue.trim() }])
+                    setAddingAddr(false)
+                    setNewAddrValue('')
+                  }
+                }}
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 24, backgroundColor: '#D30AD7', alignItems: 'center' }}
+              >
+                <Text style={{ fontWeight: '600', color: '#fff' }}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Action buttons */}
       <View className="absolute bottom-6 left-0 right-0 px-4">
         <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 12, elevation: 16, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity
             onPress={() => navigation.navigate('Disposition', { customer: c, fromScreen })}
-            style={{ flex: 2, backgroundColor: '#D30AD7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+            style={{ flex: 1, backgroundColor: '#D30AD7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
           >
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', letterSpacing: 0.2 }}>Add Feedback</Text>
           </TouchableOpacity>
-          {!isSlice && (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Settlement', { customer: c })}
-              style={{ flex: 1, backgroundColor: '#F0F4F7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
-            >
-              <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 12, fontWeight: '600' }}>Settlement</Text>
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
-            onPress={() => navigation.navigate('PaymentLink', { customer: c })}
-            style={{ flex: 1, backgroundColor: '#F0F4F7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+            onPress={() => navigation.navigate('Settlement', { customer: c })}
+            style={{ flex: 1, backgroundColor: '#1E293B', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
           >
-            <Text style={{ color: 'rgba(0,0,0,0.7)', fontSize: 12, fontWeight: '600' }}>Pay Link</Text>
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Settlement</Text>
           </TouchableOpacity>
         </View>
       </View>

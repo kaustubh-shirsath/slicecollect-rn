@@ -4,9 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
-import { getBranchLeaderboard, getAgentPerf } from '../data/leaderboard'
-import { ACTIVITY_LOG } from '../data/activityLog'
-import { ALL_CUSTOMERS } from '../data/customers'
+import { getOverallLeaderboard, getAgentPerf } from '../data/leaderboard'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>
 
@@ -23,15 +21,14 @@ function fmtL(n: number) {
 export default function ProfileScreen({ navigation }: Props) {
   const { agentInfo, setAgentInfo } = useAgent()
   const [leaderboard, setLeaderboard] = useState<any[]>([])
-  const [showFullLeaderboard, setShowFullLeaderboard] = useState(false)
 
   const localPerf = agentInfo?.username ? getAgentPerf(agentInfo.username) : null
 
   useEffect(() => {
     if (!agentInfo?.username) return
-    const local = getBranchLeaderboard(agentInfo?.branch || '')
+    const local = getOverallLeaderboard()
     setLeaderboard(local)
-  }, [agentInfo?.username, agentInfo?.branch])
+  }, [agentInfo?.username])
 
   const weeklyTarget    = localPerf?.weeklyTarget    ?? 2000000
   const weeklyCollected = localPerf?.weeklyCollected ?? 0
@@ -49,29 +46,13 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const myUsername = agentInfo?.username
   const myEntry = leaderboard.find(r => r.username === myUsername)
-  const myRank = myEntry?.rank ?? null
 
-  const myHistory = ACTIVITY_LOG
-    .filter((a: any) => a.username === myUsername && a.latestDisposition)
-    .map((a: any) => {
-      const cust = ALL_CUSTOMERS.find((c: any) => c.partyId === a.partyId)
-      return {
-        name: cust?.name || a.partyId,
-        type: a.latestDisposition!.type,
-        code: a.latestDisposition!.code,
-        date: a.latestDisposition!.date,
-        amount: a.collections.reduce((s: number, x: any) => s + x.amount, 0),
-      }
-    })
-    .sort((a: any, b: any) => b.date.localeCompare(a.date))
-    .slice(0, 10)
-  const inTop5 = myRank !== null && myRank <= 5
-
-  let displayList = leaderboard.slice(0, 5)
-  if (!inTop5 && myEntry) {
-    displayList = [...leaderboard.slice(0, 4), myEntry]
-  }
-  const fullList = showFullLeaderboard ? leaderboard : displayList
+  const top10 = leaderboard.slice(0, 10)
+  const isInTop10 = myEntry ? myEntry.rank <= 10 : false
+  const displayList = isInTop10 ? top10 : [
+    ...leaderboard.slice(0, 9),
+    myEntry ? { ...myEntry, _isAppended: true } : null,
+  ].filter(Boolean)
 
   const todayIdx = (new Date().getDay() + 6) % 7
 
@@ -157,7 +138,7 @@ export default function ProfileScreen({ navigation }: Props) {
         {/* Leaderboard */}
         <View className="bg-white rounded-[24px] p-4" style={{ elevation: 1 }}>
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="font-medium text-[rgba(0,0,0,0.9)] text-sm">Branch Leaderboard · June</Text>
+            <Text className="font-medium text-[rgba(0,0,0,0.9)] text-sm">Overall Leaderboard · June</Text>
             <Text className="text-[10px] text-black/40">{leaderboard.length} agents</Text>
           </View>
 
@@ -171,72 +152,45 @@ export default function ProfileScreen({ navigation }: Props) {
                 <Text className="text-[10px] text-black/40">Collected</Text>
               </View>
               <View className="gap-1.5">
-                {fullList.map((row: any) => {
+                {displayList.map((row: any) => {
                   const isMe = row.username === myUsername
                   const rank = row.rank
+                  const isAppended = !!(row as any)._isAppended
                   return (
-                    <View
-                      key={row.username}
-                      className={`flex-row items-center gap-2 px-3 py-2.5 rounded-xl ${isMe ? 'bg-[#FAE2FA]' : 'bg-[#F0F4F7]'}`}
-                      style={isMe ? { borderWidth: 1, borderColor: 'rgba(211,10,215,0.30)' } : {}}
-                    >
-                      <View className="w-8 flex-row items-center gap-1">
-                        {rank <= 3 ? (
-                          <Text className="text-base leading-none">{medals[rank - 1]}</Text>
-                        ) : (
-                          <Text className={`text-xs font-medium ${isMe ? 'text-[#D30AD7]' : 'text-black/40'}`}>#{rank}</Text>
-                        )}
+                    <View key={row.username}>
+                      {isAppended && (
+                        <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginVertical: 4 }} />
+                      )}
+                      <View
+                        className={`flex-row items-center gap-2 px-3 py-2.5 rounded-xl ${isMe ? 'bg-[#FAE2FA]' : 'bg-[#F0F4F7]'}`}
+                        style={isMe ? { borderWidth: 1, borderColor: 'rgba(211,10,215,0.30)' } : {}}
+                      >
+                        <View className="w-8 flex-row items-center gap-1">
+                          {rank <= 3 && !isAppended ? (
+                            <Text className="text-base leading-none">{medals[rank - 1]}</Text>
+                          ) : (
+                            <Text className={`text-xs font-medium ${isMe ? 'text-[#D30AD7]' : 'text-black/40'}`}>#{rank}</Text>
+                          )}
+                        </View>
+                        <View className="flex-1">
+                          <Text className={`text-sm font-medium ${isMe ? 'text-[#A008A3]' : 'text-[rgba(0,0,0,0.7)]'}`} numberOfLines={1}>
+                            {row.name || row.username}{isMe ? ' (You)' : ''}
+                          </Text>
+                          {isAppended && (
+                            <Text style={{ fontSize: 10, color: '#D30AD7', marginTop: 1 }}>Your rank: #{row.rank}</Text>
+                          )}
+                        </View>
+                        <Text className={`text-sm font-medium ${isMe ? 'text-[#D30AD7]' : 'text-[rgba(0,0,0,0.7)]'}`}>
+                          {row.collected > 0 ? fmtL(row.collected) : '₹0'}
+                        </Text>
                       </View>
-                      <Text className={`text-sm flex-1 font-medium ${isMe ? 'text-[#A008A3]' : 'text-[rgba(0,0,0,0.7)]'}`} numberOfLines={1}>
-                        {row.name || row.username}{isMe ? ' (You)' : ''}
-                      </Text>
-                      <Text className={`text-sm font-medium ${isMe ? 'text-[#D30AD7]' : 'text-[rgba(0,0,0,0.7)]'}`}>
-                        {row.collected > 0 ? fmtL(row.collected) : '₹0'}
-                      </Text>
                     </View>
                   )
                 })}
               </View>
-              {leaderboard.length > 5 && (
-                <TouchableOpacity
-                  onPress={() => setShowFullLeaderboard(v => !v)}
-                  className="w-full mt-3 py-2 rounded-full items-center"
-                  style={{ borderWidth: 1, borderColor: '#D30AD7' }}
-                >
-                  <Text className="text-xs font-medium text-[#D30AD7]">
-                    {showFullLeaderboard ? 'Show Less ↑' : `View All ${leaderboard.length} Agents ↓`}
-                  </Text>
-                </TouchableOpacity>
-              )}
             </>
           )}
         </View>
-
-        {/* Recent Disposition Activity */}
-        {myHistory.length > 0 && (
-          <View style={{ backgroundColor: '#fff', borderRadius: 24, padding: 16, elevation: 1 }}>
-            <Text style={{ fontWeight: '600', color: 'rgba(0,0,0,0.9)', fontSize: 14, marginBottom: 12 }}>Recent Activity</Text>
-            {myHistory.map((item: any, i: number) => {
-              const dotColor = item.type === 'Collected' ? '#00A63E' : item.type === 'Contacted Positive' ? '#2B6ACF' : item.type === 'Contacted Negative' ? '#A35300' : 'rgba(0,0,0,0.3)'
-              return (
-                <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: i < myHistory.length - 1 ? 12 : 0 }}>
-                  <View style={{ alignItems: 'center', marginTop: 4 }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor }} />
-                    {i < myHistory.length - 1 && <View style={{ width: 1, height: 20, backgroundColor: 'rgba(0,0,0,0.08)', marginTop: 3 }} />}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(0,0,0,0.85)', flex: 1 }} numberOfLines={1}>{item.name}</Text>
-                      <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)', marginLeft: 8 }}>{item.date}</Text>
-                    </View>
-                    <Text style={{ fontSize: 11, color: dotColor, fontWeight: '500', marginTop: 1 }}>{item.code}</Text>
-                    {item.amount > 0 && <Text style={{ fontSize: 11, color: '#00A63E', fontWeight: '600', marginTop: 1 }}>+{fmtL(item.amount)}</Text>}
-                  </View>
-                </View>
-              )
-            })}
-          </View>
-        )}
 
         {/* Escalate */}
         <TouchableOpacity
