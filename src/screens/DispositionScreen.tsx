@@ -1102,7 +1102,7 @@ const BANK_SUBCODES: Record<BankCategory, { code: string; label: string }[]> = {
   ],
 }
 
-const BANK_PAYMENT_TYPES = ['Min Due', 'Pay Overdue', 'Overdue EMIs', 'Foreclose', 'Full Outstanding', 'Custom Amount'] as const
+const BANK_PAYMENT_TYPES = ['Pay Overdue', 'Partial Repayment', 'Foreclosure', 'Settlement Instalment', 'Overdue EMIs'] as const
 
 function generateBankEmis(c: Customer) {
   const emiAmt = c.emiAmt || c.emiAmount || Math.round((c.emiOs || c.outstandingBalance) / 6)
@@ -1124,12 +1124,11 @@ function generateBankEmis(c: Customer) {
 }
 
 function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[], customAmount: string) {
-  if (paymentType === 'Min Due')          return c.minimumAmountDue || c.minDue || 0
-  if (paymentType === 'Pay Overdue')      return c.emiOs || c.overdue || 0
-  if (paymentType === 'Overdue EMIs')     return selectedEmis.reduce((s: number, e: any) => s + e.pos + e.interest + e.penalty, 0)
-  if (paymentType === 'Foreclose')        return c.rollbackAmount || c.rollback || c.foreclosure || 0
-  if (paymentType === 'Full Outstanding') return c.outstandingBalance || c.outstanding || 0
-  if (paymentType === 'Custom Amount')    return Number(customAmount) || 0
+  if (paymentType === 'Pay Overdue')          return c.emiOs || c.overdue || 0
+  if (paymentType === 'Partial Repayment')    return Number(customAmount) || 0
+  if (paymentType === 'Foreclosure')          return c.rollbackAmount || c.rollback || c.foreclosure || 0
+  if (paymentType === 'Settlement Instalment')return Number(customAmount) || 0
+  if (paymentType === 'Overdue EMIs')         return selectedEmis.reduce((s: number, e: any) => s + e.pos + e.interest + e.penalty, 0)
   return 0
 }
 
@@ -1196,7 +1195,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
     if (isCollected) {
       if (!paymentType) return false
       if (paymentType === 'Overdue EMIs' && selectedEmiNos.length === 0) return false
-      if (paymentType === 'Custom Amount' && !customAmount) return false
+      if ((paymentType === 'Partial Repayment' || paymentType === 'Settlement Instalment') && !customAmount) return false
     }
     if (isPTPSubcode && !ptpDate) return false
     return true
@@ -1543,10 +1542,12 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     </View>
                   )}
 
-                  {/* Custom amount */}
-                  {paymentType === 'Custom Amount' && (
+                  {/* Custom amount — Partial Repayment / Settlement Instalment */}
+                  {(paymentType === 'Partial Repayment' || paymentType === 'Settlement Instalment') && (
                     <View>
-                      <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>Amount</Text>
+                      <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
+                        {paymentType === 'Settlement Instalment' ? 'Instalment Amount' : 'Repayment Amount'}
+                      </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: customAmount ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingBottom: 8 }}>
                         <Text style={{ fontSize: 16, fontWeight: '600', color: 'rgba(0,0,0,0.7)', marginRight: 6 }}>₹</Text>
                         <TextInput
@@ -1562,7 +1563,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                   )}
 
                   {/* Locked amount for non-custom, non-EMI types */}
-                  {paymentType !== '' && paymentType !== 'Custom Amount' && paymentType !== 'Overdue EMIs' && (
+                  {paymentType !== '' && paymentType !== 'Partial Repayment' && paymentType !== 'Settlement Instalment' && paymentType !== 'Overdue EMIs' && (
                     <View style={{ backgroundColor: '#F0F4F7', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)' }}>Amount (system calculated)</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
