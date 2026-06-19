@@ -197,14 +197,7 @@ function SliceDispositionScreen({ navigation, route }: Props) {
   })()
 
   function toggleEmi(emiNo: number) {
-    setSelectedEmiNos(prev => {
-      if (prev.includes(emiNo)) {
-        return prev.filter(n => n < emiNo)
-      } else {
-        const allNosUpTo = Array.from({ length: emiNo }, (_, i) => i + 1)
-        return allNosUpTo
-      }
-    })
+    setSelectedEmiNos(Array.from({ length: emiNo }, (_, i) => i + 1))
   }
 
   function handleSubmit() {
@@ -1234,14 +1227,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
   })()
 
   function toggleEmi(emiNo: number) {
-    setSelectedEmiNos(prev => {
-      if (prev.includes(emiNo)) {
-        return prev.filter(n => n < emiNo)
-      } else {
-        const allNosUpTo = Array.from({ length: emiNo }, (_, i) => i + 1)
-        return allNosUpTo
-      }
-    })
+    setSelectedEmiNos(Array.from({ length: emiNo }, (_, i) => i + 1))
   }
 
   function handleSubmit() {
