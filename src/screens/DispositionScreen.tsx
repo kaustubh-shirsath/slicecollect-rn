@@ -113,6 +113,8 @@ function SliceDispositionScreen({ navigation, route }: Props) {
   const [contactPerson, setContactPerson] = useState('')
   const [contactPlace, setContactPlace] = useState('')
   const [contactNumber, setContactNumber] = useState('')
+  const [altNumber, setAltNumber] = useState('')
+  const [altAddress, setAltAddress] = useState('')
   const [remarks, setRemarks] = useState('')
   const [photoCaptured, setPhotoCaptured] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
@@ -215,6 +217,8 @@ function SliceDispositionScreen({ navigation, route }: Props) {
         waiverPct: waiverPct > 0 ? waiverPct : undefined,
         waiverAmount: waiverAmount > 0 ? waiverAmount : undefined,
         paymentStatus: isCollected ? 'awaiting_payment' : undefined,
+        altNumber: altNumber || undefined,
+        altAddress: altAddress || undefined,
       },
     ]
     updateActivity(c.partyId, {
@@ -920,6 +924,44 @@ function SliceDispositionScreen({ navigation, route }: Props) {
               </View>
             )}
 
+            {/* Alternate Number — OPTIONAL always */}
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
+              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
+                Alternate Number <Text style={{ fontWeight: '400', fontSize: 10 }}>(Optional)</Text>
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: altNumber.length > 0 && altNumber.length !== 10 ? '#CE1D26' : altNumber.length === 10 ? '#D30AD7' : 'rgba(0,0,0,0.15)' }}>
+                <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10, paddingRight: 6, fontWeight: '500' }}>+91</Text>
+                <TextInput
+                  keyboardType="phone-pad"
+                  value={altNumber}
+                  onChangeText={t => setAltNumber(t.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="Alternate contact number"
+                  placeholderTextColor="rgba(0,0,0,0.3)"
+                  maxLength={10}
+                  style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}
+                />
+                {altNumber.length > 0 && (
+                  <Text style={{ fontSize: 11, color: altNumber.length === 10 ? '#00A63E' : '#CE1D26' }}>{altNumber.length}/10</Text>
+                )}
+              </View>
+            </View>
+
+            {/* Alternate Address — OPTIONAL always */}
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
+              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
+                Alternate Address <Text style={{ fontWeight: '400', fontSize: 10 }}>(Optional)</Text>
+              </Text>
+              <TextInput
+                value={altAddress}
+                onChangeText={setAltAddress}
+                placeholder="Enter alternate address if known..."
+                placeholderTextColor="rgba(0,0,0,0.3)"
+                multiline
+                numberOfLines={2}
+                style={{ fontSize: 14, color: 'rgba(0,0,0,0.85)', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.12)', paddingVertical: 8, textAlignVertical: 'top' }}
+              />
+            </View>
+
             {/* Address selection */}
             <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
               <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
@@ -1021,16 +1063,44 @@ export default function DispositionScreen(props: Props) {
   return <BankDispositionScreen {...props} />
 }
 
-type BankActionType = 'Collected' | 'PTP' | 'Broken PTP' | 'Not Contactable' | 'Not Reachable' | 'Dispute'
+type BankCategory = 'Collected' | 'Contacted Positive' | 'Contacted Negative' | 'Non-Contacted'
 
-const BANK_ACTION_TILES: { label: BankActionType; icon: string; color: string; bg: string }[] = [
-  { label: 'Collected',       icon: '✓',  color: '#166534', bg: '#F0FDF4' },
-  { label: 'PTP',             icon: '📅', color: '#1D4ED8', bg: '#EFF6FF' },
-  { label: 'Broken PTP',      icon: '⚡', color: '#92400E', bg: '#FFF7ED' },
-  { label: 'Not Contactable', icon: '📵', color: '#374151', bg: '#F3F4F6' },
-  { label: 'Not Reachable',   icon: '📍', color: '#374151', bg: '#F3F4F6' },
-  { label: 'Dispute',         icon: '⚠',  color: '#991B1B', bg: '#FEF2F2' },
+const BANK_CATEGORIES: { label: BankCategory; icon: string; color: string; bg: string }[] = [
+  { label: 'Collected',          icon: '✓',  color: '#166534', bg: '#F0FDF4' },
+  { label: 'Contacted Positive', icon: '📅', color: '#1D4ED8', bg: '#EFF6FF' },
+  { label: 'Contacted Negative', icon: '⚡', color: '#92400E', bg: '#FFF7ED' },
+  { label: 'Non-Contacted',      icon: '📵', color: '#374151', bg: '#F3F4F6' },
 ]
+
+const BANK_SUBCODES: Record<BankCategory, { code: string; label: string }[]> = {
+  'Collected': [
+    { code: 'REG_SETTLE',  label: 'Regular Settlement' },
+    { code: 'ROLLBACK',    label: 'Rollback' },
+    { code: 'PARTIAL',     label: 'Partial Payment' },
+    { code: 'FORECLOSE',   label: 'Foreclosure' },
+    { code: 'NEW_SETTLE',  label: 'New Settlement' },
+    { code: 'ADVANCE',     label: 'Advance' },
+  ],
+  'Contacted Positive': [
+    { code: 'PTP',         label: 'PTP – Promise to Pay' },
+    { code: 'CPTP',        label: 'CPTP – Continued Promise to Pay' },
+    { code: 'WANTS_SETTLE',label: 'Wants Settlement' },
+  ],
+  'Contacted Negative': [
+    { code: 'BPTP',        label: 'BPTP – Broken Promise to Pay' },
+    { code: 'SF',          label: 'SF – Suspected Fraud' },
+    { code: 'RTP_I',       label: 'RTP_I – Refuse (Intentional)' },
+    { code: 'RTP_NC',      label: 'RTP_NC – Refuse (Nat. Calamity)' },
+    { code: 'RTP_C',       label: 'RTP_C – Refuse (Capacity)' },
+    { code: 'RTP_P',       label: 'RTP_P – Refuse (Political)' },
+  ],
+  'Non-Contacted': [
+    { code: 'OOS',         label: 'Out of Station (OOS)' },
+    { code: 'WR',          label: 'Wrong Address (WR)' },
+    { code: 'NC',          label: 'Non-Contactable (NC)' },
+    { code: 'SHIFTED',     label: 'Shifted Permanently' },
+  ],
+}
 
 const BANK_PAYMENT_TYPES = ['Min Due', 'Pay Overdue', 'Overdue EMIs', 'Foreclose', 'Full Outstanding', 'Custom Amount'] as const
 
@@ -1063,70 +1133,78 @@ function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[
   return 0
 }
 
+
 function BankDispositionScreen({ navigation, route }: Props) {
   const { customer: c, fromScreen } = route.params
   const { agentInfo, triggerReroute } = useAgent()
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [bankAction, setBankAction] = useState<BankActionType | null>(null)
+  const [category, setCategory] = useState<BankCategory | null>(null)
+  const [subcode, setSubcode] = useState('')
+  // Step 2 — Collected
   const [paymentType, setPaymentType] = useState('')
   const [selectedEmiNos, setSelectedEmiNos] = useState<number[]>([])
   const [customAmount, setCustomAmount] = useState('')
   const [waiverPct, setWaiverPct] = useState(0)
   const [sliderWidth, setSliderWidth] = useState(0)
+  // Step 2 — PTP/CPTP
   const [ptpDate, setPtpDate] = useState('')
   const [ptpAmount, setPtpAmount] = useState('')
   const [showDateModal, setShowDateModal] = useState(false)
   const [calMonth, setCalMonth] = useState(new Date())
+  // Step 3 — all types
   const [contactPerson, setContactPerson] = useState('')
   const [contactPlace, setContactPlace] = useState('')
   const [contactNumber, setContactNumber] = useState('')
+  const [altNumber, setAltNumber] = useState('')
+  const [altAddress, setAltAddress] = useState('')
   const [visitedAddress, setVisitedAddress] = useState('')
   const [remarks, setRemarks] = useState('')
   const [photoCaptured, setPhotoCaptured] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
-  const isCollected      = bankAction === 'Collected'
-  const isPTP            = bankAction === 'PTP'
-  const isBrokenPTP      = bankAction === 'Broken PTP'
-  const isDispute        = bankAction === 'Dispute'
-  const isNotReachable   = bankAction === 'Not Reachable'
-  const isNotContactable = bankAction === 'Not Contactable'
+  const isCollected    = category === 'Collected'
+  const isContactedPos = category === 'Contacted Positive'
+  const isContactedNeg = category === 'Contacted Negative'
+  const isContacted    = isContactedPos || isContactedNeg
+  const isNonContacted = category === 'Non-Contacted'
+  const isPTPSubcode   = subcode === 'PTP' || subcode === 'CPTP'
 
-  const bankEmis = generateBankEmis(c)
-  const selectedEmis = bankEmis.filter(e => selectedEmiNos.includes(e.emiNo))
-  const grossAmount = getBankGrossAmount(paymentType, c, selectedEmis, customAmount)
+  // Field matrix
+  const requireContactPerson = isCollected || isContacted
+  const showContactPerson    = !isNonContacted
+  const requireContactPlace  = isCollected || isContacted
+  const showContactPlace     = !isNonContacted
+  const requireContactNumber = isContacted
+  const remarksRequired      = !isCollected
 
   const bankLateInterest = Math.round((c.emiOs || 0) * 0.12)
   const bankLatePenalty  = Math.round((c.emiOs || 0) * 0.06)
+  const bankEmis = generateBankEmis(c)
+  const selectedEmis = bankEmis.filter(e => selectedEmiNos.includes(e.emiNo))
   const bankWaiverableBase = paymentType === 'Overdue EMIs'
     ? selectedEmis.reduce((s, e) => s + e.interest + e.penalty, 0)
     : bankLateInterest + bankLatePenalty
-  const waiverAmount = Math.round(bankWaiverableBase * waiverPct / 100)
-  const netCollectible = Math.max(0, grossAmount - waiverAmount)
+  const bankWaiverAmount = Math.round(bankWaiverableBase * waiverPct / 100)
+  const grossAmount = getBankGrossAmount(paymentType, c, selectedEmis, customAmount)
+  const netCollectible = Math.max(0, grossAmount - bankWaiverAmount)
 
-  const requireContactPerson  = isCollected || isPTP || isBrokenPTP || isDispute
-  const requireContactPlace   = isCollected || isPTP || isBrokenPTP || isDispute
-  const requireContactNumber  = isPTP || isBrokenPTP || isDispute
-  const showContactPerson     = requireContactPerson
-  const showContactPlace      = requireContactPlace
-  const showContactNumber     = !isNotReachable
-  const remarksRequired       = bankAction !== 'Collected'
+  const step1Valid = category !== null && subcode !== ''
 
-  const step1Valid = bankAction !== null
   const step2Valid = (() => {
     if (isCollected) {
       if (!paymentType) return false
       if (paymentType === 'Overdue EMIs' && selectedEmiNos.length === 0) return false
       if (paymentType === 'Custom Amount' && !customAmount) return false
     }
-    if (isPTP && !ptpDate) return false
+    if (isPTPSubcode && !ptpDate) return false
     return true
   })()
+
   const step3Valid = (() => {
-    if (requireContactPerson && !contactPerson) return false
-    if (requireContactPlace && !contactPlace) return false
+    if (showContactPerson && requireContactPerson && !contactPerson) return false
+    if (showContactPlace && requireContactPlace && !contactPlace) return false
     if (requireContactNumber && contactNumber.length !== 10) return false
     if (!photoCaptured) return false
     if (remarksRequired && remarks.length < 15) return false
@@ -1142,44 +1220,50 @@ function BankDispositionScreen({ navigation, route }: Props) {
     if (!step3Valid) return
     const todayStr = new Date().toISOString().split('T')[0]
     const existing = getActivity(c.partyId)
-    const newVisitHistory = [
-      ...(existing?.visitHistory ?? []),
-      {
+    const newCollections = existing ? [...existing.collections] : []
+    if (isCollected && netCollectible > 0) {
+      newCollections.push({
         date: todayStr,
-        dispositionType: `${bankAction}${paymentType ? ` — ${paymentType}` : ''}`,
-        summary: remarks || (isCollected ? `Net collectible: ${fmt(netCollectible)}` : `${bankAction} recorded`),
-        amount: isCollected ? netCollectible : 0,
-        contactPerson, contactPlace,
-        ptpDate: isPTP ? ptpDate : undefined,
-        waiverPct: waiverPct > 0 ? waiverPct : undefined,
-        waiverAmount: waiverAmount > 0 ? waiverAmount : undefined,
-        paymentStatus: isCollected ? 'awaiting_payment' : undefined,
-      },
-    ]
+        amount: netCollectible,
+        mode: 'Cash',
+        receiptId: 'MB' + Date.now().toString().slice(-8) + String(c.partyId).slice(-4),
+        deposited: false,
+      })
+    }
     updateActivity(c.partyId, {
       latestDisposition: {
-        type: bankAction || 'Unknown',
-        code: paymentType || bankAction || '',
+        type: category || 'Unknown',
+        code: subcode,
         date: todayStr,
         ptpDate: ptpDate || undefined,
-        ptpAmount: isCollected ? netCollectible : undefined,
+        ptpAmount: ptpAmount ? Number(ptpAmount) : undefined,
         remarks: remarks || '',
         visitedAt: new Date().toISOString(),
       },
-      visitHistory: newVisitHistory,
-      collections: existing?.collections ?? [],
+      collections: newCollections,
+      visitHistory: [
+        ...(existing?.visitHistory ?? []),
+        {
+          date: todayStr,
+          dispositionType: `${category} — ${subcode}`,
+          summary: remarks || (isCollected ? `Collected ${fmt(netCollectible)}` : `${subcode} recorded`),
+          amount: isCollected ? netCollectible : 0,
+          contactPerson, contactPlace,
+          ptpDate: ptpDate || undefined,
+          waiverPct: waiverPct > 0 ? waiverPct : undefined,
+        },
+      ],
     })
-    recordActualVisit(c.partyId, new Date().toISOString(), 0)
+    recordActualVisit(c.partyId, new Date().toISOString(), isCollected ? netCollectible : 0)
     triggerReroute()
 
-    if (isCollected) {
-      const receiptNo = 'MB' + Date.now().toString().slice(-8) + String(c.partyId).slice(-4)
+    if (isCollected && netCollectible > 0) {
       const receipt = {
-        receiptNo,
+        receiptNo: newCollections[newCollections.length - 1]?.receiptId || '',
         partyId: c.partyId,
         customerName: c.name,
-        dispositionType: bankAction || '',
-        actionType: bankAction || '',
+        dispositionType: category || '',
+        actionType: subcode,
         amount: netCollectible,
         advanceAmount: 0,
         paymentMode: 'Cash',
@@ -1187,13 +1271,11 @@ function BankDispositionScreen({ navigation, route }: Props) {
         branchName: agentInfo?.branch || c.branch || '',
         glCode: agentInfo?.glCode || '',
         createdAt: new Date().toISOString(),
-        ...(waiverPct > 0 ? { waiverPct, waiverAmount, grossAmount } : {}),
       }
       navigation.replace('Receipt', { receipt, backTo: fromScreen || 'Main' })
-      return
+    } else {
+      setSubmitted(true)
     }
-
-    setSubmitted(true)
   }
 
   // ── Step indicator ────────────────────────────────────────────────────────
@@ -1231,41 +1313,30 @@ function BankDispositionScreen({ navigation, route }: Props) {
 
   // ── Success screen ────────────────────────────────────────────────────────
   if (submitted) return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
-        <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 28, alignItems: 'center', width: '100%', elevation: 1 }}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 28, color: '#16A34A' }}>✓</Text>
-          </View>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: 'rgba(0,0,0,0.9)', marginBottom: 6 }}>Disposition Submitted</Text>
-          <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.55)', textAlign: 'center', marginBottom: 20 }}>
-            {bankAction} recorded for {c.name}
-          </Text>
-          <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12, padding: 12, width: '100%', gap: 8, marginBottom: 20 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Action</Text>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(0,0,0,0.8)' }}>{bankAction}</Text>
-            </View>
-            {contactPerson ? (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>Spoke with</Text>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(0,0,0,0.8)' }}>{contactPerson}</Text>
-              </View>
-            ) : null}
-            {ptpDate ? (
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.5)' }}>PTP Date</Text>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(0,0,0,0.8)' }}>{ptpDate}</Text>
-              </View>
-            ) : null}
-          </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Main')}
-            style={{ backgroundColor: '#D30AD7', borderRadius: 24, paddingVertical: 14, alignItems: 'center', width: '100%' }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
-          </TouchableOpacity>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7', alignItems: 'center', justifyContent: 'center', padding: 24 }} edges={['top', 'bottom']}>
+      <View style={{ backgroundColor: '#fff', borderRadius: 24, padding: 32, width: '100%', alignItems: 'center', elevation: 2 }}>
+        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#E0F4E8', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <Text style={{ fontSize: 28 }}>✅</Text>
         </View>
+        <Text style={{ fontSize: 18, fontWeight: '700', color: 'rgba(0,0,0,0.9)', marginBottom: 4 }}>Disposition Submitted</Text>
+        <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', marginBottom: 20 }}>Recorded for {c.name}</Text>
+        <View style={{ backgroundColor: '#F0F4F7', borderRadius: 16, padding: 12, width: '100%', gap: 8, marginBottom: 20 }}>
+          {([
+            ['Category', category],
+            ['Code', subcode],
+            contactPerson ? ['Contact Person', contactPerson] : null,
+            ptpDate ? ['PTP Date', ptpDate] : null,
+            remarks ? ['Remarks', remarks] : null,
+          ] as ([string, string] | null)[]).filter(Boolean).map(([k, v]: any) => (
+            <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)' }}>{k}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: 'rgba(0,0,0,0.85)', maxWidth: '60%', textAlign: 'right' }}>{v}</Text>
+            </View>
+          ))}
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ width: '100%', backgroundColor: '#D30AD7', borderRadius: 24, paddingVertical: 14, alignItems: 'center' }}>
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   )
@@ -1285,11 +1356,11 @@ function BankDispositionScreen({ navigation, route }: Props) {
           <Text style={{ fontSize: 20, color: 'rgba(0,0,0,0.6)' }}>←</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(0,0,0,0.9)' }}>{c.name}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.9)' }}>{c.name}</Text>
           <Text style={{ fontSize: 11, color: '#CE1D26', fontWeight: '500' }}>Overdue {fmt(c.emiOs || c.overdue || 0)}</Text>
         </View>
-        <View style={{ backgroundColor: '#FEF9C3', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
-          <Text style={{ fontSize: 11, color: '#854D0E', fontWeight: '700' }}>🏦 Bank</Text>
+        <View style={{ backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+          <Text style={{ fontSize: 11, color: '#374151', fontWeight: '700' }}>🏦 Bank</Text>
         </View>
       </View>
 
@@ -1298,18 +1369,21 @@ function BankDispositionScreen({ navigation, route }: Props) {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
 
-        {/* ── STEP 1: Disposition Type ── */}
+        {/* ── STEP 1: Category + Subcode ── */}
         {step === 1 && (
           <>
-            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', marginBottom: 4 }}>Select a disposition type to proceed</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', marginBottom: 4 }}>Select a category, then choose a disposition code</Text>
+
+            {/* 2×2 category tiles */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {BANK_ACTION_TILES.map(tile => {
-                const selected = bankAction === tile.label
+              {BANK_CATEGORIES.map(tile => {
+                const selected = category === tile.label
                 return (
                   <TouchableOpacity
                     key={tile.label}
                     onPress={() => {
-                      setBankAction(tile.label)
+                      setCategory(tile.label)
+                      setSubcode('')
                       setPaymentType('')
                       setSelectedEmiNos([])
                       setCustomAmount('')
@@ -1334,6 +1408,38 @@ function BankDispositionScreen({ navigation, route }: Props) {
               })}
             </View>
 
+            {/* Subcode list — shown inline below tiles once category selected */}
+            {category !== null && (
+              <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 10 }}>
+                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 2 }}>Disposition Code <Text style={{ color: '#CE1D26' }}>*</Text></Text>
+                {BANK_SUBCODES[category].map(sc => {
+                  const sel = subcode === sc.code
+                  return (
+                    <TouchableOpacity
+                      key={sc.code}
+                      onPress={() => setSubcode(sc.code)}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                        paddingVertical: 12, paddingHorizontal: 14,
+                        borderRadius: 12,
+                        borderWidth: 1.5,
+                        borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.08)',
+                        backgroundColor: sel ? '#FAE2FA' : '#F9FAFB',
+                      }}
+                    >
+                      <View>
+                        <Text style={{ fontSize: 12, fontWeight: sel ? '700' : '500', color: sel ? '#A008A3' : 'rgba(0,0,0,0.8)' }}>{sc.label}</Text>
+                        <Text style={{ fontSize: 10, color: sel ? '#D30AD7' : 'rgba(0,0,0,0.35)', marginTop: 1 }}>{sc.code}</Text>
+                      </View>
+                      <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.2)', backgroundColor: sel ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                        {sel && <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>✓</Text>}
+                      </View>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            )}
+
             <TouchableOpacity
               onPress={() => setStep(2)}
               disabled={!step1Valid}
@@ -1350,7 +1456,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
             {/* Collected flow */}
             {isCollected && (
               <>
-                {/* Loan summary card */}
+                {/* Loan Summary card */}
                 <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
                   <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, fontWeight: '600' }}>Loan Summary</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -1466,8 +1572,8 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     </View>
                   )}
 
-                  {/* Waiver section */}
-                  {(isCollected || isPTP) && (
+                  {/* Waiver section — show for Collected or isPTPSubcode */}
+                  {(isCollected || isPTPSubcode) && (
                     <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 14, gap: 12 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Waiver on Interest + Penalty</Text>
@@ -1475,7 +1581,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                       </View>
 
                       {bankWaiverableBase === 0 && (
-                        <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', fontStyle: 'italic' }}>No penalty/fees data available</Text>
+                        <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)', fontStyle: 'italic' }}>No penalty data available</Text>
                       )}
 
                       {bankWaiverableBase > 0 && <>
@@ -1537,7 +1643,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                             </View>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                               <Text style={{ fontSize: 12, color: '#92400E' }}>Waiver ({waiverPct}% of {fmt(bankWaiverableBase)})</Text>
-                              <Text style={{ fontSize: 12, color: '#CE1D26', fontWeight: '600' }}>− {fmt(waiverAmount)}</Text>
+                              <Text style={{ fontSize: 12, color: '#CE1D26', fontWeight: '600' }}>− {fmt(bankWaiverAmount)}</Text>
                             </View>
                             <View style={{ height: 1, backgroundColor: 'rgba(146,64,14,0.2)', marginVertical: 2 }} />
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -1561,10 +1667,12 @@ function BankDispositionScreen({ navigation, route }: Props) {
               </>
             )}
 
-            {/* PTP flow */}
-            {isPTP && (
+            {/* PTP / CPTP subcode — date + amount */}
+            {isPTPSubcode && (
               <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 16 }}>
-                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>PTP Details</Text>
+                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>
+                  {subcode === 'PTP' ? 'PTP Details' : 'CPTP Details'}
+                </Text>
                 <View>
                   <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Promise Date <Text style={{ color: '#CE1D26' }}>*</Text></Text>
                   <TouchableOpacity
@@ -1658,11 +1766,11 @@ function BankDispositionScreen({ navigation, route }: Props) {
               </View>
             )}
 
-            {/* Non-collected, non-PTP: no financial details needed */}
-            {!isCollected && !isPTP && (
+            {/* Non-collected, non-PTP/CPTP: no financial details needed */}
+            {!isCollected && !isPTPSubcode && (
               <View style={{ backgroundColor: '#EFF6FF', borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Text style={{ fontSize: 18 }}>ℹ️</Text>
-                <Text style={{ fontSize: 13, color: '#1E40AF', flex: 1 }}>No financial details needed. Contact information will be captured next.</Text>
+                <Text style={{ fontSize: 13, color: '#1E40AF', flex: 1 }}>No financial details required — proceed to step 3</Text>
               </View>
             )}
 
@@ -1679,99 +1787,134 @@ function BankDispositionScreen({ navigation, route }: Props) {
         {/* ── STEP 3: Contact & Submit ── */}
         {step === 3 && (
           <>
-            {/* Summary pills */}
+            {/* Title card — summary pills */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
               <View style={{ backgroundColor: '#FAE2FA', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 24 }}>
-                <Text style={{ fontSize: 12, color: '#A008A3', fontWeight: '600' }}>{bankAction}{paymentType ? ` — ${paymentType}` : ''}</Text>
+                <Text style={{ fontSize: 12, color: '#A008A3', fontWeight: '600' }}>{category} — {subcode}</Text>
               </View>
               {isCollected && netCollectible > 0 && (
                 <View style={{ backgroundColor: '#F0FDF4', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 24 }}>
                   <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>{fmt(netCollectible)}</Text>
                 </View>
               )}
-              {isPTP && ptpDate ? (
+              {isPTPSubcode && ptpDate ? (
                 <View style={{ backgroundColor: '#EFF6FF', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 24 }}>
                   <Text style={{ fontSize: 12, color: '#1D4ED8', fontWeight: '600' }}>PTP: {ptpDate}</Text>
                 </View>
               ) : null}
             </View>
 
-            {/* Contact section */}
-            {!isNotReachable && (
-              <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 16 }}>
-                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Contact Details</Text>
+            {/* Contact Details section */}
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 16 }}>
+              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Contact Details</Text>
 
-                {showContactPerson && (
-                  <View>
-                    <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                      Spoke With{requireContactPerson ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
-                    </Text>
-                    <SimpleSelect
-                      value={contactPerson}
-                      onChange={setContactPerson}
-                      options={PERSON_OPTIONS}
-                      placeholder="Select contact person"
-                    />
-                  </View>
-                )}
+              {/* 1. Contact Person */}
+              {showContactPerson && (
+                <View>
+                  <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                    Spoke With{requireContactPerson ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
+                  </Text>
+                  <SimpleSelect
+                    value={contactPerson}
+                    onChange={setContactPerson}
+                    options={PERSON_OPTIONS}
+                    placeholder="Select contact person"
+                  />
+                </View>
+              )}
 
-                {showContactPlace && (
-                  <View>
-                    <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                      Met At{requireContactPlace ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
-                    </Text>
-                    <SimpleSelect
-                      value={contactPlace}
-                      onChange={setContactPlace}
-                      options={PLACE_OPTIONS}
-                      placeholder="Select contact place"
-                    />
-                  </View>
-                )}
+              {/* 2. Contact Place */}
+              {showContactPlace && (
+                <View>
+                  <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                    Met At{requireContactPlace ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
+                  </Text>
+                  <SimpleSelect
+                    value={contactPlace}
+                    onChange={setContactPlace}
+                    options={PLACE_OPTIONS}
+                    placeholder="Select contact place"
+                  />
+                </View>
+              )}
 
-                {showContactNumber && (
-                  <View>
-                    <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                      Contact Number{requireContactNumber ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: contactNumber.length > 0 && contactNumber.length !== 10 ? '#CE1D26' : contactNumber.length === 10 ? '#D30AD7' : 'rgba(0,0,0,0.15)' }}>
-                      <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10, paddingRight: 6, fontWeight: '500' }}>+91</Text>
-                      <TextInput
-                        keyboardType="phone-pad"
-                        value={contactNumber}
-                        onChangeText={t => setContactNumber(t.replace(/\D/g, '').slice(0, 10))}
-                        placeholder={c.mobile ? 'XXXXXX' + c.mobile.slice(-4) : '10-digit number'}
-                        placeholderTextColor="rgba(0,0,0,0.3)"
-                        maxLength={10}
-                        style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}
-                      />
-                      {contactNumber.length > 0 && (
-                        <Text style={{ fontSize: 11, color: contactNumber.length === 10 ? '#00A63E' : '#CE1D26' }}>{contactNumber.length}/10</Text>
-                      )}
-                    </View>
-                  </View>
-                )}
+              {/* 3. Contact Number — always show */}
+              <View>
+                <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                  Contact Number{requireContactNumber ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: contactNumber.length > 0 && contactNumber.length !== 10 ? '#CE1D26' : contactNumber.length === 10 ? '#D30AD7' : 'rgba(0,0,0,0.15)' }}>
+                  <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10, paddingRight: 6, fontWeight: '500' }}>+91</Text>
+                  <TextInput
+                    keyboardType="phone-pad"
+                    value={contactNumber}
+                    onChangeText={t => setContactNumber(t.replace(/\D/g, '').slice(0, 10))}
+                    placeholder={c.mobile ? 'XXXXXX' + c.mobile.slice(-4) : '10-digit number'}
+                    placeholderTextColor="rgba(0,0,0,0.3)"
+                    maxLength={10}
+                    style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}
+                  />
+                  {contactNumber.length > 0 && (
+                    <Text style={{ fontSize: 11, color: contactNumber.length === 10 ? '#00A63E' : '#CE1D26' }}>{contactNumber.length}/10</Text>
+                  )}
+                </View>
+              </View>
+
+              {/* 4. Alternate Number — always optional */}
+              <View>
+                <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Alternate Number (Optional)</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: altNumber.length > 0 && altNumber.length !== 10 ? '#CE1D26' : altNumber.length === 10 ? '#D30AD7' : 'rgba(0,0,0,0.15)' }}>
+                  <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10, paddingRight: 6, fontWeight: '500' }}>+91</Text>
+                  <TextInput
+                    keyboardType="phone-pad"
+                    value={altNumber}
+                    onChangeText={t => setAltNumber(t.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="10-digit number"
+                    placeholderTextColor="rgba(0,0,0,0.3)"
+                    maxLength={10}
+                    style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}
+                  />
+                  {altNumber.length > 0 && (
+                    <Text style={{ fontSize: 11, color: altNumber.length === 10 ? '#00A63E' : '#CE1D26' }}>{altNumber.length}/10</Text>
+                  )}
+                </View>
+              </View>
+
+              {/* 5. Alternate Address — always optional */}
+              <View>
+                <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Alternate Address (Optional)</Text>
+                <TextInput
+                  value={altAddress}
+                  onChangeText={setAltAddress}
+                  placeholder="Enter alternate address"
+                  placeholderTextColor="rgba(0,0,0,0.3)"
+                  multiline
+                  numberOfLines={2}
+                  style={{ fontSize: 14, color: 'rgba(0,0,0,0.85)', borderBottomWidth: 1, borderBottomColor: altAddress ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingVertical: 8, textAlignVertical: 'top' }}
+                />
+              </View>
+            </View>
+
+            {/* 6. Address Visited — optional select */}
+            {[c.address, c.address_line2, c.address_line3].filter(Boolean).length > 0 && (
+              <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
+                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
+                  Address Visited <Text style={{ color: 'rgba(0,0,0,0.3)', fontWeight: '400', fontSize: 10 }}>(Optional)</Text>
+                </Text>
+                <SimpleSelect
+                  value={visitedAddress}
+                  onChange={setVisitedAddress}
+                  options={[
+                    c.address && `Home: ${c.address.slice(0, 40)}`,
+                    c.address_line2 && `Alt: ${c.address_line2.slice(0, 40)}`,
+                    c.address_line3 && `Other: ${c.address_line3.slice(0, 40)}`,
+                  ].filter(Boolean) as string[]}
+                  placeholder="Select address visited"
+                />
               </View>
             )}
 
-            {/* Address selection */}
-            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
-              <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
-                Address Visited <Text style={{ color: 'rgba(0,0,0,0.3)', fontWeight: '400', fontSize: 10 }}>(Optional)</Text>
-              </Text>
-              <SimpleSelect
-                value={visitedAddress}
-                onChange={setVisitedAddress}
-                options={[
-                  c.address && `Home: ${c.address.slice(0, 40)}`,
-                  c.address_line2 && `Alt: ${c.address_line2.slice(0, 40)}`,
-                  c.address_line3 && `Other: ${c.address_line3.slice(0, 40)}`,
-                ].filter(Boolean) as string[]}
-                placeholder="Select address visited"
-              />
-            </View>
-
-            {/* Remarks */}
+            {/* 8. Remarks */}
             <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
               <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
                 Remarks {remarksRequired ? <Text style={{ color: '#CE1D26' }}>* (Min 15 chars)</Text> : '(Optional)'}
@@ -1790,7 +1933,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
               )}
             </View>
 
-            {/* Photo capture */}
+            {/* 9. Photo capture — REQUIRED */}
             <TouchableOpacity
               onPress={() => setPhotoCaptured(v => !v)}
               style={{
@@ -1814,24 +1957,28 @@ function BankDispositionScreen({ navigation, route }: Props) {
               {photoCaptured && <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>✓</Text>}
             </TouchableOpacity>
 
-            {/* Validation hint */}
+            {/* 10. Validation hint */}
             {submitAttempted && !step3Valid && (
               <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 12, gap: 4 }}>
-                {requireContactPerson && !contactPerson && <Text style={{ fontSize: 11, color: '#92400E' }}>• Select who you spoke with</Text>}
-                {requireContactPlace && !contactPlace && <Text style={{ fontSize: 11, color: '#92400E' }}>• Select where you met</Text>}
+                {showContactPerson && requireContactPerson && !contactPerson && <Text style={{ fontSize: 11, color: '#92400E' }}>• Select who you spoke with</Text>}
+                {showContactPlace && requireContactPlace && !contactPlace && <Text style={{ fontSize: 11, color: '#92400E' }}>• Select where you met</Text>}
                 {requireContactNumber && contactNumber.length !== 10 && <Text style={{ fontSize: 11, color: '#92400E' }}>• Enter valid 10-digit contact number</Text>}
                 {!photoCaptured && <Text style={{ fontSize: 11, color: '#92400E' }}>• Photo is required</Text>}
                 {remarksRequired && remarks.length < 15 && <Text style={{ fontSize: 11, color: '#92400E' }}>• Remarks must be at least 15 characters</Text>}
               </View>
             )}
 
-            {/* Submit button */}
+            {/* 11. Submit button */}
             <TouchableOpacity
               onPress={handleSubmit}
               style={{ backgroundColor: '#D30AD7', borderRadius: 24, paddingVertical: 16, alignItems: 'center', marginTop: 4, opacity: step3Valid ? 1 : 0.7 }}
             >
               <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
-                {isCollected ? 'Submit & Generate Receipt →' : 'Submit Disposition →'}
+                {waiverPct > 0
+                  ? 'Submit for Waiver Approval →'
+                  : isCollected
+                  ? 'Submit & Record Collection →'
+                  : 'Submit Disposition →'}
               </Text>
             </TouchableOpacity>
           </>
