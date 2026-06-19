@@ -1198,7 +1198,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
         (paymentType !== 'Overdue EMIs' || selectedEmiNos.length > 0) &&
         (paymentType !== 'Partial Repayment' || !!customAmount) &&
         (paymentType !== 'Settlement Instalment' || !!customAmount)
-      : subcode !== ''
+      : subcode !== '' && (!isPTPSubcode || !!ptpDate)
   )
 
   const step2Valid = (() => {
@@ -1297,8 +1297,8 @@ function BankDispositionScreen({ navigation, route }: Props) {
 
   // ── Step indicator ────────────────────────────────────────────────────────
   function BankStepIndicator() {
-    const labels = isCollected ? ['Details', 'Submit'] : ['Type', 'Details', 'Submit']
-    const displayStep = isCollected ? (step === 1 ? 1 : 2) : step
+    const labels = ['Type', 'Submit']
+    const displayStep = step === 1 ? 1 : 2
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, paddingHorizontal: 24, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
         {labels.map((label, idx) => {
@@ -1477,7 +1477,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
         <TouchableOpacity
           onPress={() => {
             if (step === 1) navigation.goBack()
-            else setStep((step - 1) as 1 | 2 | 3)
+            else setStep(1)
           }}
           style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
         >
@@ -1760,7 +1760,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                             <Text style={{ fontSize: 13, color: '#92400E', fontWeight: '700' }}>Net Collectible</Text>
                             <Text style={{ fontSize: 15, color: '#92400E', fontWeight: '800' }}>{fmt(netCollectible)}</Text>
                           </View>
-                          <Text style={{ fontSize: 10, color: '#B45309', marginTop: 4 }}>⚠ Waiver noted in receipt summary</Text>
+                          <Text style={{ fontSize: 10, color: '#B45309', marginTop: 4 }}>⚠ Waiver goes to Agency Manager for approval before payment is made</Text>
                         </View>
                       ) : (
                         grossAmount > 0 && (
@@ -1804,21 +1804,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
               </View>
             )}
 
-            <TouchableOpacity
-              onPress={() => isCollected ? setStep(3) : setStep(2)}
-              disabled={!step1Valid}
-              style={{ backgroundColor: step1Valid ? '#D30AD7' : 'rgba(0,0,0,0.1)', borderRadius: 24, paddingVertical: 15, alignItems: 'center', marginTop: 8 }}
-            >
-              <Text style={{ color: step1Valid ? '#fff' : 'rgba(0,0,0,0.3)', fontWeight: '600', fontSize: 14 }}>Next →</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* ── STEP 2: Details ── */}
-        {step === 2 && (
-          <>
-
-            {/* PTP / CPTP subcode — date + amount */}
+            {/* PTP / CPTP — date + amount inline, shown when subcode selected */}
             {isPTPSubcode && (
               <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1, gap: 16 }}>
                 <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>
@@ -1835,7 +1821,6 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     </Text>
                     <Text style={{ fontSize: 16 }}>🗓</Text>
                   </TouchableOpacity>
-
                   <Modal visible={showDateModal} transparent animationType="slide" onRequestClose={() => setShowDateModal(false)}>
                     <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={() => setShowDateModal(false)}>
                       <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 }}>
@@ -1882,10 +1867,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                                     onPress={() => { setPtpDate(dateStr); setShowDateModal(false) }}
                                     style={{ flex: 1, alignItems: 'center', paddingVertical: 6 }}
                                   >
-                                    <View style={{
-                                      width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
-                                      backgroundColor: isSelected ? '#D30AD7' : 'transparent',
-                                    }}>
+                                    <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: isSelected ? '#D30AD7' : 'transparent' }}>
                                       <Text style={{ fontSize: 13, color: isSelected ? '#fff' : isDisabled ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.8)', fontWeight: isSelected ? '700' : '400' }}>
                                         {day}
                                       </Text>
@@ -1917,20 +1899,12 @@ function BankDispositionScreen({ navigation, route }: Props) {
               </View>
             )}
 
-            {/* Non-collected, non-PTP/CPTP: no financial details needed */}
-            {!isCollected && !isPTPSubcode && (
-              <View style={{ backgroundColor: '#EFF6FF', borderRadius: 16, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Text style={{ fontSize: 18 }}>ℹ️</Text>
-                <Text style={{ fontSize: 13, color: '#1E40AF', flex: 1 }}>No financial details required — proceed to step 3</Text>
-              </View>
-            )}
-
             <TouchableOpacity
               onPress={() => setStep(3)}
-              disabled={!step2Valid}
-              style={{ backgroundColor: step2Valid ? '#D30AD7' : 'rgba(0,0,0,0.1)', borderRadius: 24, paddingVertical: 15, alignItems: 'center', marginTop: 4 }}
+              disabled={!step1Valid}
+              style={{ backgroundColor: step1Valid ? '#D30AD7' : 'rgba(0,0,0,0.1)', borderRadius: 24, paddingVertical: 15, alignItems: 'center', marginTop: 8 }}
             >
-              <Text style={{ color: step2Valid ? '#fff' : 'rgba(0,0,0,0.3)', fontWeight: '600', fontSize: 14 }}>Next →</Text>
+              <Text style={{ color: step1Valid ? '#fff' : 'rgba(0,0,0,0.3)', fontWeight: '600', fontSize: 14 }}>Next →</Text>
             </TouchableOpacity>
           </>
         )}
