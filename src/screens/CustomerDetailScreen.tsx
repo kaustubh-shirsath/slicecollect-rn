@@ -8,7 +8,9 @@ import { getCCBill } from '../data/ccBills'
 import { getBucketColor } from '../utils/bucketColors'
 import { getActivity } from '../data/activityLog'
 import { getAppointmentForCustomer, setAppointment, cancelAppointment, getTimeSlotLabel, type TimeSlot, type Appointment } from '../data/appointments'
+import { getActiveSettlement } from '../data/settlementUsers'
 import { useAgent } from '../navigation/AgentContext'
+import ProductTag from '../components/ProductTag'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>
 
@@ -24,10 +26,40 @@ function isCallAllowed() {
   return h >= 8 && h < 19
 }
 
+// Accordion metrics grid — collapses past 3 rows (6 items at 2/row), arrow toggles
+function MetricsGrid({ items, expanded, onToggle }: {
+  items: [string, string][]; expanded: boolean; onToggle: () => void
+}) {
+  const COLLAPSED_COUNT = 6   // 3 rows × 2 columns
+  const needsAccordion = items.length > COLLAPSED_COUNT
+  const visible = needsAccordion && !expanded ? items.slice(0, COLLAPSED_COUNT) : items
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        {visible.map(([k, v]) => (
+          <View key={k} style={{ width: '45%' }}>
+            <Text className="text-[10px] text-black/40 font-medium">{k}</Text>
+            <Text className="text-xs font-semibold text-[rgba(0,0,0,0.85)] mt-0.5 leading-tight">{v}</Text>
+          </View>
+        ))}
+      </View>
+      {needsAccordion && (
+        <TouchableOpacity onPress={onToggle} style={{ alignItems: 'center', paddingTop: 10 }}>
+          <Text style={{ fontSize: 11, color: '#A008A3', fontWeight: '600' }}>
+            {expanded ? '▲ Show less' : `▼ Show all (${items.length})`}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  )
+}
+
 export default function CustomerDetailScreen({ navigation, route }: Props) {
   const { customer: c, fromScreen } = route.params
   const { agentInfo } = useAgent()
+  const activeSettlement = getActiveSettlement(c.partyId)
   const [callBlocked, setCallBlocked] = useState(false)
+  const [loanDetailsExpanded, setLoanDetailsExpanded] = useState(false)
   const [showAllAddresses, setShowAllAddresses] = useState(false)
   const [showAllPhones, setShowAllPhones] = useState(false)
   const [localAddresses, setLocalAddresses] = useState<{ label: string; value: string }[]>(() =>
@@ -37,7 +69,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
       c.address_line3 && { label: 'Address 3', value: c.address_line3 },
     ].filter(Boolean) as { label: string; value: string }[]
   )
-  const [editingAddr, setEditingAddr] = useState<{ idx: number; label: string; value: string } | null>(null)
   const [addingAddr, setAddingAddr] = useState(false)
   const [newAddrLabel, setNewAddrLabel] = useState<'Home' | 'Work' | 'Other'>('Home')
   const [newAddrValue, setNewAddrValue] = useState('')
@@ -109,6 +140,14 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
   const latestDisp = activity?.latestDisposition
   const amtCollected = activity?.collections.reduce((s: number, x: any) => s + x.amount, 0) ?? 0
 
+  // Last positive disposition (Collected / Contacted Positive / PTP) with a captured location
+  const lastPositiveVisit = [...visitHistory].reverse().find(v =>
+    /Collected|Contacted Positive|PTP/i.test(v.dispositionType) && !/Broken/i.test(v.dispositionType)
+  )
+  const lastPositiveLocation = lastPositiveVisit && (lastPositiveVisit as any).lat && (lastPositiveVisit as any).lng
+    ? { lat: (lastPositiveVisit as any).lat, lng: (lastPositiveVisit as any).lng }
+    : null
+
   function handleCall(mobile: string) {
     if (!isCallAllowed()) {
       setCallBlocked(true)
@@ -141,8 +180,12 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             >
               <Text className="text-black/60 text-xl">←</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Escalate', { customer: c })}>
-              <Text className="text-[#CE1D26] text-xs font-medium">Escalate</Text>
+            {/* User-level escalate (fraud / incorrect details / feedback) */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Escalate', { customer: c })}
+              className="flex-row items-center gap-1 px-3 py-1.5 rounded-full bg-[#F9E4E5]"
+            >
+              <Text className="text-[#CE1D26] text-xs font-medium">🚨 Escalate</Text>
             </TouchableOpacity>
           </View>
           <View className="flex-row items-center gap-3">
@@ -158,16 +201,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                     {displayBucket}
                   </Text>
                 </View>
-                {c.userType === 'cc' && (
-                  <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: '#DBEAFE' }}>
-                    <Text className="text-[10px] font-bold" style={{ color: '#1D4ED8' }}>💳 CC</Text>
-                  </View>
-                )}
-                {c.userType === 'borrow' && (
-                  <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: '#FAE2FA' }}>
-                    <Text className="text-[10px] font-bold" style={{ color: '#A008A3' }}>🏦 Borrow</Text>
-                  </View>
-                )}
+                <ProductTag userType={c.userType} />
                 {c.cibilAlert && (
                   <View className="bg-[#FFF0E0] px-2 py-0.5 rounded-full">
                     <Text className="text-[10px] text-[#C05000] font-semibold">⚠ CIBIL</Text>
@@ -191,6 +225,18 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
 
       <ScrollView className="flex-1 px-4 py-3" contentContainerStyle={{ gap: 12, paddingBottom: 120 }}>
 
+        {/* Active settlement tag */}
+        {activeSettlement && (
+          <View className="bg-[#FEF3C7] rounded-2xl px-3 py-2.5 flex-row items-center justify-between" style={{ borderWidth: 1, borderColor: 'rgba(180,83,9,0.25)' }}>
+            <View className="flex-row items-center gap-2">
+              <Text className="text-sm">🔒</Text>
+              <Text className="text-xs font-semibold text-[#92400E]">Active Settlement</Text>
+              <Text className="text-[10px] text-[#92400E]">{activeSettlement.instalmentsPaid}/{activeSettlement.instalmentCount} paid</Text>
+            </View>
+            <Text className="text-[10px] text-[#92400E]">Next: {fmt(activeSettlement.nextInstalmentAmount)} · {activeSettlement.nextInstalmentDue}</Text>
+          </View>
+        )}
+
         {/* Last visit */}
         {latestDisp && (
           <View className="bg-white rounded-2xl px-3 py-2.5 flex-row items-center justify-between" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
@@ -203,6 +249,27 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
           </View>
         )}
 
+        {/* Last positive disposition location */}
+        {lastPositiveVisit && (
+          <TouchableOpacity
+            disabled={!lastPositiveLocation}
+            onPress={() => lastPositiveLocation && Linking.openURL(`https://maps.google.com/?q=${lastPositiveLocation.lat},${lastPositiveLocation.lng}`)}
+            className="bg-white rounded-2xl px-3 py-2.5 flex-row items-center justify-between"
+            style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}
+          >
+            <View className="flex-row items-center gap-2 flex-1">
+              <Text className="text-sm">📍</Text>
+              <Text className="text-[10px] text-black/40 uppercase tracking-wide">Last +ve Disposition</Text>
+              <Text className="text-xs font-medium text-[rgba(0,0,0,0.85)]" numberOfLines={1}>
+                {lastPositiveVisit.dispositionType.split('—')[0].trim()} · {lastPositiveVisit.date}
+              </Text>
+            </View>
+            {lastPositiveLocation
+              ? <Text className="text-[10px] text-[#D30AD7] font-medium">Map →</Text>
+              : <Text className="text-[10px] text-black/30">No GPS</Text>}
+          </TouchableOpacity>
+        )}
+
         {/* Financial summary — adapts per userType */}
         {isSlice ? (
           <View className="bg-white rounded-[20px] px-4 py-3" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
@@ -213,8 +280,10 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
               </View>
             </View>
             {c.userType === 'cc' && ccBill ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-                {[
+              <MetricsGrid
+                expanded={loanDetailsExpanded}
+                onToggle={() => setLoanDetailsExpanded(e => !e)}
+                items={[
                   ['Bill Amount', fmt(ccBill.billAmount)],
                   ['Remaining', fmt(ccBill.remainingBillAmount)],
                   ['Min Due', fmt(ccBill.minDueAmount)],
@@ -223,16 +292,13 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   ['DPD', `${ccBill.currentDpd} days`],
                   ['Due Since', ccBill.dueSince],
                   ['Account', ccBill.accountStatus],
-                ].map(([k, v]) => (
-                  <View key={k} style={{ width: '45%' }}>
-                    <Text className="text-[10px] text-black/40 font-medium">{k}</Text>
-                    <Text className="text-xs font-semibold text-[rgba(0,0,0,0.85)] mt-0.5 leading-tight">{v}</Text>
-                  </View>
-                ))}
-              </View>
+                ]}
+              />
             ) : borrowData ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-                {[
+              <MetricsGrid
+                expanded={loanDetailsExpanded}
+                onToggle={() => setLoanDetailsExpanded(e => !e)}
+                items={[
                   ['Current POS', fmt(borrowData.currentPos)],
                   ['Min Due', fmt(borrowData.minDueAmount)],
                   ['Late Interest', fmt(borrowData.lateInterest)],
@@ -241,13 +307,8 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   ['DPD', `${borrowData.currentDpd} days`],
                   ['Due Since', borrowData.dueSince],
                   ['Foreclosure', fmt(borrowData.foreclosureAmount)],
-                ].map(([k, v]) => (
-                  <View key={k} style={{ width: '45%' }}>
-                    <Text className="text-[10px] text-black/40 font-medium">{k}</Text>
-                    <Text className="text-xs font-semibold text-[rgba(0,0,0,0.85)] mt-0.5 leading-tight">{v}</Text>
-                  </View>
-                ))}
-              </View>
+                ]}
+              />
             ) : null}
           </View>
         ) : (
@@ -264,8 +325,10 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             </View>
             <View className="bg-white rounded-[20px] px-4 py-3" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
               <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-2.5">Loan Details</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-                {[
+              <MetricsGrid
+                expanded={loanDetailsExpanded}
+                onToggle={() => setLoanDetailsExpanded(e => !e)}
+                items={[
                   ['Product', fmtProduct(c.product || '')],
                   ['DPD', `${c.dpd} days`],
                   ['POS Amt', fmt(c.outstandingBalance || 0)],
@@ -274,13 +337,8 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   ['Rollback', fmt(c.rollbackAmount || 0)],
                   ['Settlement', fmt(c.outstandingBalance || 0)],
                   ['Last Payment', c.lastPaymentDate || '—'],
-                ].map(([k, v]) => (
-                  <View key={k} style={{ width: '45%' }}>
-                    <Text className="text-[10px] text-black/40 font-medium">{k}</Text>
-                    <Text className="text-xs font-semibold text-[rgba(0,0,0,0.85)] mt-0.5 leading-tight">{v}</Text>
-                  </View>
-                ))}
-              </View>
+                ]}
+              />
             </View>
           </>
         )}
@@ -335,7 +393,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
               <Text style={{ color: '#D30AD7', fontSize: 11, fontWeight: '600' }}>Add</Text>
             </TouchableOpacity>
           </View>
-          {/* Address rows */}
+          {/* Address rows — view + open-in-maps only. Agents can add, never edit an existing address. */}
           {(showAllAddresses ? localAddresses : localAddresses.slice(0, 1)).map((addr, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: i < (showAllAddresses ? localAddresses : localAddresses.slice(0, 1)).length - 1 ? 1 : 0, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
               <TouchableOpacity onPress={() => openMaps(addr.value)} style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 12 }}>
@@ -345,13 +403,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.85)', flex: 1, lineHeight: 18 }}>{addr.value}</Text>
                 </View>
                 <Text style={{ color: '#D30AD7', fontSize: 10, fontWeight: '600', marginTop: 4 }}>Open in Maps →</Text>
-              </TouchableOpacity>
-              {/* Pencil edit icon */}
-              <TouchableOpacity
-                onPress={() => setEditingAddr({ idx: i, label: addr.label, value: addr.value })}
-                style={{ paddingHorizontal: 14, paddingVertical: 12, alignSelf: 'stretch', justifyContent: 'center' }}
-              >
-                <Text style={{ fontSize: 16 }}>✏️</Text>
               </TouchableOpacity>
             </View>
           ))}
@@ -583,59 +634,10 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
 
       </ScrollView>
 
-      {/* Edit Address Modal */}
-      <Modal visible={editingAddr !== null} transparent animationType="slide" onRequestClose={() => setEditingAddr(null)}>
-        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setEditingAddr(null)}>
-          <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 }}>
-            <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
-            <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(0,0,0,0.9)', marginBottom: 16 }}>Edit Address</Text>
-            {/* Address type chips */}
-            <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Label</Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-              {(['Home', 'Work', 'Other'] as const).map(lbl => (
-                <TouchableOpacity
-                  key={lbl}
-                  onPress={() => setEditingAddr(prev => prev ? { ...prev, label: lbl } : null)}
-                  style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: editingAddr?.label === lbl ? '#D30AD7' : 'rgba(0,0,0,0.15)', backgroundColor: editingAddr?.label === lbl ? '#FAE2FA' : '#fff' }}
-                >
-                  <Text style={{ fontSize: 13, color: editingAddr?.label === lbl ? '#A008A3' : 'rgba(0,0,0,0.6)', fontWeight: editingAddr?.label === lbl ? '600' : '400' }}>{lbl}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {/* Address text input */}
-            <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Address</Text>
-            <TextInput
-              value={editingAddr?.value ?? ''}
-              onChangeText={v => setEditingAddr(prev => prev ? { ...prev, value: v } : null)}
-              multiline
-              numberOfLines={3}
-              style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)', borderRadius: 12, padding: 12, fontSize: 14, color: 'rgba(0,0,0,0.9)', textAlignVertical: 'top', minHeight: 80, marginBottom: 16 }}
-              placeholder="Enter full address..."
-            />
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity onPress={() => setEditingAddr(null)} style={{ flex: 1, paddingVertical: 14, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)', alignItems: 'center' }}>
-                <Text style={{ fontWeight: '500', color: 'rgba(0,0,0,0.7)' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  if (editingAddr) {
-                    setLocalAddresses(prev => prev.map((a, i) => i === editingAddr.idx ? { label: editingAddr.label, value: editingAddr.value } : a))
-                    setEditingAddr(null)
-                  }
-                }}
-                style={{ flex: 1, paddingVertical: 14, borderRadius: 24, backgroundColor: '#D30AD7', alignItems: 'center' }}
-              >
-                <Text style={{ fontWeight: '600', color: '#fff' }}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-
       {/* Add Address Modal */}
       <Modal visible={addingAddr} transparent animationType="slide" onRequestClose={() => setAddingAddr(false)}>
         <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setAddingAddr(false)}>
-          <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 }}>
+          <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, width: '100%', maxWidth: 520, alignSelf: 'center' }}>
             <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
             <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(0,0,0,0.9)', marginBottom: 16 }}>Add Address</Text>
             <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Label</Text>
@@ -690,10 +692,11 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', letterSpacing: 0.2 }}>Add Feedback</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            disabled={!!activeSettlement}
             onPress={() => navigation.navigate('Settlement', { customer: c })}
-            style={{ flex: 1, backgroundColor: '#1E293B', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+            style={{ flex: 1, backgroundColor: '#1E293B', paddingVertical: 12, borderRadius: 12, alignItems: 'center', opacity: activeSettlement ? 0.35 : 1 }}
           >
-            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Settlement</Text>
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{activeSettlement ? 'Settlement Active' : 'Settlement'}</Text>
           </TouchableOpacity>
         </View>
       </View>

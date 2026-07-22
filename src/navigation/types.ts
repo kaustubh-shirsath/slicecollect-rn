@@ -19,13 +19,11 @@ export type RootStackParamList = {
   CustomerDetail: { customer: any; fromScreen: string }
   Disposition: { customer: any; fromScreen: string }
   Settlement: { customer: any }
-  PaymentLink: { customer: any }
   Receipt: { receipt: any; backTo: string }
   Import: undefined
   Deposition: undefined
   Profile: undefined
   Escalate: { customer: any }
-  WaiverPending: { customer: any; waiverRequestId: string }
   // Sales screens
   SalesMain: undefined
   SalesMerchantDetail: { merchant: Merchant; fromScreen: string }

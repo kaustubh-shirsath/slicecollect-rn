@@ -1,34 +1,19 @@
-import { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
-import { getOverallLeaderboard, getAgentPerf } from '../data/leaderboard'
+import { getAgentPerf } from '../data/leaderboard'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const medals = ['🥇', '🥈', '🥉']
 
-function fmtL(n: number) {
-  if (n >= 10000000) return '₹' + (n / 10000000).toFixed(1) + 'Cr'
-  if (n >= 100000) return '₹' + (n / 100000).toFixed(1) + 'L'
-  if (n >= 1000) return '₹' + (n / 1000).toFixed(1) + 'K'
-  return '₹' + n.toLocaleString('en-IN')
-}
 
 export default function ProfileScreen({ navigation }: Props) {
   const { agentInfo, setAgentInfo } = useAgent()
-  const [leaderboard, setLeaderboard] = useState<any[]>([])
 
   const localPerf = agentInfo?.username ? getAgentPerf(agentInfo.username) : null
-
-  useEffect(() => {
-    if (!agentInfo?.username) return
-    const local = getOverallLeaderboard()
-    setLeaderboard(local)
-  }, [agentInfo?.username])
 
   const weeklyTarget    = localPerf?.weeklyTarget    ?? 2000000
   const weeklyCollected = localPerf?.weeklyCollected ?? 0
@@ -43,16 +28,6 @@ export default function ProfileScreen({ navigation }: Props) {
   const initials = agentInfo?.name
     ? agentInfo.name.split(' ').slice(0,2).map((w: string) => w[0]).join('').toUpperCase()
     : 'SF'
-
-  const myUsername = agentInfo?.username
-  const myEntry = leaderboard.find(r => r.username === myUsername)
-
-  const top10 = leaderboard.slice(0, 10)
-  const isInTop10 = myEntry ? myEntry.rank <= 10 : false
-  const displayList = isInTop10 ? top10 : [
-    ...leaderboard.slice(0, 9),
-    myEntry ? { ...myEntry, _isAppended: true } : null,
-  ].filter(Boolean)
 
   const todayIdx = (new Date().getDay() + 6) % 7
 
@@ -134,71 +109,6 @@ export default function ProfileScreen({ navigation }: Props) {
             })}
           </View>
         </View>
-
-        {/* Leaderboard */}
-        <View className="bg-white rounded-[24px] p-4" style={{ elevation: 1 }}>
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="font-medium text-[rgba(0,0,0,0.9)] text-sm">Overall Leaderboard · June</Text>
-            <Text className="text-[10px] text-black/40">{leaderboard.length} agents</Text>
-          </View>
-
-          {leaderboard.length === 0 ? (
-            <Text className="text-center text-black/40 text-xs py-2">Loading leaderboard...</Text>
-          ) : (
-            <>
-              <View className="flex-row px-3 mb-1">
-                <Text className="text-[10px] text-black/40 w-8">Rank</Text>
-                <Text className="text-[10px] text-black/40 flex-1">Agent</Text>
-                <Text className="text-[10px] text-black/40">Collected</Text>
-              </View>
-              <View className="gap-1.5">
-                {displayList.map((row: any) => {
-                  const isMe = row.username === myUsername
-                  const rank = row.rank
-                  const isAppended = !!(row as any)._isAppended
-                  return (
-                    <View key={row.username}>
-                      {isAppended && (
-                        <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginVertical: 4 }} />
-                      )}
-                      <View
-                        className={`flex-row items-center gap-2 px-3 py-2.5 rounded-xl ${isMe ? 'bg-[#FAE2FA]' : 'bg-[#F0F4F7]'}`}
-                        style={isMe ? { borderWidth: 1, borderColor: 'rgba(211,10,215,0.30)' } : {}}
-                      >
-                        <View className="w-8 flex-row items-center gap-1">
-                          {rank <= 3 && !isAppended ? (
-                            <Text className="text-base leading-none">{medals[rank - 1]}</Text>
-                          ) : (
-                            <Text className={`text-xs font-medium ${isMe ? 'text-[#D30AD7]' : 'text-black/40'}`}>#{rank}</Text>
-                          )}
-                        </View>
-                        <View className="flex-1">
-                          <Text className={`text-sm font-medium ${isMe ? 'text-[#A008A3]' : 'text-[rgba(0,0,0,0.7)]'}`} numberOfLines={1}>
-                            {row.name || row.username}{isMe ? ' (You)' : ''}
-                          </Text>
-                          {isAppended && (
-                            <Text style={{ fontSize: 10, color: '#D30AD7', marginTop: 1 }}>Your rank: #{row.rank}</Text>
-                          )}
-                        </View>
-                        <Text className={`text-sm font-medium ${isMe ? 'text-[#D30AD7]' : 'text-[rgba(0,0,0,0.7)]'}`}>
-                          {row.collected > 0 ? fmtL(row.collected) : '₹0'}
-                        </Text>
-                      </View>
-                    </View>
-                  )
-                })}
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Escalate */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Escalate', { customer: null })}
-          className="w-full bg-[#FAE2FA] rounded-full py-3 items-center mb-3"
-        >
-          <Text className="text-[#A008A3] font-medium text-sm">🚨 Escalate / Raise Request</Text>
-        </TouchableOpacity>
 
         {/* Logout */}
         <TouchableOpacity

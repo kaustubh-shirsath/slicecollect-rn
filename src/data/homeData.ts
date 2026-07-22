@@ -6,10 +6,19 @@ import { getCCBill } from './ccBills'
 
 export interface BucketSummary {
   name: string
-  cases: number
+  cases: number        // Allocated
   overdue: number
   collected: number
   collectedCases: number   // count of cases with any collection
+  unresolved: number   // cases with no full resolution (was: pending)
+  target: number       // TODO backend: per-agent per-bucket target from allocation service
+}
+
+// Bucket tables grouped by product type — one table per product on Home
+export interface ProductBucketGroup {
+  productType: 'bank' | 'cc' | 'borrow'
+  label: string        // display heading: 'Loans', 'Credit Card', 'Borrow'
+  buckets: BucketSummary[]
 }
 
 export interface HomeData {
@@ -23,13 +32,17 @@ export interface HomeData {
   pendingReceiptCount: number
   weeklyTarget: number
   bucketSummary: BucketSummary[]
+  bucketGroups: ProductBucketGroup[]
   donut: { full: number; partial: number; notAttempted: number }
 }
 
-export function getHomeData(username: string, portfolioType?: 'bank' | 'slice'): HomeData {
+import { PRODUCT_LABEL } from '../utils/productLabels'
+const PRODUCT_LABELS = PRODUCT_LABEL   // bank → Loans, cc → Credit Card, borrow → Borrow
+
+export function getHomeData(username: string, portfolioType?: 'bank' | 'slice' | 'all'): HomeData {
   const myCases = ALL_CUSTOMERS.filter(c => {
     if (c.username !== username) return false
-    if (!portfolioType) return true
+    if (!portfolioType || portfolioType === 'all') return true
     return portfolioType === 'bank' ? c.userType === 'bank' : c.userType !== 'bank'
   })
   const today = new Date().toDateString()
@@ -39,7 +52,8 @@ export function getHomeData(username: string, portfolioType?: 'bank' | 'slice'):
   let pendingReceiptCount = 0, pendingVisits = 0
   let fullOD = 0, partial = 0, notAttempted = 0
 
-  const bucketMap: Record<string, BucketSummary> = {}
+  // Buckets keyed per product type so Home can render one table per product
+  const groupMaps: Record<string, Record<string, BucketSummary>> = {}
 
   for (const c of myCases) {
     let b: string
@@ -56,16 +70,19 @@ export function getHomeData(username: string, portfolioType?: 'bank' | 'slice'):
       b = c.assetClassification
       overdueAmt = c.emiOs
     }
-    if (!bucketMap[b]) bucketMap[b] = { name: b, cases: 0, overdue: 0, collected: 0, collectedCases: 0 }
+    if (!groupMaps[c.userType]) groupMaps[c.userType] = {}
+    const bucketMap = groupMaps[c.userType]
+    if (!bucketMap[b]) bucketMap[b] = { name: b, cases: 0, overdue: 0, collected: 0, collectedCases: 0, unresolved: 0, target: 0 }
     bucketMap[b].cases++
     bucketMap[b].overdue += overdueAmt
 
     const act = getActivity(c.partyId)
-    if (!act?.latestDisposition) { pendingVisits++; notAttempted++; continue }
+    if (!act?.latestDisposition) { pendingVisits++; notAttempted++; bucketMap[b].unresolved++; continue }
 
     const totalCollected = act.collections.reduce((s, x) => s + x.amount, 0)
     bucketMap[b].collected += totalCollected
     if (totalCollected > 0) bucketMap[b].collectedCases++
+    if (totalCollected < overdueAmt) bucketMap[b].unresolved++
 
     const todayStr = new Date().toISOString().split('T')[0]  // 'YYYY-MM-DD'
     for (const col of act.collections) {
@@ -88,6 +105,15 @@ export function getHomeData(username: string, portfolioType?: 'bank' | 'slice'):
     return s + c.emiOs
   }, 0)
 
+  // TODO backend: target passed per agent per bucket. Mock = 60% of bucket overdue.
+  const bucketGroups: ProductBucketGroup[] = (['bank', 'cc', 'borrow'] as const)
+    .filter(pt => groupMaps[pt] && Object.keys(groupMaps[pt]).length > 0)
+    .map(pt => ({
+      productType: pt,
+      label: PRODUCT_LABELS[pt],
+      buckets: Object.values(groupMaps[pt]).map(b => ({ ...b, target: Math.round(b.overdue * 0.6) })),
+    }))
+
   return {
     agentUsername: username,
     totalCases: myCases.length,
@@ -98,7 +124,8 @@ export function getHomeData(username: string, portfolioType?: 'bank' | 'slice'):
     cashToDeposit,
     pendingReceiptCount,
     weeklyTarget: 2000000,
-    bucketSummary: Object.values(bucketMap),
+    bucketSummary: bucketGroups.flatMap(g => g.buckets),
+    bucketGroups,
     donut: { full: fullOD, partial, notAttempted },
   }
 }

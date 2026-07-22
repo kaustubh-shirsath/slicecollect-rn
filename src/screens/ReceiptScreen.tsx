@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native'
+import { useState } from 'react'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Linking } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
@@ -27,9 +28,17 @@ export default function ReceiptScreen({ navigation, route }: Props) {
   const dateStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
   const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
 
-  function shareWhatsApp() {
-    const text = `SliceField Collection Receipt\n${receipt.receiptNo}\nCustomer: ${receipt.customerName}\nAmount: ${fmt(receipt.amount)}\nDate: ${dateStr}`
-    Linking.openURL(`https://wa.me/?text=${encodeURIComponent(text)}`)
+  // Receipt is sent to BOTH the registered number and the alternate number when present.
+  // Alternate number also serves as the fallback contact when no registered number is on file.
+  const registeredMobile: string = receipt.customerMobile || ''
+  const [customMobile, setCustomMobile] = useState(receipt.alternateMobile || '')
+  const altMobile = customMobile.replace(/\D/g, '')
+  const primaryTarget = (registeredMobile || altMobile).replace(/\D/g, '')
+
+  function shareWhatsApp(number: string) {
+    const text = `slice Collection Receipt\n${receipt.receiptNo}\nCustomer: ${receipt.customerName}\nAmount: ${fmt(receipt.amount)}\nDate: ${dateStr}`
+    const target = number ? `91${number.slice(-10)}` : ''
+    Linking.openURL(`https://wa.me/${target}?text=${encodeURIComponent(text)}`)
   }
 
   return (
@@ -49,7 +58,7 @@ export default function ReceiptScreen({ navigation, route }: Props) {
           {/* Purple header */}
           <View className="bg-[#D30AD7] px-5 py-4 flex-row items-center justify-between">
             <View>
-              <Text className="text-white font-medium text-base">SliceField</Text>
+              <Text className="text-white font-medium text-base">slice</Text>
               <Text className="text-white/70 text-xs">Slice Small Finance Bank</Text>
             </View>
             <View className="bg-white/20 px-2.5 py-1 rounded-full flex-row items-center gap-1">
@@ -112,8 +121,41 @@ export default function ReceiptScreen({ navigation, route }: Props) {
           </View>
         </View>
 
+        {/* Share-to number */}
+        <View className="bg-white rounded-[24px] px-5 py-4 mt-4" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
+          <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-2">Share Receipt To</Text>
+          {registeredMobile ? (
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-xs text-black/50">Registered number</Text>
+              <Text className="text-sm font-medium text-black/90">{registeredMobile}</Text>
+            </View>
+          ) : (
+            <View className="bg-[#FFF3E0] rounded-xl px-3 py-2 mb-3">
+              <Text className="text-xs text-[#A35300]">No registered mobile number on file for this customer.</Text>
+            </View>
+          )}
+          <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-1.5">
+            Alternate Number <Text className="normal-case text-black/30">(optional)</Text>
+          </Text>
+          <TextInput
+            value={customMobile}
+            onChangeText={setCustomMobile}
+            keyboardType="phone-pad"
+            placeholder="Enter a 10-digit number to share to"
+            placeholderTextColor="rgba(0,0,0,0.3)"
+            className="w-full bg-[#F0F4F7] rounded-[24px] px-4 py-3 text-sm text-[rgba(0,0,0,0.9)]"
+            style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}
+            maxLength={10}
+          />
+          <Text className="text-[10px] text-black/40 mt-1.5 leading-relaxed">
+            {registeredMobile
+              ? 'Payment receipt will be sent to this number as well, in addition to the registered number.'
+              : 'Payment receipt will be sent to this number, since no registered number is on file.'}
+          </Text>
+        </View>
+
         {/* Actions */}
-        <View className="mt-4 gap-2">
+        <View className="mt-3 gap-2">
           <TouchableOpacity
             disabled
             className="w-full border border-[#D30AD7] rounded-full py-3.5 items-center"
@@ -121,12 +163,25 @@ export default function ReceiptScreen({ navigation, route }: Props) {
           >
             <Text className="text-[#D30AD7] text-sm font-medium">Download Receipt (PDF) — Coming Soon</Text>
           </TouchableOpacity>
+          {/* Receipt is sent to both numbers — one share action per number that's available */}
           <TouchableOpacity
-            onPress={shareWhatsApp}
+            onPress={() => shareWhatsApp(primaryTarget)}
+            disabled={!primaryTarget}
             className="w-full bg-[#25D366] rounded-full py-3.5 items-center"
+            style={!primaryTarget ? { opacity: 0.4 } : undefined}
           >
-            <Text className="text-white text-sm font-medium">Share on WhatsApp</Text>
+            <Text className="text-white text-sm font-medium">
+              {primaryTarget ? `Share on WhatsApp · ${primaryTarget}` : 'Share on WhatsApp'}
+            </Text>
           </TouchableOpacity>
+          {registeredMobile && altMobile && altMobile !== registeredMobile.replace(/\D/g, '') && (
+            <TouchableOpacity
+              onPress={() => shareWhatsApp(altMobile)}
+              className="w-full border border-[#25D366] rounded-full py-3.5 items-center"
+            >
+              <Text className="text-[#128C4A] text-sm font-medium">Share on WhatsApp · {altMobile} (alternate)</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </View>

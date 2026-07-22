@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput, FlatList,
 } from 'react-native'
@@ -8,6 +8,8 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
+import ProductTag from '../components/ProductTag'
+import { PRODUCT_LABEL, type ProductType } from '../utils/productLabels'
 import { useAllocations } from '../hooks/useAllocations'
 import { getBucketColor } from '../utils/bucketColors'
 import { getActivity } from '../data/activityLog'
@@ -33,7 +35,6 @@ type SortKey = 'distance' | 'amount' | 'ptpSoonest' | 'riskHigh' | 'lastVisited'
 type DistFilter = 'all' | '2' | '5' | '10'
 type PtpFilter = 'all' | 'active' | 'broken' | 'none'
 
-const STAGE_OPTIONS = ['NPA', 'SMA-0', 'SMA-1', 'SMA-2', 'Settlement', 'Standard', 'Write-Off', 'BKT-1', 'BKT-2', 'BKT-3', 'BKT-4', 'BKT-5', 'BKT-6+']
 const DIST_OPTIONS: { id: DistFilter; label: string }[] = [
   { id: 'all', label: 'Any distance' },
   { id: '2', label: 'Within 2 km' },
@@ -65,6 +66,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
   const [sortBy, setSortBy] = useState<SortKey>('distance')
   const [visitedFilter, setVisitedFilter] = useState<'all' | 'visited' | 'notVisited'>('all')
   const [openDropdown, setOpenDropdown] = useState<'none' | 'bucket' | 'distance' | 'ptp' | 'sort' | 'visited'>('none')
+  const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
 
   useEffect(() => {
     if (defaultBucket && defaultBucket !== 'All') setStageFilter([defaultBucket])
@@ -72,6 +74,21 @@ export default function AllocationsScreen({ navigation, route }: Props) {
   }, [defaultBucket])
 
   const { allocations, loading, isFallback } = useAllocations('All', search, agentInfo?.username, agentInfo?.portfolioType)
+
+  // Distinct buckets actually present in this agent's portfolio, grouped by product
+  const bucketFilterGroups = useMemo(() => {
+    const map: Record<string, Set<string>> = {}
+    for (const c of allocations) {
+      const eb = c.userType === 'borrow' ? (getBorrowData(c.partyId)?.bucketLabel ?? c.assetClassification)
+        : c.userType === 'cc' ? (getCCBill(c.partyId)?.bucketLabel ?? c.assetClassification)
+        : c.assetClassification
+      if (!map[c.userType]) map[c.userType] = new Set()
+      map[c.userType].add(eb)
+    }
+    return (['bank', 'cc', 'borrow'] as ProductType[])
+      .filter(pt => map[pt] && map[pt].size > 0)
+      .map(pt => ({ productType: pt, label: PRODUCT_LABEL[pt], buckets: [...map[pt]].sort() }))
+  }, [allocations])
 
   const today = new Date().toDateString()
 
@@ -81,7 +98,8 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     const distKm = parseFloat(haversine(agentLat, agentLng, c.lat, c.lng).toFixed(1))
     const act = getActivity(c.partyId)
     const disp = act?.latestDisposition
-    const hasPtp = disp?.type === 'Connected-PTP'
+    // PTP = any latest disposition carrying a promise date (unified flow writes category as type)
+    const hasPtp = !!disp?.ptpDate
     const ptpBroken = hasPtp && disp?.ptpDate && new Date(disp.ptpDate).toDateString() < today && act!.collections.length === 0
     const latestCollection = act && act.collections.length > 0 ? act.collections[act.collections.length - 1] : null
     return { ...c, distKm, risk: riskLabel(c.cibilAlert, c.priorityScore || 0), hasPtp, ptpBroken, latestCollection }
@@ -152,17 +170,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                 <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>
               </View>
-              {c.userType === 'cc' && (
-                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: '#DBEAFE' }}>
-                  <Text className="text-[10px] font-bold" style={{ color: '#1D4ED8' }}>💳 CC</Text>
-                </View>
-              )}
-              {c.userType === 'borrow' && (
-                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: '#FAE2FA' }}>
-                  <Text className="text-[10px] font-bold" style={{ color: '#A008A3' }}>🏦 Borrow</Text>
-                </View>
-              )}
-              <Text className="text-[10px] text-black/40">{c.dpd} DPD</Text>
+              <ProductTag userType={c.userType} />
               <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
               {c.risk === 'High' && (
                 <Text className="text-[10px] font-medium" style={{ color: riskColor }}>⚡ High</Text>
@@ -184,6 +192,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                     receiptNo: c.latestCollection.receiptId,
                     partyId: c.partyId,
                     customerName: c.name,
+                    customerMobile: c.mobile || '',
                     dispositionType: c.latestCollection.mode === 'Payment Link' ? 'Payment Link' : 'Cash Collection',
                     actionType: c.latestCollection.mode === 'Payment Link' ? 'Payment Link' : 'Cash Collection',
                     amount: c.latestCollection.amount,
@@ -231,7 +240,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
         </View>
 
         {/* Search + filters */}
-        <View className="bg-white" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
+        <View className="bg-white" style={{ zIndex: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
           <View className="flex-row items-center gap-2 px-4 pt-2 pb-2">
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0F4F7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
               <Text style={{ color: 'rgba(0,0,0,0.3)', fontSize: 14 }}>🔍</Text>
@@ -325,100 +334,125 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             )}
           </ScrollView>
 
-          {/* Visited Dropdown */}
-          {openDropdown === 'visited' && (
-            <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
-              <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-                {[
-                  { id: 'visited', label: 'Yes — Visited' },
-                  { id: 'notVisited', label: 'No — Not Visited' },
-                ].map(opt => (
-                  <TouchableOpacity
-                    key={opt.id}
-                    onPress={() => { setVisitedFilter(opt.id as 'visited' | 'notVisited'); closeDropdown() }}
-                    className="flex-row items-center justify-between px-4 py-3"
-                    style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}
-                  >
-                    <Text className="text-sm text-[rgba(0,0,0,0.8)]">{opt.label}</Text>
-                    {visitedFilter === opt.id && <Text style={{ color: '#D30AD7' }}>✓</Text>}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </TouchableOpacity>
-          )}
+          {/* Dropdown overlay — floats above cards, never displaces them */}
+          {openDropdown !== 'none' && (
+            <View style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100 }}>
+              {/* Visited Dropdown */}
+              {openDropdown === 'visited' && (
+                <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
+                  <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
+                    {[
+                      { id: 'visited', label: 'Yes — Visited' },
+                      { id: 'notVisited', label: 'No — Not Visited' },
+                    ].map(opt => (
+                      <TouchableOpacity
+                        key={opt.id}
+                        onPress={() => { setVisitedFilter(opt.id as 'visited' | 'notVisited'); closeDropdown() }}
+                        className="flex-row items-center justify-between px-4 py-3"
+                        style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}
+                      >
+                        <Text className="text-sm text-[rgba(0,0,0,0.8)]">{opt.label}</Text>
+                        {visitedFilter === opt.id && <Text style={{ color: '#D30AD7' }}>✓</Text>}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              )}
 
-          {/* Bucket Dropdown */}
-          {openDropdown === 'bucket' && (
-            <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
-              <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-                {STAGE_OPTIONS.map(s => {
-                  const bc = getBucketColor(s)
-                  const active = stageFilter.includes(s)
-                  return (
+              {/* Bucket Dropdown — distinct buckets per product, accordion */}
+              {openDropdown === 'bucket' && (
+                <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
+                  <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
+                    {bucketFilterGroups.map(group => {
+                      const isOpen = expandedProduct === group.productType || bucketFilterGroups.length === 1
+                      const selectedInGroup = group.buckets.filter(b => stageFilter.includes(b)).length
+                      return (
+                        <View key={group.productType}>
+                          {bucketFilterGroups.length > 1 && (
+                            <TouchableOpacity
+                              onPress={() => setExpandedProduct(prev => prev === group.productType ? null : group.productType)}
+                              className="flex-row items-center justify-between px-4 py-3 bg-[#F0F4F7]"
+                            >
+                              <Text className="text-xs font-semibold text-[#A008A3] uppercase tracking-wider">{group.label}</Text>
+                              <View className="flex-row items-center gap-2">
+                                {selectedInGroup > 0 && <Text className="text-[10px] text-[#D30AD7] font-semibold">{selectedInGroup} selected</Text>}
+                                <Text className="text-black/40 text-xs">{isOpen ? '▴' : '▾'}</Text>
+                              </View>
+                            </TouchableOpacity>
+                          )}
+                          {isOpen && group.buckets.map(s => {
+                            const bc = getBucketColor(s)
+                            const active = stageFilter.includes(s)
+                            return (
+                              <TouchableOpacity
+                                key={group.productType + s}
+                                onPress={() => {
+                                  setStageFilter(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+                                }}
+                                className="flex-row items-center justify-between px-4 py-3"
+                                style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
+                              >
+                                <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: bc.bg }}>
+                                  <Text className="text-xs font-medium" style={{ color: bc.text }}>{s}</Text>
+                                </View>
+                                {active && <Text className="text-[#D30AD7] text-sm font-bold">✓</Text>}
+                              </TouchableOpacity>
+                            )
+                          })}
+                        </View>
+                      )
+                    })}
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {openDropdown === 'distance' && (
+                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
+                  {DIST_OPTIONS.map(opt => (
                     <TouchableOpacity
-                      key={s}
-                      onPress={() => {
-                        setStageFilter(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
-                      }}
+                      key={opt.id}
+                      onPress={() => { setDistFilter(opt.id); closeDropdown() }}
                       className="flex-row items-center justify-between px-4 py-3"
                       style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
                     >
-                      <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: bc.bg }}>
-                        <Text className="text-xs font-medium" style={{ color: bc.text }}>{s}</Text>
-                      </View>
-                      {active && <Text className="text-[#D30AD7] text-sm font-bold">✓</Text>}
+                      <Text className="text-sm text-black/80">{opt.label}</Text>
+                      {distFilter === opt.id && <Text className="text-[#2B6ACF] text-sm">✓</Text>}
                     </TouchableOpacity>
-                  )
-                })}
-              </View>
-            </TouchableOpacity>
-          )}
+                  ))}
+                </View>
+              )}
 
-          {openDropdown === 'distance' && (
-            <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-              {DIST_OPTIONS.map(opt => (
-                <TouchableOpacity
-                  key={opt.id}
-                  onPress={() => { setDistFilter(opt.id); closeDropdown() }}
-                  className="flex-row items-center justify-between px-4 py-3"
-                  style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-                >
-                  <Text className="text-sm text-black/80">{opt.label}</Text>
-                  {distFilter === opt.id && <Text className="text-[#2B6ACF] text-sm">✓</Text>}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+              {openDropdown === 'ptp' && (
+                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
+                  {PTP_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      onPress={() => { setPtpFilter(opt.id); closeDropdown() }}
+                      className="flex-row items-center justify-between px-4 py-3"
+                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
+                    >
+                      <Text className="text-sm text-black/80">{opt.label}</Text>
+                      {ptpFilter === opt.id && <Text className="text-[#FF8100] text-sm">✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
-          {openDropdown === 'ptp' && (
-            <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-              {PTP_OPTIONS.map(opt => (
-                <TouchableOpacity
-                  key={opt.id}
-                  onPress={() => { setPtpFilter(opt.id); closeDropdown() }}
-                  className="flex-row items-center justify-between px-4 py-3"
-                  style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-                >
-                  <Text className="text-sm text-black/80">{opt.label}</Text>
-                  {ptpFilter === opt.id && <Text className="text-[#FF8100] text-sm">✓</Text>}
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {openDropdown === 'sort' && (
-            <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-              {SORT_OPTIONS.map(opt => (
-                <TouchableOpacity
-                  key={opt.id}
-                  onPress={() => { setSortBy(opt.id); closeDropdown() }}
-                  className="flex-row items-center justify-between px-4 py-3"
-                  style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-                >
-                  <Text className="text-sm text-black/80">{opt.label}</Text>
-                  {sortBy === opt.id && <Text className="text-[#D30AD7] text-sm">✓</Text>}
-                </TouchableOpacity>
-              ))}
+              {openDropdown === 'sort' && (
+                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
+                  {SORT_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      onPress={() => { setSortBy(opt.id); closeDropdown() }}
+                      className="flex-row items-center justify-between px-4 py-3"
+                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
+                    >
+                      <Text className="text-sm text-black/80">{opt.label}</Text>
+                      {sortBy === opt.id && <Text className="text-[#D30AD7] text-sm">✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
           )}
         </View>

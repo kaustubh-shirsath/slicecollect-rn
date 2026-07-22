@@ -11,7 +11,7 @@ export interface AgentInfo {
   employeeCode: string
   lat: number
   lng: number
-  portfolioType: 'bank' | 'slice'  // controls which customers are shown
+  portfolioType: 'bank' | 'slice' | 'all'  // 'all' = unified login, product mix comes from allocation data
 }
 
 interface AgentContextValue {
@@ -29,17 +29,17 @@ const AgentContext = createContext<AgentContextValue>({
 })
 
 const DEFAULT_AGENT: AgentInfo = {
-  id: 'EMP-DBR-001',
+  id: 'emp01',
   username: 'Gakul_Khanikar',
   name: 'Gakul Khanikar',
   branch: 'DIBRUGARH',
   region: 'Upper Assam',
   role: 'FOA',
   glCode: '11799',
-  employeeCode: 'EMP-DBR-001',
+  employeeCode: 'emp01',
   lat: 27.4728,
   lng: 94.9120,
-  portfolioType: 'bank',
+  portfolioType: 'all',
 }
 
 export function AgentProvider({ children }: { children: ReactNode }) {

@@ -103,12 +103,12 @@ export default function SmartScreen({ navigation }: Props) {
     <View className="flex-1 bg-[#F0F4F7]">
       {/* Dark header */}
       <SafeAreaView className="bg-[#090B0C]" edges={['top']}>
-        <View className="px-5 pb-5">
+        <View className="px-5 pb-5" style={{ paddingTop: 16 }}>
           <View className="flex-row items-center justify-between">
             <View>
               <View className="flex-row items-center gap-2">
                 <Text className="text-[#D30AD7] text-lg">✦</Text>
-                <Text className="text-white font-medium text-lg">Today's Route</Text>
+                <Text className="text-white font-medium text-lg">AI Route</Text>
               </View>
               {!loading && (
                 <Text className="text-white/40 text-xs mt-1">{totalVisited}/{totalStops} visited</Text>
@@ -186,6 +186,9 @@ export default function SmartScreen({ navigation }: Props) {
       ) : (
         <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
           {timeline.map(({ stop, state, index }, ti) => {
+            // Section headers: visited nodes = "Today's Route" (blurred), pending = "Suggested Visits" (live)
+            const isFirstVisited = state === 'done' && ti === 0
+            const isFirstPending = state !== 'done' && (ti === 0 || timeline[ti - 1].state === 'done')
             const bucket  = stop.customer.assetClassification
             const bc      = getBucketColor(bucket)
             const isLast  = ti === timeline.length - 1
@@ -196,6 +199,20 @@ export default function SmartScreen({ navigation }: Props) {
 
             return (
               <View key={String(stop.customer.partyId) + ti}>
+                {isFirstVisited && (
+                  <View className="flex-row items-center gap-2 mb-3">
+                    <Text className="text-[13px] font-semibold text-black/45">Today's Route</Text>
+                    <View className="flex-1 h-px bg-black/10" />
+                    <Text className="text-[10px] text-black/35">{visitedStops.length} visited</Text>
+                  </View>
+                )}
+                {isFirstPending && (
+                  <View className={`flex-row items-center gap-2 mb-3 ${ti > 0 ? 'mt-2' : ''}`}>
+                    <Text className="text-[13px] font-semibold text-[#A008A3]">✦ Suggested Visits</Text>
+                    <View className="flex-1 h-px" style={{ backgroundColor: 'rgba(211,10,215,0.25)' }} />
+                    <Text className="text-[10px] text-[#A008A3]">{pendingStops.length} pending</Text>
+                  </View>
+                )}
                 {/* Stop row */}
                 <View className="flex-row items-center gap-3">
                   {/* Node */}

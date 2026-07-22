@@ -15,8 +15,6 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >
 
-type TabFilter = 'Today' | 'Last 7 Days' | 'Earlier'
-
 function fmt(n: number) { return '₹' + n.toLocaleString('en-IN') }
 
 function DonutChart({ fullPct, partialPct, total }: { fullPct: number; partialPct: number; total: number }) {
@@ -57,9 +55,16 @@ function DonutChart({ fullPct, partialPct, total }: { fullPct: number; partialPc
   )
 }
 
+type StatusTab = 'Cash in Hand' | 'Deposited' | 'PTP Marked' | 'Collections'
+
 export default function VisitsScreen({ navigation }: Props) {
   const { agentInfo, dataVersion } = useAgent()
-  const [tab, setTab] = useState<TabFilter>('Today')
+  // Cash exists only for Loans (bank). Pure Credit Card / Borrow agents have no cash flow:
+  // they see Collections + PTP Marked tabs and no deposit entry point.
+  const hasBankCases = agentInfo
+    ? ALL_CUSTOMERS.some((c: any) => c.username === agentInfo.username && c.userType === 'bank')
+    : false
+  const [statusTab, setStatusTab] = useState<StatusTab>(hasBankCases ? 'Cash in Hand' : 'Collections')
 
   const allEntries = useMemo(() => {
     if (!agentInfo) return []
@@ -71,6 +76,10 @@ export default function VisitsScreen({ navigation }: Props) {
         const disp = act.latestDisposition
         const totalCollected = act.collections.reduce((s: number, x: any) => s + x.amount, 0)
         const latestCol = act.collections.length > 0 ? act.collections[act.collections.length - 1] : null
+        // Per-case amount split: Cash in Hand / Deposited / PTP Marked
+        const cashInHand = act.collections.filter((x: any) => !x.deposited && x.mode === 'Cash').reduce((s: number, x: any) => s + x.amount, 0)
+        const deposited  = act.collections.filter((x: any) => x.deposited).reduce((s: number, x: any) => s + x.amount, 0)
+        const ptpMarked  = disp.ptpDate ? (disp.ptpAmount ?? 0) : 0
         return [{
           name: c.name,
           partyId: c.partyId,
@@ -78,16 +87,18 @@ export default function VisitsScreen({ navigation }: Props) {
           time: new Date(disp.visitedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
           date: new Date(disp.visitedAt),
           amount: totalCollected,
+          cashInHand, deposited, ptpMarked,
           type: disp.code,
           mode: act.collections[0]?.mode ?? '',
           category: totalCollected >= c.emiOs && c.emiOs > 0 ? 'collected' : totalCollected > 0 ? 'partial' : 'contacted',
           bucket: c.assetClassification,
           dpd: c.dpd,
           receiptId: latestCol?.receiptId ?? null,
-          ptpDate: disp.type === 'Connected-PTP' ? disp.ptpDate : null,
+          ptpDate: disp.ptpDate ?? null,
           remarks: disp.remarks,
           latestCol,
           customerName: c.name,
+          customerMobile: c.mobile || '',
           branchName: c.branch,
           product: c.product,
         }]
@@ -96,14 +107,35 @@ export default function VisitsScreen({ navigation }: Props) {
   }, [agentInfo, dataVersion])
 
   const today = new Date().toDateString()
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const todayEntries = allEntries.filter((e: any) => e.date.toDateString() === today)
 
-  const todayEntries   = allEntries.filter((e: any) => e.date.toDateString() === today)
-  const last7Entries   = allEntries.filter((e: any) => e.date > sevenDaysAgo && e.date.toDateString() !== today)
-  const earlierEntries = allEntries.filter((e: any) => e.date <= sevenDaysAgo)
+  // Entries filtered by the active status tab
+  const filteredEntries = useMemo(() => {
+    if (statusTab === 'Cash in Hand') return allEntries.filter((e: any) => e.cashInHand > 0)
+    if (statusTab === 'Deposited')    return allEntries.filter((e: any) => e.deposited > 0)
+    if (statusTab === 'Collections')  return allEntries.filter((e: any) => e.amount > 0)
+    return allEntries.filter((e: any) => e.ptpMarked > 0 || e.ptpDate)
+  }, [allEntries, statusTab])
 
-  const tabEntries = tab === 'Today' ? todayEntries : tab === 'Last 7 Days' ? last7Entries : earlierEntries
+  // Date-wise sections, descending
+  const dateSections = useMemo(() => {
+    const map: Record<string, { key: string; label: string; date: Date; entries: any[] }> = {}
+    for (const e of filteredEntries) {
+      const key = e.date.toISOString().split('T')[0]
+      if (!map[key]) {
+        map[key] = {
+          key,
+          label: e.date.toDateString() === today
+            ? 'Today'
+            : e.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+          date: e.date,
+          entries: [],
+        }
+      }
+      map[key].entries.push(e)
+    }
+    return Object.values(map).sort((a, b) => b.date.getTime() - a.date.getTime())
+  }, [filteredEntries])
 
   const totalCollectedToday = todayEntries.reduce((s: number, e: any) => s + (e.category !== 'contacted' ? e.amount : 0), 0)
   const fullAmt    = todayEntries.filter((e: any) => e.category === 'collected').reduce((s: number, e: any) => s + e.amount, 0)
@@ -125,7 +157,7 @@ export default function VisitsScreen({ navigation }: Props) {
   return (
     <SafeAreaView className="flex-1 bg-[#F0F4F7]" edges={['top']}>
       {/* Header */}
-      <View className="bg-white px-4 pb-5" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+      <View className="bg-white px-4 pb-5" style={{ paddingTop: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
         <View className="flex-row items-center justify-between">
           <View>
             <Text className="text-[rgba(0,0,0,0.9)] font-medium text-xl">My Collections</Text>
@@ -159,63 +191,68 @@ export default function VisitsScreen({ navigation }: Props) {
                 <View key={l.label} className="flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full" style={{ backgroundColor: l.color }} />
                   <Text className="text-[11px] text-black/60 flex-1">{l.label}</Text>
-                  <Text className="text-[11px] text-black/35 w-7 text-right">{l.pct}</Text>
-                  <Text className="text-[11px] font-medium text-[rgba(0,0,0,0.75)] w-20 text-right">{l.amount}</Text>
+                  <Text className="text-[11px] text-black/35 w-11 text-right" numberOfLines={1}>{l.pct}</Text>
+                  <Text className="text-[11px] font-medium text-[rgba(0,0,0,0.75)] w-20 text-right" numberOfLines={1}>{l.amount}</Text>
                 </View>
               ))}
             </View>
           </View>
         </View>
 
-        {/* Cash to deposit widget — bank only */}
-        {agentInfo?.portfolioType !== 'slice' && <View className="mx-4 my-3 bg-[#D30AD7] rounded-[24px] px-4 py-3.5" style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } }}>
-          <View className="flex-row items-start justify-between mb-2.5">
+        {/* Cash in Hand widget (Loans agents) / Today's Collections (Credit Card & Borrow only) */}
+        {hasBankCases ? (
+          cashToDeposit > 0 && <View className="mx-4 my-3 bg-[#D30AD7] rounded-[24px] px-5 py-4 flex-row items-center justify-between" style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } }}>
             <View>
-              <Text className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-0.5">Cash to Deposit</Text>
+              <Text className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-0.5">Cash in Hand</Text>
               <Text className="text-2xl font-medium text-white">{fmt(cashToDeposit)}</Text>
-              <Text className="text-[10px] text-white/60 mt-1">{receiptCount} receipts · limit ₹80L</Text>
             </View>
             <TouchableOpacity
               onPress={() => navigation.navigate('Deposition')}
-              className="bg-white px-4 py-2 rounded-full"
+              className="bg-white px-5 py-2.5 rounded-full"
             >
-              <Text className="text-[#D30AD7] text-xs font-medium">Deposit →</Text>
+              <Text className="text-[#D30AD7] text-xs font-semibold">Deposit →</Text>
             </TouchableOpacity>
           </View>
-          <View className="bg-white/20 rounded-full h-1.5 overflow-hidden">
-            <View className="bg-white h-1.5 rounded-full" style={{ width: '6%' }} />
+        ) : (
+          <View className="mx-4 my-3 bg-[#D30AD7] rounded-[24px] px-5 py-4" style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } }}>
+            <Text className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-0.5">Today's Collections</Text>
+            <Text className="text-2xl font-medium text-white">{fmt(totalCollectedToday)}</Text>
+            <Text className="text-[10px] text-white/60 mt-1">All collections via payment link — no cash deposit needed</Text>
           </View>
-          <View className="flex-row justify-between mt-1">
-            <Text className="text-[9px] text-white/50">{fmt(cashToDeposit)} pending</Text>
-            <Text className="text-[9px] text-white/50">₹80,00,000 limit</Text>
-          </View>
-        </View>}
+        )}
 
-        {/* Tab bar */}
+        {/* Status tabs — Loans agents: Cash in Hand / Deposited / PTP; cc-borrow-only agents: Collections / PTP */}
         <View className="flex-row bg-white" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
-          {(['Today', 'Last 7 Days', 'Earlier'] as TabFilter[]).map(t => (
+          {((hasBankCases ? ['Cash in Hand', 'Deposited', 'PTP Marked'] : ['Collections', 'PTP Marked']) as StatusTab[]).map(t => (
             <TouchableOpacity
               key={t}
-              onPress={() => setTab(t)}
-              className="flex-1 py-2.5 items-center"
-              style={{ borderBottomWidth: 2, borderBottomColor: tab === t ? '#D30AD7' : 'transparent' }}
+              onPress={() => setStatusTab(t)}
+              className="flex-1 py-3 items-center"
+              style={{ borderBottomWidth: 2, borderBottomColor: statusTab === t ? '#D30AD7' : 'transparent' }}
             >
-              <Text className={`text-[10px] font-medium ${tab === t ? 'text-[#D30AD7]' : 'text-black/50'}`}>{t}</Text>
+              <Text className={`text-[11px] font-medium ${statusTab === t ? 'text-[#D30AD7]' : 'text-black/50'}`}>{t}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Entries */}
+        {/* Date-wise summary — descending */}
         <View className="px-4 py-3 gap-3">
-          {tabEntries.length === 0 ? (
+          {dateSections.length === 0 ? (
             <View className="bg-white rounded-[24px] p-8 items-center" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
               <Text className="text-black/20 text-3xl mb-2">📋</Text>
-              <Text className="text-black/50 text-sm">No entries for {tab}</Text>
+              <Text className="text-black/50 text-sm">No {statusTab.toLowerCase()} entries</Text>
             </View>
           ) : (
-            tabEntries.map((e: any, i: number) => {
+            dateSections.map(section => (
+              <View key={section.key} className="gap-2">
+                {/* Date header — top left */}
+                <View className="flex-row items-center justify-between px-1 pt-2">
+                  <Text className="text-[13px] font-semibold text-[rgba(0,0,0,0.8)]">{section.label}</Text>
+                  <Text className="text-[10px] text-black/40">{section.entries.length} case{section.entries.length > 1 ? 's' : ''}</Text>
+                </View>
+
+                {section.entries.map((e: any, i: number) => {
               const maskedId = String(e.partyId).replace(/^(.{4})(.+)(.{4})$/, (_: string, a: string, m: string, z: string) => a + '·'.repeat(Math.min(4, m.length)) + z)
-              const dateLabel = tab === 'Today' ? e.time : e.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ' · ' + e.time
               return (
                 <View key={i} className="bg-white rounded-[20px] px-4 py-4 gap-2.5" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
                   <View className="flex-row items-start justify-between gap-2">
@@ -225,33 +262,22 @@ export default function VisitsScreen({ navigation }: Props) {
                     </View>
                     <View className="items-end">
                       <Text className="font-semibold text-[15px] text-[rgba(0,0,0,0.85)]">
-                        {e.category === 'contacted' ? '—' : fmt(e.amount)}
+                        {statusTab === 'PTP Marked'
+                          ? (e.ptpMarked > 0 ? fmt(e.ptpMarked) : '—')
+                          : statusTab === 'Deposited'
+                          ? fmt(e.deposited)
+                          : statusTab === 'Collections'
+                          ? fmt(e.amount)
+                          : fmt(e.cashInHand)}
                       </Text>
-                      <Text className="text-black/35 text-[10px] mt-0.5">{dateLabel}</Text>
+                      <Text className="text-black/35 text-[10px] mt-0.5">{e.time}</Text>
                     </View>
                   </View>
 
-                  <View className="flex-row items-center gap-1.5 flex-wrap">
-                    <View className="bg-[#EAEBED] px-2 py-0.5 rounded-full">
-                      <Text className="text-[10px] text-black/60 font-medium">{e.type}</Text>
-                    </View>
-                    {e.mode ? (
-                      <View className="bg-[#EAEBED] px-2 py-0.5 rounded-full">
-                        <Text className="text-[10px] text-black/55 font-medium">{e.mode}</Text>
-                      </View>
-                    ) : null}
-                    {e.bucket ? (
-                      <View className="bg-[#F0F4F7] px-2 py-0.5 rounded-full">
-                        <Text className="text-[10px] text-black/50 font-medium">{e.bucket}</Text>
-                      </View>
-                    ) : null}
-                    {e.dpd > 0 && <Text className="text-[10px] text-black/35">{e.dpd} DPD</Text>}
-                    {e.ptpDate && (
-                      <View className="bg-[#F0F4F7] px-2 py-0.5 rounded-full">
-                        <Text className="text-[10px] text-black/55 font-medium">PTP {e.ptpDate}</Text>
-                      </View>
-                    )}
-                  </View>
+                  {/* PTP due date only — amounts live in the amount column */}
+                  {statusTab === 'PTP Marked' && e.ptpDate ? (
+                    <Text className="text-[11px] text-black/45">Due {e.ptpDate}</Text>
+                  ) : null}
 
                   {e.receiptId && (
                     <View className="flex-row items-center justify-between pt-2" style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
@@ -266,6 +292,7 @@ export default function VisitsScreen({ navigation }: Props) {
                               receiptNo: e.receiptId,
                               partyId: e.partyId,
                               customerName: e.customerName,
+                              customerMobile: e.customerMobile || '',
                               dispositionType: e.type,
                               actionType: e.type,
                               amount: e.amount,
@@ -287,7 +314,9 @@ export default function VisitsScreen({ navigation }: Props) {
                   )}
                 </View>
               )
-            })
+                })}
+              </View>
+            ))
           )}
         </View>
       </ScrollView>

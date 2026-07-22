@@ -9,7 +9,7 @@ interface UseAllocationsResult {
   isFallback: boolean
 }
 
-export function useAllocations(bucket?: string, search?: string, username?: string, portfolioType?: 'bank' | 'slice'): UseAllocationsResult {
+export function useAllocations(bucket?: string, search?: string, username?: string, portfolioType?: 'bank' | 'slice' | 'all'): UseAllocationsResult {
   const [allocations, setAllocations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [trigger, setTrigger] = useState(0)
@@ -22,7 +22,7 @@ export function useAllocations(bucket?: string, search?: string, username?: stri
     setLoading(true)
     const filtered = ALL_CUSTOMERS.filter((c: any) => {
       const matchAgent = !username || c.username === username
-      const matchPortfolio = !portfolioType ||
+      const matchPortfolio = !portfolioType || portfolioType === 'all' ||
         (portfolioType === 'bank' ? c.userType === 'bank' : c.userType !== 'bank')
       const matchBucket = !bucket || bucket === 'All' || c.assetClassification === bucket
       const matchSearch =

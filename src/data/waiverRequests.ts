@@ -11,7 +11,7 @@ export interface WaiverRequest {
   id: string
   partyId: string
   agentUsername: string
-  userType: 'borrow' | 'cc'
+  userType: 'bank' | 'borrow' | 'cc'   // bank → Branch Head checker; cc/borrow → Agency Manager
   paymentType: string
   selectedEmis: SelectedEMI[]
   waiverPct: number

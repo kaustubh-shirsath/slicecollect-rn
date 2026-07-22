@@ -28,7 +28,6 @@ function DpdBadge({ dpd }: { dpd: number }) {
 export default function DepositionScreen({ navigation }: Props) {
   const { agentInfo } = useAgent()
   const [tab, setTab] = useState<Tab>('pending')
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [toast, setToast] = useState('')
@@ -70,22 +69,13 @@ export default function DepositionScreen({ navigation }: Props) {
       .slice(0, 10)
   }, [agentInfo])
 
-  const selectedReceipts = pendingReceipts.filter((r: any) => selectedIds.has(r.id))
-  const totalPending     = pendingReceipts.reduce((s: number, r: any) => s + r.amount, 0)
-  const totalSelected    = selectedReceipts.reduce((s: number, r: any) => s + r.amount, 0)
+  const totalPending = pendingReceipts.reduce((s: number, r: any) => s + r.amount, 0)
   const denomTotal = noteValues.reduce((s, n) => s + n * (counts[n] || 0), 0)
   const depositFormValid = depDate && txnRef.trim() && agree && slipUploaded
 
-  function toggleSelect(id: string) {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
-
+  // Whole-cash deposit — agent deposits ENTIRE cash in hand, no per-receipt selection
   function handleDepositSubmit() {
-    for (const r of pendingReceipts.filter((r: any) => selectedIds.has(r.id))) {
+    for (const r of pendingReceipts) {
       const act = getActivity(r.partyId)
       if (act) {
         const updated = act.collections.map((col: any) =>
@@ -94,9 +84,8 @@ export default function DepositionScreen({ navigation }: Props) {
         updateActivity(r.partyId, { collections: updated })
       }
     }
-    setDepositedIds(prev => new Set([...prev, ...selectedIds]))
+    setDepositedIds(prev => new Set([...prev, ...pendingReceipts.map((r: any) => r.id)]))
     setShowDepositModal(false)
-    setSelectedIds(new Set())
     setToast('Deposit submitted successfully')
     setCounts({}); setTxnRef(''); setAgree(false); setSlipUploaded(false)
     setTimeout(() => setToast(''), 3000)
@@ -118,7 +107,7 @@ export default function DepositionScreen({ navigation }: Props) {
           >
             <Text className="text-black/60 text-xl">←</Text>
           </TouchableOpacity>
-          <Text className="text-base font-medium text-[rgba(0,0,0,0.9)] flex-1">Cash to Deposit</Text>
+          <Text className="text-base font-medium text-[rgba(0,0,0,0.9)] flex-1">Cash in Hand</Text>
         </View>
         {/* Tab bar */}
         <View className="flex-row" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
@@ -163,55 +152,38 @@ export default function DepositionScreen({ navigation }: Props) {
             data={pendingReceipts}
             keyExtractor={(item: any) => item.id}
             contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 160 }}
-            renderItem={({ item: r }: { item: any }) => {
-              const isSelected = selectedIds.has(r.id)
-              return (
-                <TouchableOpacity
-                  onPress={() => toggleSelect(r.id)}
-                  activeOpacity={0.7}
-                  style={{
-                    backgroundColor: '#fff',
-                    borderRadius: 20,
-                    padding: 16,
-                    elevation: 1,
-                    borderWidth: 2,
-                    borderColor: isSelected ? '#D30AD7' : 'transparent',
-                    shadowColor: '#000',
-                    shadowOpacity: 0.04,
-                    shadowRadius: 6,
-                    shadowOffset: { width: 0, height: 2 },
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: 'rgba(0,0,0,0.9)' }}>{r.name}</Text>
-                      <Text style={{ fontSize: 11, color: '#D30AD7', fontWeight: '500', marginTop: 2 }}>{r.receipt}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)' }}>{r.date}</Text>
-                      <View style={{
-                        width: 22, height: 22, borderRadius: 11,
-                        backgroundColor: isSelected ? '#D30AD7' : '#F0F4F7',
-                        borderWidth: isSelected ? 0 : 1.5,
-                        borderColor: 'rgba(0,0,0,0.15)',
-                        alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        {isSelected && <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>✓</Text>}
-                      </View>
-                    </View>
+            renderItem={({ item: r }: { item: any }) => (
+              // Read-only list — entire cash in hand is deposited together, no selection
+              <View
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 20,
+                  padding: 16,
+                  elevation: 1,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.04,
+                  shadowRadius: 6,
+                  shadowOffset: { width: 0, height: 2 },
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: 'rgba(0,0,0,0.9)' }}>{r.name}</Text>
+                    <Text style={{ fontSize: 11, color: '#D30AD7', fontWeight: '500', marginTop: 2 }}>{r.receipt}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <DpdBadge dpd={r.dpd} />
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#00A63E' }}>{fmt(r.amount)}</Text>
-                  </View>
-                </TouchableOpacity>
-              )
-            }}
+                  <Text style={{ fontSize: 12, color: 'rgba(0,0,0,0.4)' }}>{r.date}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <DpdBadge dpd={r.dpd} />
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#00A63E' }}>{fmt(r.amount)}</Text>
+                </View>
+              </View>
+            )}
           />
 
           <View className="absolute bottom-0 left-0 right-0 bg-white px-4 py-3 gap-3" style={{ elevation: 8, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
             <View className="flex-row items-center justify-between">
-              <Text className="text-sm text-black/50 font-medium">Total Amount</Text>
+              <Text className="text-sm text-black/50 font-medium">Entire Cash in Hand</Text>
               <Text className="text-base font-medium text-[rgba(0,0,0,0.9)]">{fmt(totalPending)}</Text>
             </View>
             <View className="flex-row gap-3">
@@ -274,7 +246,7 @@ export default function DepositionScreen({ navigation }: Props) {
       {/* Deposit Modal */}
       <Modal visible={showDepositModal} transparent animationType="slide" onRequestClose={() => setShowDepositModal(false)}>
         <TouchableOpacity className="flex-1 justify-end bg-black/40" activeOpacity={1} onPress={() => setShowDepositModal(false)}>
-          <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-3xl px-5 pt-5 pb-10" style={{ maxHeight: '88%' }}>
+          <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-3xl px-5 pt-5 pb-10" style={{ maxHeight: '88%', width: '100%', maxWidth: 520, alignSelf: 'center' }}>
             <View className="w-10 h-1 bg-black/10 rounded-full mx-auto mb-4" />
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text className="text-base font-medium text-[#D30AD7] mb-4">Cash Deposit Form</Text>
@@ -474,11 +446,11 @@ export default function DepositionScreen({ navigation }: Props) {
       {/* Transfer Confirm Modal */}
       <Modal visible={showTransferModal} transparent animationType="slide" onRequestClose={() => setShowTransferModal(false)}>
         <TouchableOpacity className="flex-1 justify-end bg-black/40" activeOpacity={1} onPress={() => setShowTransferModal(false)}>
-          <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-3xl px-5 pt-5 pb-10">
+          <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-3xl px-5 pt-5 pb-10" style={{ width: '100%', maxWidth: 520, alignSelf: 'center' }}>
             <View className="w-10 h-1 bg-black/10 rounded-full mx-auto mb-4" />
-            <Text className="text-base font-medium text-[#D30AD7] mb-4">Selected Cases for Transfer</Text>
+            <Text className="text-base font-medium text-[#D30AD7] mb-4">Cases in this Transfer</Text>
             <View className="gap-2 mb-4">
-              {selectedReceipts.map((r: any) => (
+              {pendingReceipts.map((r: any) => (
                 <View key={r.id} className="bg-[#FAE2FA] rounded-xl px-4 py-3 flex-row items-center justify-between">
                   <View>
                     <Text className="text-sm font-medium text-[rgba(0,0,0,0.9)]">{r.name}</Text>
@@ -490,14 +462,14 @@ export default function DepositionScreen({ navigation }: Props) {
             </View>
             <View className="flex-row items-center justify-between bg-[#F0F4F7] rounded-xl px-4 py-3 mb-6">
               <Text className="text-sm font-medium text-black/50">Total</Text>
-              <Text className="text-base font-medium text-[rgba(0,0,0,0.9)]">{fmt(totalSelected)}</Text>
+              <Text className="text-base font-medium text-[rgba(0,0,0,0.9)]">{fmt(totalPending)}</Text>
             </View>
             <View className="flex-row gap-3">
               <TouchableOpacity onPress={() => setShowTransferModal(false)} className="flex-1 py-3 rounded-full bg-[#F0F4F7] items-center">
                 <Text className="text-[rgba(0,0,0,0.9)] text-sm font-medium">Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => { setShowTransferModal(false); setSelectedIds(new Set()); setToast('Transfer initiated'); setTimeout(() => setToast(''), 3000) }}
+                onPress={() => { setShowTransferModal(false); setToast('Transfer initiated'); setTimeout(() => setToast(''), 3000) }}
                 className="flex-1 py-3 rounded-full bg-[#D30AD7] items-center"
               >
                 <Text className="text-white text-sm font-medium">Continue</Text>

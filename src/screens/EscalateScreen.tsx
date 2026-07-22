@@ -25,70 +25,38 @@ type Field = {
   keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'email-address'
 }
 
+// User (customer)-level escalations only. Raised from a specific customer's detail page.
 const CATEGORIES: Category[] = [
   {
-    id: 'branch_transfer',
-    icon: '🏢',
-    title: 'Branch Transfer',
-    subtitle: 'Change my branch mapping',
-    fields: [
-      { key: 'current_branch', label: 'Current Branch', placeholder: 'e.g. TINSUKIA' },
-      { key: 'new_branch', label: 'New Branch', placeholder: 'e.g. DIBRUGARH' },
-      { key: 'effective_date', label: 'Effective Date', placeholder: 'DD/MM/YYYY' },
-      { key: 'remarks', label: 'Remarks', placeholder: 'Any additional context...', multiline: true },
-    ],
-  },
-  {
-    id: 'gl_code',
-    icon: '🔢',
-    title: 'Update GL Code',
-    subtitle: 'Request GL code correction',
-    fields: [
-      { key: 'current_gl', label: 'Current GL Code', placeholder: 'e.g. 11799', keyboardType: 'numeric' },
-      { key: 'new_gl', label: 'New GL Code', placeholder: 'e.g. 11800', keyboardType: 'numeric' },
-      { key: 'reason', label: 'Reason', placeholder: 'Why does this need to change?', multiline: true },
-    ],
-  },
-  {
-    id: 'fraud',
+    id: 'user_fraud',
     icon: '🚨',
-    title: 'Report Fraud',
-    subtitle: 'Flag suspicious activity',
+    title: 'Report User Fraud',
+    subtitle: 'Flag suspicious or fraudulent activity by this customer',
     fields: [
       { key: 'fraud_type', label: 'Fraud Type', placeholder: 'e.g. Identity theft, Fake payment receipt...' },
-      { key: 'customer_id', label: 'Customer / Party ID', placeholder: 'Party ID if applicable' },
       { key: 'description', label: 'Description', placeholder: 'Describe what happened in detail...', multiline: true },
       { key: 'evidence', label: 'Evidence / Reference', placeholder: 'Receipt no., transaction ID, etc.' },
     ],
   },
   {
-    id: 'branch_head',
-    icon: '📢',
-    title: 'Message to Branch Head',
-    subtitle: 'Convey a message to your BH',
+    id: 'incorrect_details',
+    icon: '📝',
+    title: 'Incorrect User Details',
+    subtitle: 'Report wrong name, contact, address or loan data',
     fields: [
-      { key: 'subject', label: 'Subject', placeholder: 'Brief subject line' },
-      { key: 'message', label: 'Message', placeholder: 'Write your message here...', multiline: true },
-    ],
-  },
-  {
-    id: 'mobile_update',
-    icon: '📱',
-    title: 'Update Mobile Number',
-    subtitle: 'Change my registered mobile',
-    fields: [
-      { key: 'new_mobile', label: 'New Mobile Number', placeholder: '10-digit number', keyboardType: 'phone-pad' },
-      { key: 'confirm_mobile', label: 'Confirm Mobile Number', placeholder: '10-digit number', keyboardType: 'phone-pad' },
+      { key: 'field', label: 'Which detail is wrong?', placeholder: 'e.g. Mobile number, Address, Name' },
+      { key: 'correct_value', label: 'Correct Value (if known)', placeholder: 'What it should be' },
+      { key: 'remarks', label: 'Remarks', placeholder: 'Any additional context...', multiline: true },
     ],
   },
   {
     id: 'other',
     icon: '💬',
     title: 'Other Feedback',
-    subtitle: 'Anything else on your mind',
+    subtitle: 'Anything else about this customer',
     fields: [
       { key: 'subject', label: 'Subject', placeholder: 'What is this about?' },
-      { key: 'feedback', label: 'Feedback', placeholder: 'Share your feedback or query...', multiline: true },
+      { key: 'feedback', label: 'Feedback', placeholder: 'Share your feedback...', multiline: true },
     ],
   },
 ]

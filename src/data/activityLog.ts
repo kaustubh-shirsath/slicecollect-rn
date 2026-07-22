@@ -14,6 +14,17 @@ export interface VisitEntry {
   date: string
   dispositionType: string
   summary: string
+  amount?: number
+  contactPerson?: string
+  contactPlace?: string
+  ptpDate?: string
+  waiverPct?: number
+  waiverAmount?: number
+  paymentStatus?: string
+  altNumber?: string
+  altAddress?: string
+  lat?: number
+  lng?: number
 }
 
 export interface ActivityRecord {

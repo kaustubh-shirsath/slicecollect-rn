@@ -33,7 +33,7 @@ export default function SalesReceiptScreen({ navigation, route }: Props) {
   const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
 
   function shareWhatsApp() {
-    const text = `SliceField Sales Receipt\n${receipt.receiptNo}\nMerchant: ${receipt.businessName}\nCASA: ${maskAccount(receipt.casaAccountNo)}\nAmount: ${fmt(receipt.amount)}\nNotes: ${receipt.notes}\nDate: ${dateStr} ${timeStr}`
+    const text = `slice Sales Receipt\n${receipt.receiptNo}\nMerchant: ${receipt.businessName}\nCASA: ${maskAccount(receipt.casaAccountNo)}\nAmount: ${fmt(receipt.amount)}\nNotes: ${receipt.notes}\nDate: ${dateStr} ${timeStr}`
     Linking.openURL(`https://wa.me/?text=${encodeURIComponent(text)}`)
   }
 
@@ -54,7 +54,7 @@ export default function SalesReceiptScreen({ navigation, route }: Props) {
           {/* Purple header */}
           <View className="bg-[#D30AD7] px-5 py-4 flex-row items-center justify-between">
             <View>
-              <Text className="text-white font-medium text-base">SliceField · Sales</Text>
+              <Text className="text-white font-medium text-base">slice · sales</Text>
               <Text className="text-white/70 text-xs">Slice Small Finance Bank</Text>
             </View>
             <View className="bg-white/20 px-2.5 py-1 rounded-full flex-row items-center gap-1">

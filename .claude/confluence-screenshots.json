@@ -1,0 +1,218 @@
+{
+  "pageId": "3918430321",
+  "pageTitle": "Slice Field - PRD",
+  "appUrl": "http://localhost:8081",
+  "appDir": "/Users/kaustubhsatishshirsath/Desktop/slicecollect-rn",
+  "startCommand": "npx expo start --web",
+  "screenshotDir": "/tmp/cf_screenshots_slicefield",
+  "login": {
+    "username": "emp11",
+    "password": "000000",
+    "waitAfterLogin": 2500
+  },
+  "screens": [
+    {
+      "name": "01_login",
+      "localId": "a422399bc1c0",
+      "steps": []
+    },
+    {
+      "name": "02_home",
+      "localId": "795e60832708",
+      "steps": [
+        {
+          "action": "login"
+        }
+      ]
+    },
+    {
+      "name": "03_allocations",
+      "localId": "d1985482c43b",
+      "steps": [
+        {
+          "action": "login"
+        },
+        {
+          "action": "tab",
+          "name": "Cases"
+        }
+      ]
+    },
+    {
+      "name": "04_customer_detail",
+      "localId": "1d16fc469d74",
+      "steps": [
+        {
+          "action": "login"
+        },
+        {
+          "action": "tab",
+          "name": "Cases"
+        },
+        {
+          "action": "wait",
+          "ms": 500
+        },
+        {
+          "action": "click_coords",
+          "x": 195,
+          "y": 236
+        },
+        {
+          "action": "wait",
+          "ms": 1500
+        }
+      ]
+    },
+    {
+      "name": "05_disposition",
+      "localId": "e8f9e5fcd104",
+      "steps": [
+        {
+          "action": "login"
+        },
+        {
+          "action": "tab",
+          "name": "Cases"
+        },
+        {
+          "action": "wait",
+          "ms": 500
+        },
+        {
+          "action": "click_coords",
+          "x": 195,
+          "y": 236
+        },
+        {
+          "action": "wait",
+          "ms": 1500
+        },
+        {
+          "action": "click_coords",
+          "x": 110,
+          "y": 788
+        },
+        {
+          "action": "wait",
+          "ms": 1000
+        }
+      ]
+    },
+    {
+      "name": "06_smart_route",
+      "localId": "602dfc365dad",
+      "steps": [
+        {
+          "action": "login"
+        },
+        {
+          "action": "tab",
+          "name": "Route"
+        }
+      ]
+    },
+    {
+      "name": "07_settlement",
+      "localId": "3b0858ff5175",
+      "steps": [
+        {
+          "action": "login"
+        },
+        {
+          "action": "tab",
+          "name": "Cases"
+        },
+        {
+          "action": "wait",
+          "ms": 500
+        },
+        {
+          "action": "click_coords",
+          "x": 195,
+          "y": 236
+        },
+        {
+          "action": "wait",
+          "ms": 1500
+        },
+        {
+          "action": "click_selector",
+          "selector": "text=Settlement"
+        },
+        {
+          "action": "wait",
+          "ms": 1000
+        }
+      ]
+    },
+    {
+      "name": "08_payment_link",
+      "localId": "fa75c4f846fe",
+      "steps": [
+        {
+          "action": "login"
+        },
+        {
+          "action": "tab",
+          "name": "Cases"
+        },
+        {
+          "action": "wait",
+          "ms": 500
+        },
+        {
+          "action": "click_coords",
+          "x": 195,
+          "y": 236
+        },
+        {
+          "action": "wait",
+          "ms": 1500
+        },
+        {
+          "action": "click_selector",
+          "selector": "text=Payment Link"
+        },
+        {
+          "action": "wait",
+          "ms": 1000
+        }
+      ]
+    },
+    {
+      "name": "09_my_collections",
+      "localId": "ea94f50eab37",
+      "steps": [
+        {
+          "action": "login"
+        },
+        {
+          "action": "tab",
+          "name": "Visits"
+        }
+      ]
+    },
+    {
+      "name": "12_profile",
+      "localId": "bc7911e39a43",
+      "steps": [
+        {
+          "action": "login"
+        },
+        {
+          "action": "tab",
+          "name": "Home"
+        },
+        {
+          "action": "click_selector",
+          "selector": "text=Profile"
+        },
+        {
+          "action": "wait",
+          "ms": 1000
+        }
+      ]
+    }
+  ]
+}

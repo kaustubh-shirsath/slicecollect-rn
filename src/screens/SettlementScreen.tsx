@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert } fro
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
+import { useAgent } from '../navigation/AgentContext'
+import { updateActivity, getActivity } from '../data/activityLog'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settlement'>
 
@@ -29,7 +31,7 @@ function ReasonPicker({ value, onChange }: { value: string; onChange: (v: string
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity className="flex-1 justify-end bg-black/40" activeOpacity={1} onPress={() => setOpen(false)}>
-          <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-3xl px-5 pt-5 pb-10">
+          <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-3xl px-5 pt-5 pb-10" style={{ width: '100%', maxWidth: 520, alignSelf: 'center' }}>
             <View className="w-10 h-1 bg-black/10 rounded-full mx-auto mb-4" />
             {reasons.map(r => (
               <TouchableOpacity
@@ -60,7 +62,7 @@ function CalendarModal({ visible, onClose, onSelect, minDate }: {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40 }}>
+        <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, width: '100%', maxWidth: 520, alignSelf: 'center' }}>
           <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <TouchableOpacity onPress={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() - 1); setCalMonth(d) }} style={{ padding: 8 }}>
@@ -122,15 +124,19 @@ function CalendarModal({ visible, onClose, onSelect, minDate }: {
 
 export default function SettlementScreen({ navigation, route }: Props) {
   const { customer: c } = route.params
+  const { agentInfo } = useAgent()
   const isSlice = c?.userType === 'cc' || c?.userType === 'borrow'
   const [settAmount, setSettAmount] = useState((c.emiOs ?? c.overdue ?? 0).toString())
   const [advance, setAdvance] = useState('')
   const [settlementImage, setSettlementImage] = useState<string | null>(null)
-  const [mode, setMode] = useState('Cash')
+  // cc/borrow: Payment Link only (Cash visible but disabled)
+  const [mode, setMode] = useState(isSlice ? 'Payment Link' : 'Cash')
   const [installments, setInstallments] = useState(1)
   const [reason, setReason] = useState('')
   const [desc, setDesc] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [advanceReceiptId, setAdvanceReceiptId] = useState<string | null>(null)
+  const [altMobile, setAltMobile] = useState('')
   const [instAmounts, setInstAmounts] = useState<number[]>([0])
   const [instDates, setInstDates] = useState<string[]>([''])
   const [openCalIdx, setOpenCalIdx] = useState<number | null>(null)
@@ -174,6 +180,32 @@ export default function SettlementScreen({ navigation, route }: Props) {
         <View className="flex-row justify-between"><Text className="text-xs text-black/50">Installments</Text><Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{installments}</Text></View>
         <View className="flex-row justify-between"><Text className="text-xs text-black/50">Mode</Text><Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{mode}</Text></View>
       </View>
+      {advanceReceiptId && (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Receipt', {
+            receipt: {
+              receiptNo: advanceReceiptId,
+              partyId: c.partyId,
+              customerName: c.name,
+              customerMobile: c.mobile || '',
+              dispositionType: 'Settlement Advance',
+              actionType: 'Settlement Advance',
+              amount: advAmount,
+              advanceAmount: advAmount,
+              paymentMode: mode,
+              agentName: agentInfo?.name || '',
+              branchName: agentInfo?.branch || c.branch || '',
+              glCode: agentInfo?.glCode || '',
+              createdAt: new Date().toISOString(),
+              alternateMobile: altMobile,
+            },
+            backTo: 'Main',
+          })}
+          className="w-full border border-[#D30AD7] py-3.5 rounded-full items-center mb-3"
+        >
+          <Text className="text-[#D30AD7] font-semibold">View Advance Payment Receipt</Text>
+        </TouchableOpacity>
+      )}
       <TouchableOpacity onPress={() => navigation.navigate('Main')} className="w-full bg-[#D30AD7] py-3.5 rounded-full items-center">
         <Text className="text-white font-semibold">Back to Allocations</Text>
       </TouchableOpacity>
@@ -221,24 +253,46 @@ export default function SettlementScreen({ navigation, route }: Props) {
                 style={{ borderWidth: 1, borderColor: '#FFD580' }}
               />
               {advAmount > 0 && <Text className="text-xs text-[#B45309] mt-1 font-medium">Remaining: {fmt(Math.max(0, sAmount - advAmount))}</Text>}
+              {advAmount > 0 && (
+                <View className="mt-3">
+                  <Text className="text-[10px] font-semibold text-[#B45309] uppercase tracking-wider mb-1.5">
+                    Alternate Number for Receipt <Text className="normal-case text-[#B45309]/60">(optional)</Text>
+                  </Text>
+                  <TextInput
+                    keyboardType="phone-pad"
+                    value={altMobile}
+                    onChangeText={v => setAltMobile(v.replace(/\D/g, ''))}
+                    placeholder="10-digit number to also share receipt to"
+                    placeholderTextColor="rgba(0,0,0,0.3)"
+                    className="w-full bg-white rounded-xl px-3 py-2.5 text-sm"
+                    style={{ borderWidth: 1, borderColor: '#FFD580' }}
+                    maxLength={10}
+                  />
+                  <Text className="text-[10px] text-[#B45309]/70 mt-1">
+                    Payment receipt for this advance will be sent to the registered number{altMobile ? ' and this number' : ''}.
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
-          {/* Mode */}
-          <View>
-            <Text className="text-xs font-semibold text-black/50 uppercase tracking-wider mb-2">Repayment Mode *</Text>
-            <View className="flex-row gap-2">
-              {['Cash', 'Payment Link'].map(m => (
-                <TouchableOpacity
-                  key={m}
-                  onPress={() => setMode(m)}
-                  style={{ minHeight: 40, flex: 1, borderRadius: 100, paddingVertical: 8, alignItems: 'center', backgroundColor: mode === m ? '#D30AD7' : '#F0F4F7', borderWidth: 2, borderColor: mode === m ? '#D30AD7' : 'rgba(0,0,0,0.06)' }}
-                >
-                  <Text style={{ color: mode === m ? 'white' : 'rgba(0,0,0,0.5)', fontSize: 11, fontWeight: '600' }}>{m}</Text>
-                </TouchableOpacity>
-              ))}
+          {/* Repayment Mode — Loans only. CC/Borrow have no advance payment, always Payment Link. */}
+          {!isSlice && (
+            <View>
+              <Text className="text-xs font-semibold text-black/50 uppercase tracking-wider mb-2">Repayment Mode *</Text>
+              <View className="flex-row gap-2">
+                {['Cash', 'Payment Link'].map(m => (
+                  <TouchableOpacity
+                    key={m}
+                    onPress={() => setMode(m)}
+                    style={{ minHeight: 40, flex: 1, borderRadius: 100, paddingVertical: 8, alignItems: 'center', backgroundColor: mode === m ? '#D30AD7' : '#F0F4F7', borderWidth: 2, borderColor: mode === m ? '#D30AD7' : 'rgba(0,0,0,0.06)' }}
+                  >
+                    <Text style={{ color: mode === m ? 'white' : 'rgba(0,0,0,0.5)', fontSize: 11, fontWeight: '600' }}>{m}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Installments */}
           <View>
@@ -398,7 +452,23 @@ export default function SettlementScreen({ navigation, route }: Props) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => isValid && setSubmitted(true)}
+          onPress={() => {
+            if (!isValid) return
+            // Advance is money actually collected today (Bank only) — record it like any other collection
+            if (advAmount > 0) {
+              const receiptId = 'MB' + Date.now().toString().slice(-8) + String(c.partyId).slice(-4)
+              const todayStr = new Date().toISOString().split('T')[0]
+              const existing = getActivity(c.partyId)
+              updateActivity(c.partyId, {
+                collections: [
+                  ...(existing?.collections ?? []),
+                  { date: todayStr, amount: advAmount, mode: mode as 'Cash' | 'Payment Link', receiptId, deposited: false },
+                ],
+              })
+              setAdvanceReceiptId(receiptId)
+            }
+            setSubmitted(true)
+          }}
           disabled={!isValid}
           className={`w-full py-3.5 rounded-full items-center mb-6 ${isValid ? 'bg-[#D30AD7]' : 'bg-[#EAEBED]'}`}
         >

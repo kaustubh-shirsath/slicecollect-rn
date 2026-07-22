@@ -75,7 +75,7 @@ export default function SalesHomeScreen({ navigation }: Props) {
     <SafeAreaView className="flex-1 bg-[#F0F4F7]" edges={['top']}>
       {/* Header */}
       <View className="bg-white px-5 py-3 flex-row items-center justify-between border-b border-black/[0.06]">
-        <Text className="text-[rgba(0,0,0,0.9)] text-lg font-medium tracking-tight">SliceField · Sales</Text>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: '#D30AD7', letterSpacing: -0.5 }}>slice · sales</Text>
         <TouchableOpacity
           onPress={() => navigation.navigate('Profile')}
           className="w-9 h-9 rounded-full bg-[#FAE2FA] items-center justify-center"

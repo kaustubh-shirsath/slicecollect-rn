@@ -19,13 +19,11 @@ import CustomerDetailScreen from './src/screens/CustomerDetailScreen'
 import DispositionScreen from './src/screens/DispositionScreen'
 import ReceiptScreen from './src/screens/ReceiptScreen'
 import SettlementScreen from './src/screens/SettlementScreen'
-import PaymentLinkScreen from './src/screens/PaymentLinkScreen'
 import ProfileScreen from './src/screens/ProfileScreen'
 import DepositionScreen from './src/screens/DepositionScreen'
 import EscalateScreen from './src/screens/EscalateScreen'
-import WaiverPendingScreen from './src/screens/WaiverPendingScreen'
 
-// Sales screens
+// Sales screens — separate module, not reachable from unified login yet (Sales pipeline rollout pending)
 import SalesHomeScreen from './src/screens/sales/SalesHomeScreen'
 import SalesMerchantsScreen from './src/screens/sales/SalesMerchantsScreen'
 import SalesRouteScreen from './src/screens/sales/SalesRouteScreen'
@@ -149,7 +147,7 @@ function MainTabs() {
         name="Home"
         component={HomeScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="Home" emoji="🏠" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon label="Home" emoji="⌂" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -163,14 +161,14 @@ function MainTabs() {
         name="Smart"
         component={SmartScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="Route" emoji="⚡" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon label="Route" emoji="✦" focused={focused} />,
         }}
       />
       <Tab.Screen
         name="Visits"
         component={VisitsScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="Visits" emoji="📊" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon label="Visits" emoji="₹" focused={focused} />,
         }}
       />
     </Tab.Navigator>
@@ -179,9 +177,24 @@ function MainTabs() {
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#E5E7EB', alignItems: Platform.OS === 'web' ? 'center' : undefined }}>
-      <View style={Platform.OS === 'web' ? { width: 390, flex: 1, overflow: 'hidden', backgroundColor: '#F0F4F7' } : { flex: 1 }}>
-      <SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#E5E7EB', alignItems: Platform.OS === 'web' ? 'center' : undefined, justifyContent: Platform.OS === 'web' ? 'center' : undefined }}>
+      <View style={Platform.OS === 'web'
+        ? {
+            // Pixel 7a logical viewport (412 x 915), framed like a device
+            width: 412,
+            height: 915,
+            maxHeight: '100%',
+            overflow: 'hidden',
+            backgroundColor: '#F0F4F7',
+            borderRadius: 32,
+            ...( { boxShadow: '0 12px 48px rgba(0,0,0,0.25)' } as object ),
+          }
+        : { flex: 1 }}>
+      <SafeAreaProvider
+        initialMetrics={Platform.OS === 'web'
+          ? { frame: { x: 0, y: 0, width: 412, height: 915 }, insets: { top: 24, left: 0, right: 0, bottom: 0 } }
+          : undefined}
+      >
         <AgentProvider>
           <NavigationContainer>
             <StatusBar style="auto" />
@@ -223,11 +236,6 @@ export default function App() {
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen
-                name="PaymentLink"
-                component={PaymentLinkScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
                 name="Receipt"
                 component={ReceiptScreen}
                 options={{ animation: 'slide_from_bottom' }}
@@ -246,11 +254,6 @@ export default function App() {
                 name="Escalate"
                 component={EscalateScreen}
                 options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="WaiverPending"
-                component={WaiverPendingScreen}
-                options={{ animation: 'slide_from_bottom' }}
               />
             </Stack.Navigator>
           </NavigationContainer>
