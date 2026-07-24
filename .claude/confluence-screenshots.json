@@ -6,7 +6,7 @@
   "startCommand": "npx expo start --web",
   "screenshotDir": "/tmp/cf_screenshots_slicefield",
   "login": {
-    "username": "emp11",
+    "username": "emp01",
     "password": "000000",
     "waitAfterLogin": 2500
   },
