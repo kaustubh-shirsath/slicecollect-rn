@@ -9,7 +9,7 @@ import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { ALL_CUSTOMERS } from '../data/customers'
 import { getActivity, updateActivity } from '../data/activityLog'
-import { getCustomerRef } from '../data/caseMeta'
+import { getCustomerRef, getPaymentLinkStatus } from '../data/caseMeta'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Visits'>,
@@ -54,7 +54,7 @@ function DonutChart({ segments }: { segments: { pct: number; color: string }[] }
   )
 }
 
-type StatusTab = 'Cash in Hand' | 'Deposited' | 'PTP Marked' | 'Collections'
+type StatusTab = 'Cash in Hand' | 'Cash Deposited' | 'Payment Link' | 'PTP Marked'
 
 export default function VisitsScreen(_props: Props) {
   const { agentInfo, dataVersion } = useAgent()
@@ -63,7 +63,7 @@ export default function VisitsScreen(_props: Props) {
   const hasBankCases = agentInfo
     ? ALL_CUSTOMERS.some((c: any) => c.username === agentInfo.username && c.userType === 'bank')
     : false
-  const [statusTab, setStatusTab] = useState<StatusTab>(hasBankCases ? 'Cash in Hand' : 'Collections')
+  const [statusTab, setStatusTab] = useState<StatusTab>(hasBankCases ? 'Cash in Hand' : 'Payment Link')
   const [depositing, setDepositing] = useState(false)
   const [lastDeposit, setLastDeposit] = useState<{ amount: number; date: string } | null>(null)
 
@@ -78,8 +78,13 @@ export default function VisitsScreen(_props: Props) {
         const totalCollected = act.collections.reduce((s: number, x: any) => s + x.amount, 0)
         // Per-case amount split: Cash in Hand / Deposited / PTP Marked
         const cashInHand = act.collections.filter((x: any) => !x.deposited && x.mode === 'Cash').reduce((s: number, x: any) => s + x.amount, 0)
-        const deposited  = act.collections.filter((x: any) => x.deposited).reduce((s: number, x: any) => s + x.amount, 0)
+        const deposited  = act.collections.filter((x: any) => x.deposited && x.mode === 'Cash').reduce((s: number, x: any) => s + x.amount, 0)
         const ptpMarked  = disp.ptpDate ? (disp.ptpAmount ?? 0) : 0
+        // Payment-link collections: amount counts only when the link status is Success
+        const linkCols = act.collections.filter((x: any) => x.mode === 'Payment Link')
+        const linkAmount = linkCols.reduce((s: number, x: any) => s + x.amount, 0)
+        const linkSuccessAmount = linkCols.filter((x: any) => getPaymentLinkStatus(x.receiptId) === 'Success').reduce((s: number, x: any) => s + x.amount, 0)
+        const linkStatus = linkCols.length > 0 ? getPaymentLinkStatus(linkCols[linkCols.length - 1].receiptId) : null
         const lastVisit = act.visitHistory && act.visitHistory.length > 0 ? act.visitHistory[act.visitHistory.length - 1] : null
         return [{
           name: c.name,
@@ -89,6 +94,7 @@ export default function VisitsScreen(_props: Props) {
           date: new Date(disp.visitedAt),
           amount: totalCollected,
           cashInHand, deposited, ptpMarked,
+          linkAmount, linkSuccessAmount, linkStatus,
           type: disp.code,
           category: totalCollected >= c.emiOs && c.emiOs > 0 ? 'collected' : totalCollected > 0 ? 'partial' : 'contacted',
           ptpDate: disp.ptpDate ?? null,
@@ -103,11 +109,19 @@ export default function VisitsScreen(_props: Props) {
 
   // Entries filtered by the active status tab
   const filteredEntries = useMemo(() => {
-    if (statusTab === 'Cash in Hand') return allEntries.filter((e: any) => e.cashInHand > 0)
-    if (statusTab === 'Deposited')    return allEntries.filter((e: any) => e.deposited > 0)
-    if (statusTab === 'Collections')  return allEntries.filter((e: any) => e.amount > 0)
+    if (statusTab === 'Cash in Hand')   return allEntries.filter((e: any) => e.cashInHand > 0)
+    if (statusTab === 'Cash Deposited') return allEntries.filter((e: any) => e.deposited > 0)
+    if (statusTab === 'Payment Link')   return allEntries.filter((e: any) => e.linkAmount > 0)
     return allEntries.filter((e: any) => e.ptpMarked > 0 || e.ptpDate)
   }, [allEntries, statusTab])
+
+  // Amount an entry contributes on the active tab (Payment Link counts Success only)
+  const tabAmount = (e: any) =>
+    statusTab === 'PTP Marked' ? e.ptpMarked
+    : statusTab === 'Cash Deposited' ? e.deposited
+    : statusTab === 'Payment Link' ? e.linkSuccessAmount
+    : e.cashInHand
+  const overallTabTotal = filteredEntries.reduce((s: number, e: any) => s + tabAmount(e), 0)
 
   // Date-wise sections, descending
   const dateSections = useMemo(() => {
@@ -273,7 +287,7 @@ export default function VisitsScreen(_props: Props) {
 
         {/* Status tabs — Loans agents: Cash in Hand / Deposited / PTP; cc-borrow-only agents: Collections / PTP */}
         <View className="flex-row bg-white" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
-          {((hasBankCases ? ['Cash in Hand', 'Deposited', 'PTP Marked'] : ['Collections', 'PTP Marked']) as StatusTab[]).map(t => (
+          {((hasBankCases ? ['Cash in Hand', 'Cash Deposited', 'Payment Link', 'PTP Marked'] : ['Payment Link', 'PTP Marked']) as StatusTab[]).map(t => (
             <TouchableOpacity
               key={t}
               onPress={() => setStatusTab(t)}
@@ -284,6 +298,16 @@ export default function VisitsScreen(_props: Props) {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Overall total for the active tab */}
+        {dateSections.length > 0 && (
+          <View className="mx-4 mt-3 bg-white rounded-2xl px-4 py-3 flex-row items-center justify-between" style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
+            <Text className="text-[11px] text-black/50 font-medium">
+              {statusTab === 'Payment Link' ? 'Total collected via payment link' : `Total ${statusTab.toLowerCase()}`}
+            </Text>
+            <Text className="text-sm font-bold text-[rgba(0,0,0,0.85)]">{fmt(overallTabTotal)}</Text>
+          </View>
+        )}
 
         {/* Date-wise summary — descending */}
         <View className="px-4 py-3 gap-3">
@@ -297,7 +321,9 @@ export default function VisitsScreen(_props: Props) {
                 {/* Date header — top left */}
                 <View className="flex-row items-center justify-between px-1 pt-2">
                   <Text className="text-[13px] font-semibold text-[rgba(0,0,0,0.8)]">{section.label}</Text>
-                  <Text className="text-[10px] text-black/40">{section.entries.length} case{section.entries.length > 1 ? 's' : ''}</Text>
+                  <Text className="text-[10px] text-black/40">
+                    {section.entries.length} case{section.entries.length > 1 ? 's' : ''} · <Text className="font-semibold text-black/60">{fmt(section.entries.reduce((s: number, e: any) => s + tabAmount(e), 0))}</Text>
+                  </Text>
                 </View>
 
                 {section.entries.map((e: any, i: number) => {
@@ -320,12 +346,17 @@ export default function VisitsScreen(_props: Props) {
                       <Text className="font-semibold text-[15px] text-[rgba(0,0,0,0.85)]">
                         {statusTab === 'PTP Marked'
                           ? (e.ptpMarked > 0 ? fmt(e.ptpMarked) : '—')
-                          : statusTab === 'Deposited'
+                          : statusTab === 'Cash Deposited'
                           ? fmt(e.deposited)
-                          : statusTab === 'Collections'
-                          ? fmt(e.amount)
+                          : statusTab === 'Payment Link'
+                          ? fmt(e.linkAmount)
                           : fmt(e.cashInHand)}
                       </Text>
+                      {statusTab === 'Payment Link' && e.linkStatus ? (
+                        <View className="px-1.5 py-0.5 rounded-full mt-1" style={{ backgroundColor: e.linkStatus === 'Success' ? '#E0F4E8' : e.linkStatus === 'Pending' ? '#FFF0E0' : '#F9E4E5' }}>
+                          <Text className="text-[9px] font-medium" style={{ color: e.linkStatus === 'Success' ? '#007E2F' : e.linkStatus === 'Pending' ? '#A35300' : '#CE1D26' }}>{e.linkStatus}</Text>
+                        </View>
+                      ) : null}
                       <Text className="text-black/35 text-[10px] mt-0.5">{e.time}</Text>
                     </View>
                   </View>

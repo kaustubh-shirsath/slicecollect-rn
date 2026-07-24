@@ -52,3 +52,13 @@ export function getRemarks(c: Customer): string {
   if (c.remarks) return c.remarks
   return REMARK_POOL[hashString(c.partyId + 'remarks') % REMARK_POOL.length]
 }
+
+// TODO backend: payment-link status comes from the payments webhook per link.
+// Prototype derives a stable status per receipt until the real field is wired in.
+export type PaymentLinkStatus = 'Success' | 'Pending' | 'Failure'
+export function getPaymentLinkStatus(receiptId: string): PaymentLinkStatus {
+  const h = hashString(receiptId) % 10
+  if (h < 7) return 'Success'
+  if (h < 9) return 'Pending'
+  return 'Failure'
+}
