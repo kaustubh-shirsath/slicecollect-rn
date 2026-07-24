@@ -25,6 +25,8 @@ export interface BorrowData {
   age: number
   settlementStatus: string | null
   emis: EMI[]
+  /** Allocation-file field (same as bank's ROLLBACK_AMOUNT) — amount to move back one bucket. */
+  rollbackAmount?: number
 }
 
 export const BORROW_DATA: BorrowData[] = [
@@ -399,5 +401,8 @@ export const BORROW_DATA: BorrowData[] = [
 ]
 
 export function getBorrowData(partyId: string): BorrowData | undefined {
-  return BORROW_DATA.find(d => d.partyId === partyId)
+  const d = BORROW_DATA.find(d => d.partyId === partyId)
+  if (!d) return undefined
+  // Mock records predate the rollbackAmount field — derive if not explicitly set.
+  return { ...d, rollbackAmount: d.rollbackAmount ?? Math.round(d.minDueAmount * 2.2) }
 }

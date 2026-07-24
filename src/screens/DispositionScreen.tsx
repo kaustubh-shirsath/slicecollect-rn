@@ -102,13 +102,21 @@ const BANK_SUBCODES: Record<BankCategory, { code: string; label: string }[]> = {
   ],
 }
 
-const BANK_PAYMENT_TYPES = ['Pay Overdue', 'Partial Repayment', 'Foreclosure', 'Settlement Instalment', 'Overdue EMIs'] as const
+const BANK_PAYMENT_TYPES = ['Pay Overdue', 'Partial Repayment', 'Foreclosure', 'Settlement Instalment', 'Stable', 'Rollback', 'Overdue EMIs'] as const
 
 // FE-configurable: disposition payment types within Collected, per product
+// Stable/Rollback: system-calculated amounts, NOT computed client-side. They are pulled straight
+// from the daily allocation file (mcollect_case_file_bank.py) — same source as every other
+// allocation field on this Customer record:
+//   Stable   -> MINIMUM_AMOUNT_DUE  (source column: calculated_min_pay)  — pay this, bucket holds
+//   Rollback -> ROLLBACK_AMOUNT     (source column: rollback_amount)     — pay this, bucket moves back one
+// The agent-driven "oldest EMI first, then consecutive" apportionment is real ledger logic that
+// can't be reliably simulated client-side, so we stopped trying and read the two allocation-file
+// numbers the backend already computed instead of deriving them from the EMI schedule.
 const PRODUCT_PAYMENT_TYPES: Record<'bank' | 'cc' | 'borrow', readonly string[]> = {
   bank:   BANK_PAYMENT_TYPES,
   cc:     ['Min Due', 'Pay Overdue', 'Full Outstanding', 'Settlement Instalment', 'Custom Amount'],
-  borrow: ['Min Due', 'Pay Overdue', 'Overdue EMIs', 'Foreclose', 'Full Outstanding', 'Settlement Instalment', 'Custom Amount'],
+  borrow: ['Min Due', 'Pay Overdue', 'Stable', 'Rollback', 'Overdue EMIs', 'Foreclose', 'Full Outstanding', 'Settlement Instalment', 'Custom Amount'],
 }
 
 function generateBankEmis(c: Customer) {
@@ -145,8 +153,11 @@ function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[
     const bd = getBorrowData(String(c.partyId))
     if (paymentType === 'Min Due')          return bd?.minDueAmount ?? c.minimumAmountDue ?? 0
     if (paymentType === 'Pay Overdue')      return bd?.totalOverdue ?? c.emiOs ?? 0
+    if (paymentType === 'Stable')           return bd?.minDueAmount ?? c.minimumAmountDue ?? 0
+    if (paymentType === 'Rollback')         return bd?.rollbackAmount ?? c.rollbackAmount ?? 0
     if (paymentType === 'Overdue EMIs')     return selectedEmis.reduce((s: number, e: any) => s + e.pos + e.interest + e.penalty, 0)
-    if (paymentType === 'Foreclose')        return bd?.foreclosureAmount ?? c.rollbackAmount ?? 0
+    // Foreclose is a distinct field from Rollback — don't fall back to rollbackAmount here.
+    if (paymentType === 'Foreclose')        return bd?.foreclosureAmount ?? c.foreclosure ?? 0
     if (paymentType === 'Full Outstanding') return bd?.currentPos ?? c.outstandingBalance ?? 0
     if (paymentType === 'Settlement Instalment') return Number(customAmount) || 0
     if (paymentType === 'Custom Amount')    return Number(customAmount) || 0
@@ -154,8 +165,12 @@ function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[
   }
   if (paymentType === 'Pay Overdue')          return c.emiOs || c.overdue || 0
   if (paymentType === 'Partial Repayment')    return Number(customAmount) || 0
-  if (paymentType === 'Foreclosure')          return c.rollbackAmount || c.rollback || c.foreclosure || 0
+  // Foreclosure is a distinct allocation-file field from Rollback — don't conflate them.
+  if (paymentType === 'Foreclosure')          return c.foreclosure || c.rollback || 0
   if (paymentType === 'Settlement Instalment')return Number(customAmount) || 0
+  // Stable/Rollback: allocation-file fields (MINIMUM_AMOUNT_DUE / ROLLBACK_AMOUNT), not computed.
+  if (paymentType === 'Stable')                return c.minimumAmountDue || 0
+  if (paymentType === 'Rollback')              return c.rollbackAmount || 0
   if (paymentType === 'Overdue EMIs')         return selectedEmis.reduce((s: number, e: any) => s + e.pos + e.interest + e.penalty, 0)
   return 0
 }
