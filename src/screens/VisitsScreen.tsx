@@ -314,13 +314,13 @@ export default function VisitsScreen(_props: Props) {
           ))}
         </View>
 
-        {/* Overall total — slice History style: quiet label over one large centred figure */}
+        {/* Overall total for the active tab — visually distinct from row values */}
         {dateSections.length > 0 && (
-          <View className="items-center pt-5 pb-2">
-            <Text className="text-[13px] text-black/40">
-              {statusTab === 'Payment Link' ? 'Total via payment link' : `Total ${statusTab.toLowerCase()}`}
+          <View className="mx-4 mt-3 rounded-2xl px-4 py-3.5 flex-row items-center justify-between" style={{ backgroundColor: '#FAE2FA', borderWidth: 1, borderColor: 'rgba(211,10,215,0.2)' }}>
+            <Text className="text-[11px] font-semibold" style={{ color: '#A008A3' }}>
+              {statusTab === 'Payment Link' ? 'TOTAL VIA PAYMENT LINK' : `TOTAL ${statusTab.toUpperCase()}`}
             </Text>
-            <Text style={{ fontSize: 38, fontWeight: '800', color: 'rgba(0,0,0,0.9)', letterSpacing: -1, marginTop: 2 }}>
+            <Text className="text-lg font-bold" style={{ color: '#A008A3' }}>
               {statusTab === 'PTP Marked'
                 ? `${filteredEntries.length} case${filteredEntries.length === 1 ? '' : 's'}`
                 : fmt(overallTabTotal)}
@@ -356,20 +356,19 @@ export default function VisitsScreen(_props: Props) {
                     <Text style={{ color: av.fg, fontSize: 16, fontWeight: '700' }}>{e.name.trim()[0]}</Text>
                   </View>
 
-                  {/* Name + left-aligned disposition tag + ref */}
+                  {/* Name + Jio-style tag line: magenta type • grey ref */}
                   <View className="flex-1 min-w-0 pr-2">
                     <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight" numberOfLines={1}>{formatName(e.name)}</Text>
-                    <View className="flex-row items-center gap-1.5 mt-1 flex-wrap">
+                    <Text className="text-[11px] mt-1" numberOfLines={1}>
                       {e.type ? (
-                        <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full self-start">
-                          <Text className="text-[9px] text-[#A008A3] font-medium" numberOfLines={1}>{e.type}</Text>
-                        </View>
+                        <Text className="font-medium" style={{ color: '#D30AD7' }}>{statusTab === 'PTP Marked' ? 'PTP' : e.type}</Text>
                       ) : null}
-                      {statusTab === 'PTP Marked' && e.ptpDate ? (
-                        <Text className="text-[10px] text-black/45">Due {e.ptpDate}</Text>
-                      ) : null}
-                    </View>
-                    <Text className="text-black/35 text-[10px] font-mono tracking-wider mt-1" numberOfLines={1}>{maskedId}</Text>
+                      {e.type ? <Text className="text-black/30">  •  </Text> : null}
+                      <Text className="text-black/40">{maskedId}</Text>
+                    </Text>
+                    {statusTab === 'PTP Marked' && e.ptpDate ? (
+                      <Text className="text-[10px] text-black/45 mt-1">Due {e.ptpDate}</Text>
+                    ) : null}
                   </View>
 
                   {/* Amount, time, then link status below the timestamp */}
