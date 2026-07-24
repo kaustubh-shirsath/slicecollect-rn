@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput, FlatList, Pressable,
 } from 'react-native'
@@ -116,6 +116,8 @@ export default function AllocationsScreen({ navigation, route }: Props) {
   const { agentInfo } = useAgent()
   const defaultBucket = route.params?.defaultBucket
   const defaultProduct = route.params?.defaultProduct
+  const focusSearch = route.params?.focusSearch
+  const searchInputRef = useRef<TextInput>(null)
   const [search, setSearch] = useState('')
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('all')
   // Bucket filters are product-scoped ('bank:Settlement') — same label can exist across products.
@@ -134,6 +136,11 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     if (defaultBucket && defaultBucket !== 'All') setStageFilter([`${defaultProduct ?? 'bank'}:${defaultBucket}`])
     else if (defaultBucket === 'All') setStageFilter([])
   }, [defaultBucket, defaultProduct])
+
+  // Home search bar hands off here — focus the real input on arrival
+  useEffect(() => {
+    if (focusSearch) setTimeout(() => searchInputRef.current?.focus(), 250)
+  }, [focusSearch])
 
   const { allocations, loading } = useAllocations('All', search, agentInfo?.username, agentInfo?.portfolioType)
 
@@ -302,9 +309,10 @@ export default function AllocationsScreen({ navigation, route }: Props) {
           <View className="flex-row items-center gap-2 px-4 pt-2 pb-2">
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0F4F7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
               <TextInput
+                ref={searchInputRef}
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search by name or ID…"
+                placeholder="Search by name, mobile, CIF or UUID…"
                 placeholderTextColor="rgba(0,0,0,0.3)"
                 style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.7)', padding: 0 }}
               />

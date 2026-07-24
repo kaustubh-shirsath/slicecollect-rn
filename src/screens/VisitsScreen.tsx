@@ -333,10 +333,10 @@ export default function VisitsScreen(_props: Props) {
                   {/* Top row — fixed columns: name (flex) | disposition tag (96, centred) | amount (84, centred) */}
                   <View className="flex-row items-center">
                     <Text className="flex-1 font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight pr-2" numberOfLines={1}>{e.name}</Text>
-                    <View style={{ width: 96, alignItems: 'center' }}>
+                    <View style={{ width: 118, alignItems: 'center' }}>
                       {e.type ? (
                         <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full">
-                          <Text className="text-[9px] text-[#A008A3] font-medium" style={{ textAlign: 'center' }}>{e.type}</Text>
+                          <Text className="text-[9px] text-[#A008A3] font-medium" numberOfLines={1} style={{ textAlign: 'center' }}>{e.type}</Text>
                         </View>
                       ) : null}
                     </View>
@@ -353,17 +353,16 @@ export default function VisitsScreen(_props: Props) {
                     </View>
                   </View>
 
-                  {/* Second row — masked ref (left) | link status (centred under tag) | time (centred under amount) */}
+                  {/* Second row — masked ref (left) | link status + time centred under the amount */}
                   <View className="flex-row items-center mt-1">
                     <Text className="flex-1 text-black/35 text-[11px] font-mono tracking-wider pr-2" numberOfLines={1}>{maskedId}</Text>
-                    <View style={{ width: 96, alignItems: 'center' }}>
+                    <View style={{ width: 118 }} />
+                    <View style={{ width: 84, alignItems: 'center', gap: 2 }}>
                       {statusTab === 'Payment Link' && e.linkStatus ? (
                         <View className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: e.linkStatus === 'Success' ? '#E0F4E8' : e.linkStatus === 'Pending' ? '#FFF0E0' : '#F9E4E5' }}>
                           <Text className="text-[9px] font-medium" style={{ color: e.linkStatus === 'Success' ? '#007E2F' : e.linkStatus === 'Pending' ? '#A35300' : '#CE1D26' }}>{e.linkStatus}</Text>
                         </View>
                       ) : null}
-                    </View>
-                    <View style={{ width: 84, alignItems: 'center' }}>
                       <Text className="text-black/35 text-[10px]">{e.time}</Text>
                     </View>
                   </View>

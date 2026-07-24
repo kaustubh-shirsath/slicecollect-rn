@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
-  View, Text, TouchableOpacity, ScrollView, TextInput,
+  View, Text, TouchableOpacity, ScrollView,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
@@ -23,7 +23,6 @@ const fmtL = (n: number) => {
 
 export default function HomeScreen({ navigation }: Props) {
   const { agentInfo, dataVersion } = useAgent()
-  const [search, setSearch] = useState('')
 
   const homeData = useMemo(() => getHomeData(agentInfo?.username ?? '', agentInfo?.portfolioType), [agentInfo?.username, agentInfo?.portfolioType, dataVersion])
 
@@ -47,17 +46,15 @@ export default function HomeScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
+      {/* Search — pressable pseudo-input; real search lives on the Cases tab */}
       <View className="px-5 py-2 bg-white">
-        <View className="flex-row items-center gap-3 bg-[#F0F4F7] rounded-full px-4 py-1.5">
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search cases..."
-            placeholderTextColor="rgba(0,0,0,0.3)"
-            className="flex-1 text-sm text-[rgba(0,0,0,0.7)]"
-          />
-        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Allocations', { focusSearch: Date.now() })}
+          activeOpacity={0.7}
+          className="flex-row items-center gap-3 bg-[#F0F4F7] rounded-full px-4 py-2.5"
+        >
+          <Text className="flex-1 text-sm" style={{ color: 'rgba(0,0,0,0.35)' }}>Search by name, mobile, CIF or UUID…</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100, gap: 16 }}>

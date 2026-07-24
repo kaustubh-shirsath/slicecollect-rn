@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ALL_CUSTOMERS } from '../data/customers'
+import { getCustomerRef } from '../data/caseMeta'
 
 interface UseAllocationsResult {
   allocations: any[]
@@ -28,7 +29,10 @@ export function useAllocations(bucket?: string, search?: string, username?: stri
       const matchSearch =
         !search ||
         c.name.toLowerCase().includes(search.toLowerCase()) ||
-        String(c.partyId).includes(search)
+        String(c.partyId).includes(search) ||
+        String(c.mobile || '').includes(search) ||
+        String(c.mobile1 || '').includes(search) ||
+        getCustomerRef(c.partyId, c.userType).value.toLowerCase().includes(search.toLowerCase())
       return matchAgent && matchPortfolio && matchBucket && matchSearch
     })
     setAllocations(filtered)

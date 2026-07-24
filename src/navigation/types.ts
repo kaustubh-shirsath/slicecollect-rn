@@ -32,7 +32,7 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined
-  Allocations: { defaultBucket?: string; defaultProduct?: string }
+  Allocations: { defaultBucket?: string; defaultProduct?: string; focusSearch?: number }
   Smart: undefined
   Visits: undefined
 }
