@@ -145,10 +145,10 @@ export default function HomeScreen({ navigation }: Props) {
                               <Text className="w-[70px] text-xs text-black/40 text-center">{fmtL(b.target)}</Text>
                             </View>
                             {/* Collection progress bar vs target */}
-                            <View className="mt-1.5 h-1 rounded-full bg-[#EAEBED] overflow-hidden">
+                            <View className="mt-2 h-[3px] rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.055)' }}>
                               <View
-                                className="h-1 rounded-full"
-                                style={{ width: `${Math.min(100, collectedPct)}%`, backgroundColor: onTarget ? '#00A63E' : '#D30AD7' }}
+                                className="h-full rounded-full"
+                                style={{ width: `${Math.min(100, collectedPct)}%`, backgroundColor: onTarget ? '#00A63E' : 'rgba(211,10,215,0.55)' }}
                               />
                             </View>
                           </TouchableOpacity>
@@ -185,10 +185,10 @@ export default function HomeScreen({ navigation }: Props) {
                               <Text className="w-[60px] text-xs text-black/40 text-center">{b.targetPct}%</Text>
                             </View>
                             {/* Resolution progress bar vs target */}
-                            <View className="mt-1.5 h-1 rounded-full bg-[#EAEBED] overflow-hidden">
+                            <View className="mt-2 h-[3px] rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(0,0,0,0.055)' }}>
                               <View
-                                className="h-1 rounded-full"
-                                style={{ width: `${Math.min(100, b.resolutionPct)}%`, backgroundColor: onTarget ? '#00A63E' : '#D30AD7' }}
+                                className="h-full rounded-full"
+                                style={{ width: `${Math.min(100, b.resolutionPct)}%`, backgroundColor: onTarget ? '#00A63E' : 'rgba(211,10,215,0.55)' }}
                               />
                             </View>
                           </TouchableOpacity>
