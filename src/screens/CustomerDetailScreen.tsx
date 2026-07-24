@@ -357,7 +357,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                 <View key={i} className="px-4 py-2.5" style={i < visiblePhones.length - 1 || allPhones.length > 1 ? { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' } : {}}>
                   <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-2">{ph.label}</Text>
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-sm font-semibold text-[rgba(0,0,0,0.9)] tracking-wide">XXXXXX{ph.number.slice(-4)}</Text>
+                    <Text className="text-sm font-semibold text-[rgba(0,0,0,0.9)] tracking-wide">{ph.number}</Text>
                     <View className="flex-row items-center gap-2">
                       <TouchableOpacity onPress={() => handleCall(ph.number)} className="w-9 h-9 rounded-full bg-[#D30AD7] items-center justify-center">
                         <Text className="text-white text-sm">Call</Text>

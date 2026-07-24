@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  View, Text, TouchableOpacity, ScrollView, TextInput, FlatList, Modal,
+  View, Text, TouchableOpacity, ScrollView, TextInput, FlatList,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { CompositeScreenProps } from '@react-navigation/native'
@@ -203,10 +203,16 @@ export default function AllocationsScreen({ navigation, route }: Props) {
       : c.userType === 'cc' ? (getCCBill(c.partyId)?.bucketLabel ?? c.assetClassification)
       : c.assetClassification
     const bc = getBucketColor(sliceBucket)
-    const maskedId = c.partyId
-      ? String(c.partyId).replace(/^(.{4})(.+)(.{4})$/, (_: string, a: string, m: string, z: string) => a + '·'.repeat(Math.min(4, m.length)) + z)
-      : '—'
     const riskColor = c.risk === 'High' ? '#CE1D26' : c.risk === 'Medium' ? '#A35300' : '#007E2F'
+    // Status tag priority: Collected > PTP > Visited
+    const hasVisit = !!getActivity(c.partyId)?.latestDisposition
+    const statusTag = c.hasCollected
+      ? { label: 'Collected', bg: '#E0F4E8', color: '#007E2F' }
+      : c.hasPtp
+      ? { label: 'PTP', bg: '#FFF0E0', color: '#A35300' }
+      : hasVisit
+      ? { label: 'Visited', bg: '#E8EDF2', color: '#3B5266' }
+      : null
 
     return (
       <TouchableOpacity
@@ -217,27 +223,24 @@ export default function AllocationsScreen({ navigation, route }: Props) {
         <View className="flex-row items-start justify-between">
           <View className="flex-1 min-w-0 mr-3">
             <View className="flex-row items-center gap-1.5">
-              <View className="w-2 h-2 rounded-full" style={{ backgroundColor: riskColor }} />
+              <Text className="text-[11px] font-bold text-[#A008A3]">#{c.priorityOrder}</Text>
               <Text className="font-medium text-[rgba(0,0,0,0.9)] text-sm" numberOfLines={1}>{c.name}</Text>
-              {c.hasPtp && (
-                <View className="bg-[#FFF0E0] px-1.5 py-0.5 rounded-full">
-                  <Text className="text-[9px] text-[#A35300] font-medium">PTP</Text>
+              {statusTag && (
+                <View className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: statusTag.bg }}>
+                  <Text className="text-[9px] font-medium" style={{ color: statusTag.color }}>{statusTag.label}</Text>
                 </View>
               )}
             </View>
-            <View className="flex-row items-center gap-1.5 mt-0.5">
-              <Text className="text-black/30 text-[11px]">{maskedId}</Text>
-              <Text className="text-black/25 text-[11px]">· #{c.priorityOrder}</Text>
-            </View>
+            <Text className="text-black/45 text-[11px] font-semibold mt-0.5">{c.partyId}</Text>
             <View className="flex-row items-center gap-2 mt-2 flex-wrap">
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                 <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>
               </View>
               <ProductTag userType={c.userType} />
-              <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
               <Text className="text-[10px] font-medium" style={{ color: riskColor }}>
                 {c.risk} Risk
               </Text>
+              <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
             </View>
           </View>
           <View className="items-end gap-2">
@@ -248,31 +251,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             >
               <Text className="text-[11px] text-white font-medium">Profile</Text>
             </TouchableOpacity>
-            {c.latestCollection && (
-              <TouchableOpacity
-                onPress={() => navigation.navigate('Receipt', {
-                  receipt: {
-                    receiptNo: c.latestCollection.receiptId,
-                    partyId: c.partyId,
-                    customerName: c.name,
-                    customerMobile: c.mobile || '',
-                    dispositionType: c.latestCollection.mode === 'Payment Link' ? 'Payment Link' : 'Cash Collection',
-                    actionType: c.latestCollection.mode === 'Payment Link' ? 'Payment Link' : 'Cash Collection',
-                    amount: c.latestCollection.amount,
-                    advanceAmount: 0,
-                    paymentMode: c.latestCollection.mode,
-                    agentName: agentInfo?.name || '',
-                    branchName: agentInfo?.branch || c.branch || '',
-                    glCode: agentInfo?.glCode || '',
-                    createdAt: c.latestCollection.date,
-                  },
-                  backTo: 'Allocations',
-                })}
-                className="border border-black/15 bg-[#F0F4F7] px-2.5 py-1 rounded-full"
-              >
-                <Text className="text-[10px] text-black/55 font-medium">View Receipt</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -303,7 +281,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
         </View>
 
         {/* Search + filters — Zomato-style pill chips, single accent, opens as bottom sheets */}
-        <View className="bg-white" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
+        <View className="bg-white" style={{ zIndex: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
           <View className="flex-row items-center gap-2 px-4 pt-2 pb-2">
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0F4F7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
               <TextInput
@@ -383,18 +361,12 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             )}
           </ScrollView>
-        </View>
 
-        {/* Bottom sheet — single reusable sheet for whichever filter/sort is open */}
-        <Modal visible={openDropdown !== 'none'} transparent animationType="slide" onRequestClose={closeDropdown}>
-          <TouchableOpacity activeOpacity={1} onPress={closeDropdown} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-            <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '75%', paddingBottom: 24 }}>
-              <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.12)', borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 }} />
-              <Text className="text-sm font-semibold text-[rgba(0,0,0,0.85)] px-5 pt-2 pb-3">
-                {openDropdown === 'bucket' ? 'Bucket' : openDropdown === 'visited' ? 'Visited' : openDropdown === 'collected' ? 'Collected'
-                  : openDropdown === 'risk' ? 'Risk Band' : openDropdown === 'ptp' ? 'PTP' : openDropdown === 'distance' ? 'Distance' : 'Sort by'}
-              </Text>
-
+          {/* Dropdown panel — anchored right under the filter bar, floats above the card list */}
+          {openDropdown !== 'none' && (
+            <View style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100 }}>
+              <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
+              <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, maxHeight: 380 }}>
               <ScrollView bounces={false}>
                 {openDropdown === 'bucket' && bucketFilterGroups.map(group => {
                   const isOpen = expandedProduct === group.productType || bucketFilterGroups.length === 1
@@ -461,9 +433,11 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                     onPress={() => { setSortBy(opt.id); closeDropdown() }} />
                 ))}
               </ScrollView>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
+              </View>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         {/* Cards */}
         <FlatList

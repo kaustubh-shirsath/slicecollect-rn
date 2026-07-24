@@ -404,7 +404,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
 
   // ── Bank post-submit screens ──────────────────────────────────────────────
   if (bankPostState === 'payment_link_sent') {
-    const maskedMobile = 'XXXXXX' + (c.mobile ?? '').slice(-4)
+    const maskedMobile = c.mobile ?? ''
     const refNo = 'REF-' + String(c.partyId).slice(-6).toUpperCase() + '-' + String(Date.now()).slice(-6)
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
@@ -1100,7 +1100,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     keyboardType="phone-pad"
                     value={contactNumber}
                     onChangeText={t => setContactNumber(t.replace(/\D/g, '').slice(0, 10))}
-                    placeholder={c.mobile ? 'XXXXXX' + c.mobile.slice(-4) : '10-digit number'}
+                    placeholder={c.mobile || '10-digit number'}
                     placeholderTextColor="rgba(0,0,0,0.3)"
                     maxLength={10}
                     style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}
