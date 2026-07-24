@@ -44,10 +44,9 @@ const PTP_OPTIONS: { id: PtpFilter; label: string; emoji: string }[] = [
   { id: 'yes', label: 'Yes', emoji: '📅' },
   { id: 'no', label: 'No', emoji: '➖' },
 ]
-const COLLECTED_OPTIONS: { id: YesNoFilter; label: string; emoji: string }[] = [
-  { id: 'all', label: 'All', emoji: '➖' },
-  { id: 'yes', label: 'Yes', emoji: '💰' },
-  { id: 'no', label: 'No', emoji: '➖' },
+const COLLECTED_OPTIONS: { id: YesNoFilter; label: string }[] = [
+  { id: 'yes', label: 'Yes' },
+  { id: 'no', label: 'No' },
 ]
 const RISK_OPTIONS: { id: RiskFilter; label: string; emoji: string }[] = [
   { id: 'all', label: 'All', emoji: '➖' },
@@ -55,9 +54,9 @@ const RISK_OPTIONS: { id: RiskFilter; label: string; emoji: string }[] = [
   { id: 'Medium', label: 'Medium', emoji: '🟠' },
   { id: 'Low', label: 'Low', emoji: '🟢' },
 ]
-const VISITED_OPTIONS: { id: 'visited' | 'notVisited'; label: string; emoji: string }[] = [
-  { id: 'visited', label: 'Yes — Visited', emoji: '✅' },
-  { id: 'notVisited', label: 'No — Not Visited', emoji: '🚫' },
+const VISITED_OPTIONS: { id: 'visited' | 'notVisited'; label: string }[] = [
+  { id: 'visited', label: 'Yes' },
+  { id: 'notVisited', label: 'No' },
 ]
 const SORT_OPTIONS: { id: SortKey; label: string; emoji: string }[] = [
   { id: 'priority', label: 'Priority order', emoji: '🎯' },
