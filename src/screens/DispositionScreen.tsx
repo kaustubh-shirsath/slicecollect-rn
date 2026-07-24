@@ -293,7 +293,9 @@ function BankDispositionScreen({ navigation, route }: Props) {
     const todayStr = new Date().toISOString().split('T')[0]
     const existing = getActivity(c.partyId)
     const newCollections = existing ? [...existing.collections] : []
-    if (isCollected && netCollectible > 0) {
+    // Waiver-raised dispositions are NOT collections yet — they sit with the checker for
+    // approval; money is only recorded once the post-approval payment link is paid.
+    if (isCollected && netCollectible > 0 && waiverPct === 0) {
       newCollections.push({
         date: todayStr,
         amount: netCollectible,
