@@ -24,7 +24,6 @@ const fmtL = (n: number) => {
 
 export default function HomeScreen({ navigation }: Props) {
   const { agentInfo, dataVersion } = useAgent()
-  const [bucketMode, setBucketMode] = useState<'count' | 'amount'>('count')
   const [search, setSearch] = useState('')
 
   const homeData = useMemo(() => getHomeData(agentInfo?.username ?? '', agentInfo?.portfolioType), [agentInfo?.username, agentInfo?.portfolioType, dataVersion])
@@ -85,65 +84,94 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Bucket Summary — one table per product type */}
+        {/* Bucket Summary — one card per product type, split by agent objective */}
         <View className="bg-white rounded-[24px] overflow-hidden" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
-          <View className="px-5 py-3 flex-row items-center justify-between" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+          <View className="px-5 py-3" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
             <Text className="text-[rgba(0,0,0,0.9)] font-medium text-sm">Bucket Summary</Text>
-            <View className="flex-row rounded-full overflow-hidden border border-black/10">
-              <TouchableOpacity
-                onPress={() => setBucketMode('count')}
-                className={`px-2.5 py-1 ${bucketMode === 'count' ? 'bg-[#D30AD7]' : 'bg-white'}`}
-              >
-                <Text className={`text-xs font-medium ${bucketMode === 'count' ? 'text-white' : 'text-black/50'}`}>#</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setBucketMode('amount')}
-                className={`px-2.5 py-1 ${bucketMode === 'amount' ? 'bg-[#D30AD7]' : 'bg-white'}`}
-              >
-                <Text className={`text-xs font-medium ${bucketMode === 'amount' ? 'text-white' : 'text-black/50'}`}>₹</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
-          {bucketGroups.map((group, gi) => (
-            <View key={group.productType} style={gi > 0 ? { marginTop: 8, borderTopWidth: 6, borderTopColor: '#F0F4F7' } : {}}>
-              {/* Product heading */}
-              <View className="px-5 pt-4 pb-2 flex-row items-center gap-2">
-                <Text className="text-[11px] font-semibold text-[#A008A3] uppercase tracking-wider">{group.label}</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(160,8,163,0.12)' }} />
-                <Text className="text-[10px] text-black/35">{group.buckets.reduce((s, b) => s + b.cases, 0)} cases</Text>
-              </View>
+          {bucketGroups.map((group, gi) => {
+            const collectionBuckets = group.buckets.filter((b: any) => b.kind === 'collection')
+            const resolutionBuckets = group.buckets.filter((b: any) => b.kind === 'resolution')
+            return (
+              <View key={group.productType} style={gi > 0 ? { marginTop: 8, borderTopWidth: 6, borderTopColor: '#F0F4F7' } : {}}>
+                {/* Product heading */}
+                <View className="px-5 pt-4 pb-2 flex-row items-center gap-2">
+                  <Text className="text-[11px] font-semibold text-[#A008A3] uppercase tracking-wider">{group.label}</Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(160,8,163,0.12)' }} />
+                  <Text className="text-[10px] text-black/35">{group.buckets.reduce((s: number, b: any) => s + b.cases, 0)} cases</Text>
+                </View>
 
-              {/* Table header */}
-              <View className="flex-row bg-[#F0F4F7] px-4 py-2">
-                <Text className="flex-1 text-[10px] text-black/40 font-medium">Bucket</Text>
-                <Text className="w-16 text-right text-[10px] text-black/40 font-medium">Allocated</Text>
-                <Text className="w-16 text-right text-[10px] text-black/40 font-medium">Unresolved</Text>
-                <Text className="w-16 text-right text-[10px] text-black/40 font-medium">Target</Text>
-                <View className="w-4" />
-              </View>
+                {/* Collections sub-table: NPA / Settlement — objective is ₹ collected vs target */}
+                {collectionBuckets.length > 0 && (
+                  <View className="px-5 pb-2">
+                    <Text className="text-[9px] text-black/35 mb-1.5">Maximise ₹ collected against target</Text>
+                    <View className="rounded-2xl overflow-hidden" style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
+                      <View className="flex-row bg-[#F0F4F7] px-3 py-2">
+                        <Text className="flex-1 text-[10px] text-black/40 font-medium">Bucket</Text>
+                        <Text className="w-[70px] text-right text-[10px] text-black/40 font-medium">POS Alloc.</Text>
+                        <Text className="w-[70px] text-right text-[10px] text-black/40 font-medium">Collected</Text>
+                        <Text className="w-[70px] text-right text-[10px] text-black/40 font-medium">Target</Text>
+                      </View>
+                      {collectionBuckets.map((b: any, i: number) => (
+                        <TouchableOpacity
+                          key={b.name}
+                          onPress={() => navigation.navigate('Allocations', { defaultBucket: b.name })}
+                          className={`flex-row items-center px-3 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F0F4F7]/40'}`}
+                          style={{ borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: 'rgba(0,0,0,0.04)' }}
+                        >
+                          <Text className="flex-1 font-medium text-xs text-[rgba(0,0,0,0.9)]">{b.name}</Text>
+                          <Text className="w-[70px] text-right text-xs text-black/50">{fmtL(b.posAllocated)}</Text>
+                          <Text className="w-[70px] text-right text-xs" style={{ color: b.collected >= b.target ? '#00A63E' : 'rgba(0,0,0,0.7)' }}>{fmtL(b.collected)}</Text>
+                          <Text className="w-[70px] text-right text-xs text-black/40">{fmtL(b.target)}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
 
-              {group.buckets.map((b: any, i: number) => {
-                const allocated  = bucketMode === 'count' ? b.cases : b.overdue
-                const unresolved = bucketMode === 'count' ? b.unresolved : Math.max(0, b.overdue - b.collected)
-                return (
-                  <TouchableOpacity
-                    key={b.name}
-                    onPress={() => navigation.navigate('Allocations', { defaultBucket: b.name })}
-                    className={`flex-row items-center px-4 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F0F4F7]/40'}`}
-                    style={{ borderBottomWidth: 0.5, borderBottomColor: 'rgba(0,0,0,0.04)' }}
-                  >
-                    <Text className="flex-1 font-medium text-xs text-[rgba(0,0,0,0.9)]">{b.name}</Text>
-                    <Text className="w-16 text-right text-xs text-black/50">{bucketMode === 'count' ? allocated : fmtL(allocated)}</Text>
-                    <Text className="w-16 text-right text-xs text-[rgba(0,0,0,0.7)]">{bucketMode === 'count' ? unresolved : fmtL(unresolved)}</Text>
-                    {/* Target — non-clickable, backend-driven */}
-                    <Text className="w-16 text-right text-xs text-black/40">{fmtL(b.target)}</Text>
-                    <Text className="w-4 text-center text-black/20 text-sm">›</Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-          ))}
+                {/* Resolution sub-table: SMA/BKT/... — objective is resolving highest-POS cases */}
+                {resolutionBuckets.length > 0 && (
+                  <View className="px-5 pb-4">
+                    <Text className="text-[9px] text-black/35 mb-1.5">Resolve highest-POS cases first (fwd status = unresolved)</Text>
+                    <View className="rounded-2xl overflow-hidden" style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
+                      <View className="flex-row bg-[#F0F4F7] px-3 py-2">
+                        <Text className="flex-1 text-[10px] text-black/40 font-medium">Bucket</Text>
+                        <Text className="w-[70px] text-right text-[10px] text-black/40 font-medium">POS Alloc.</Text>
+                        <Text className="w-[62px] text-right text-[10px] text-black/40 font-medium">Resol. %</Text>
+                        <Text className="w-[54px] text-right text-[10px] text-black/40 font-medium">Target</Text>
+                      </View>
+                      {resolutionBuckets.map((b: any, i: number) => {
+                        const onTarget = b.resolutionPct >= b.targetPct
+                        return (
+                          <TouchableOpacity
+                            key={b.name}
+                            onPress={() => navigation.navigate('Allocations', { defaultBucket: b.name })}
+                            className={`px-3 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F0F4F7]/40'}`}
+                            style={{ borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: 'rgba(0,0,0,0.04)' }}
+                          >
+                            <View className="flex-row items-center">
+                              <Text className="flex-1 font-medium text-xs text-[rgba(0,0,0,0.9)]">{b.name}</Text>
+                              <Text className="w-[70px] text-right text-xs text-black/50">{fmtL(b.posAllocated)}</Text>
+                              <Text className="w-[62px] text-right text-xs font-semibold" style={{ color: onTarget ? '#00A63E' : '#B45309' }}>{b.resolutionPct}%</Text>
+                              <Text className="w-[54px] text-right text-xs text-black/40">{b.targetPct}%</Text>
+                            </View>
+                            {/* Resolution progress bar vs target */}
+                            <View className="mt-1.5 h-1 rounded-full bg-[#EAEBED] overflow-hidden">
+                              <View
+                                className="h-1 rounded-full"
+                                style={{ width: `${Math.min(100, b.resolutionPct)}%`, backgroundColor: onTarget ? '#00A63E' : '#D30AD7' }}
+                              />
+                            </View>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )
+          })}
         </View>
 
         {/* Summary footer */}

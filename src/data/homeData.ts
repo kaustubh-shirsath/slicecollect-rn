@@ -3,15 +3,26 @@ import { ALL_CUSTOMERS } from './customers'
 import { getActivity } from './activityLog'
 import { getBorrowData } from './emis'
 import { getCCBill } from './ccBills'
+import { getResolutionStatus, isResolved } from './resolutionStatus'
+
+// Buckets split into two objective types, per business logic:
+//   'collection' (NPA, Settlement) — agent's job is to maximise ₹ collected vs a ₹ target.
+//   'resolution' (SMA-0/1/2/3/4..., BKT-1..6+, Standard) — agent's job is to resolve as much
+//   POS-weighted exposure as possible; ledger status FWD = unresolved, anything else = resolved.
+export type BucketKind = 'collection' | 'resolution'
 
 export interface BucketSummary {
   name: string
-  cases: number        // Allocated
-  overdue: number
+  kind: BucketKind
+  cases: number
+  posAllocated: number   // BOM POS from the daily allocation file
+  // collection buckets (NPA/Settlement)
   collected: number
-  collectedCases: number   // count of cases with any collection
-  unresolved: number   // cases with no full resolution (was: pending)
-  target: number       // TODO backend: per-agent per-bucket target from allocation service
+  target: number         // absolute ₹, from FileOps
+  // resolution buckets (SMA/BKT/...)
+  resolvedPos: number
+  resolutionPct: number  // POS-weighted share of resolved cases
+  targetPct: number      // resolution % target, from FileOps
 }
 
 // Bucket tables grouped by product type — one table per product on Home
@@ -39,6 +50,10 @@ export interface HomeData {
 import { PRODUCT_LABEL } from '../utils/productLabels'
 const PRODUCT_LABELS = PRODUCT_LABEL   // bank → Loans, cc → Credit Card, borrow → Borrow
 
+function bucketKind(bucketName: string): BucketKind {
+  return (bucketName === 'NPA' || bucketName === 'Settlement') ? 'collection' : 'resolution'
+}
+
 export function getHomeData(username: string, portfolioType?: 'bank' | 'slice' | 'all'): HomeData {
   const myCases = ALL_CUSTOMERS.filter(c => {
     if (c.username !== username) return false
@@ -57,32 +72,42 @@ export function getHomeData(username: string, portfolioType?: 'bank' | 'slice' |
 
   for (const c of myCases) {
     let b: string
-    let overdueAmt: number
+    let posAmt: number
     if (c.userType === 'borrow') {
       const bd = getBorrowData(String(c.partyId))
       b = bd?.bucketLabel ?? c.assetClassification
-      overdueAmt = bd?.totalOverdue ?? c.emiOs
+      posAmt = bd?.totalOverdue ?? c.emiOs
     } else if (c.userType === 'cc') {
       const cc = getCCBill(String(c.partyId))
       b = cc?.bucketLabel ?? c.assetClassification
-      overdueAmt = cc?.minDueAmount ?? c.emiOs
+      posAmt = cc?.minDueAmount ?? c.emiOs
     } else {
       b = c.assetClassification
-      overdueAmt = c.emiOs
+      posAmt = c.emiOs
     }
     if (!groupMaps[c.userType]) groupMaps[c.userType] = {}
     const bucketMap = groupMaps[c.userType]
-    if (!bucketMap[b]) bucketMap[b] = { name: b, cases: 0, overdue: 0, collected: 0, collectedCases: 0, unresolved: 0, target: 0 }
+    if (!bucketMap[b]) {
+      bucketMap[b] = {
+        name: b, kind: bucketKind(b), cases: 0, posAllocated: 0,
+        collected: 0, target: 0, resolvedPos: 0, resolutionPct: 0, targetPct: 0,
+      }
+    }
     bucketMap[b].cases++
-    bucketMap[b].overdue += overdueAmt
+    bucketMap[b].posAllocated += posAmt
+
+    // Resolution-type buckets: POS-weighted resolved share, driven by the allocation file's
+    // per-case status (FWD = unresolved; STBL/ROLLBACK/NORM = resolved) — independent of whether
+    // the agent has visited yet today, since this reflects ledger state, not visit activity.
+    if (bucketMap[b].kind === 'resolution' && isResolved(getResolutionStatus(c.partyId))) {
+      bucketMap[b].resolvedPos += posAmt
+    }
 
     const act = getActivity(c.partyId)
-    if (!act?.latestDisposition) { pendingVisits++; notAttempted++; bucketMap[b].unresolved++; continue }
+    if (!act?.latestDisposition) { pendingVisits++; notAttempted++; continue }
 
     const totalCollected = act.collections.reduce((s, x) => s + x.amount, 0)
     bucketMap[b].collected += totalCollected
-    if (totalCollected > 0) bucketMap[b].collectedCases++
-    if (totalCollected < overdueAmt) bucketMap[b].unresolved++
 
     const todayStr = new Date().toISOString().split('T')[0]  // 'YYYY-MM-DD'
     for (const col of act.collections) {
@@ -94,7 +119,7 @@ export function getHomeData(username: string, portfolioType?: 'bank' | 'slice' |
       if (isToday && !col.deposited && col.mode === 'Cash') { cashToDeposit += col.amount; pendingReceiptCount++ }
     }
 
-    if (totalCollected >= overdueAmt) fullOD++
+    if (totalCollected >= posAmt) fullOD++
     else if (totalCollected > 0) partial++
     else notAttempted++
   }
@@ -105,13 +130,21 @@ export function getHomeData(username: string, portfolioType?: 'bank' | 'slice' |
     return s + c.emiOs
   }, 0)
 
-  // TODO backend: target passed per agent per bucket. Mock = 60% of bucket overdue.
+  // TODO backend: targets passed per agent per bucket via FileOps.
+  // Collection buckets get an absolute ₹ target; resolution buckets get a % target.
   const bucketGroups: ProductBucketGroup[] = (['bank', 'cc', 'borrow'] as const)
     .filter(pt => groupMaps[pt] && Object.keys(groupMaps[pt]).length > 0)
     .map(pt => ({
       productType: pt,
       label: PRODUCT_LABELS[pt],
-      buckets: Object.values(groupMaps[pt]).map(b => ({ ...b, target: Math.round(b.overdue * 0.6) })),
+      buckets: Object.values(groupMaps[pt]).map(b => ({
+        ...b,
+        target: b.kind === 'collection' ? Math.round(b.posAllocated * 0.6) : 0,
+        targetPct: b.kind === 'resolution' ? 70 : 0,
+        resolutionPct: b.kind === 'resolution' && b.posAllocated > 0
+          ? Math.round((b.resolvedPos / b.posAllocated) * 100)
+          : 0,
+      })),
     }))
 
   return {
