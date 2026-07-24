@@ -18,16 +18,16 @@ type Props = CompositeScreenProps<
 
 function fmt(n: number) { return '₹' + n.toLocaleString('en-IN') }
 
-function DonutChart({ fullPct, partialPct }: { fullPct: number; partialPct: number }) {
+function DonutChart({ segments }: { segments: { pct: number; color: string }[] }) {
   const size = 112
   const r = 50
   const cx = size / 2
   const cy = size / 2
 
-  function arc(startPct: number, pct: number, color: string) {
+  function arc(startPct: number, pct: number, color: string, key: number) {
     if (pct <= 0) return null
     const startAngle = (startPct / 100) * 360 - 90
-    const endAngle = ((startPct + pct) / 100) * 360 - 90
+    const endAngle = ((startPct + Math.min(pct, 99.99)) / 100) * 360 - 90
     const start = {
       x: cx + r * Math.cos((startAngle * Math.PI) / 180),
       y: cy + r * Math.sin((startAngle * Math.PI) / 180),
@@ -38,17 +38,18 @@ function DonutChart({ fullPct, partialPct }: { fullPct: number; partialPct: numb
     }
     const largeArc = pct > 50 ? 1 : 0
     const d = `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y}`
-    return <Path d={d} stroke={color} strokeWidth="14" fill="none" strokeLinecap="butt" />
+    return <Path key={key} d={d} stroke={color} strokeWidth="14" fill="none" strokeLinecap="butt" />
   }
 
+  let acc = 0
   return (
     <Svg width={size} height={size}>
-      {/* Base gray */}
-      <Circle cx={cx} cy={cy} r={r} stroke="#d1d5db" strokeWidth="14" fill="none" />
-      {/* Full green */}
-      {arc(0, fullPct, '#00A63E')}
-      {/* Partial purple */}
-      {arc(fullPct, partialPct, '#D30AD7')}
+      <Circle cx={cx} cy={cy} r={r} stroke="#EAEBED" strokeWidth="14" fill="none" />
+      {segments.map((seg, i) => {
+        const el = arc(acc, seg.pct, seg.color, i)
+        acc += seg.pct
+        return el
+      })}
     </Svg>
   )
 }
@@ -79,9 +80,11 @@ export default function VisitsScreen(_props: Props) {
         const cashInHand = act.collections.filter((x: any) => !x.deposited && x.mode === 'Cash').reduce((s: number, x: any) => s + x.amount, 0)
         const deposited  = act.collections.filter((x: any) => x.deposited).reduce((s: number, x: any) => s + x.amount, 0)
         const ptpMarked  = disp.ptpDate ? (disp.ptpAmount ?? 0) : 0
+        const lastVisit = act.visitHistory && act.visitHistory.length > 0 ? act.visitHistory[act.visitHistory.length - 1] : null
         return [{
           name: c.name,
           partyId: c.partyId,
+          waiverRaised: (lastVisit?.waiverPct ?? 0) > 0,
           time: new Date(disp.visitedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
           date: new Date(disp.visitedAt),
           amount: totalCollected,
@@ -127,12 +130,22 @@ export default function VisitsScreen(_props: Props) {
   }, [filteredEntries])
 
   const totalCollectedToday = todayEntries.reduce((s: number, e: any) => s + (e.category !== 'contacted' ? e.amount : 0), 0)
-  const fullAmt    = todayEntries.filter((e: any) => e.category === 'collected').reduce((s: number, e: any) => s + e.amount, 0)
-  const partialAmt = todayEntries.filter((e: any) => e.category === 'partial').reduce((s: number, e: any) => s + e.amount, 0)
-  const totalAmt   = fullAmt + partialAmt || 1
-  const fullPct    = Math.round(fullAmt / totalAmt * 100)
-  const partialPct = Math.round(partialAmt / totalAmt * 100)
-  const notCollectedCount = todayEntries.filter((e: any) => e.category === 'contacted').length
+
+  // Disposition mix for today: Collected (with payment-type split) > Waiver Raised > PTP > Others
+  const dispCollected = todayEntries.filter((e: any) => e.amount > 0)
+  const dispWaiver = todayEntries.filter((e: any) => e.amount === 0 && e.waiverRaised)
+  const dispPtp = todayEntries.filter((e: any) => e.amount === 0 && !e.waiverRaised && e.ptpDate)
+  const dispOthers = todayEntries.filter((e: any) => e.amount === 0 && !e.waiverRaised && !e.ptpDate)
+  const dispTotal = todayEntries.length || 1
+  const collectedSplit = Object.entries(
+    dispCollected.reduce((m: Record<string, number>, e: any) => { m[e.type || 'Other'] = (m[e.type || 'Other'] || 0) + 1; return m }, {})
+  ).sort((a, b) => b[1] - a[1])
+  const dispSegments = [
+    { label: 'Collected', count: dispCollected.length, color: '#00A63E' },
+    { label: 'Waiver Raised', count: dispWaiver.length, color: '#7C3AED' },
+    { label: 'PTP', count: dispPtp.length, color: '#FF8100' },
+    { label: 'Others', count: dispOthers.length, color: '#94A3B8' },
+  ]
 
   const cashToDeposit = agentInfo ? ALL_CUSTOMERS
     .filter((c: any) => c.username === agentInfo.username)
@@ -179,27 +192,35 @@ export default function VisitsScreen(_props: Props) {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Donut chart */}
+        {/* Donut chart — today's disposition mix */}
         <View className="bg-white px-4 py-5" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+          <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-3">Today&apos;s Dispositions</Text>
           <View className="flex-row items-center gap-5">
             <View className="relative">
-              <DonutChart fullPct={fullPct} partialPct={partialPct} />
+              <DonutChart segments={dispSegments.map(seg => ({ pct: (seg.count / dispTotal) * 100, color: seg.color }))} />
               <View className="absolute inset-0 items-center justify-center">
-                <Text className="text-[rgba(0,0,0,0.9)] font-semibold text-[11px] text-center">{fmt(totalCollectedToday)}</Text>
-                <Text className="text-black/40 text-[9px] mt-0.5">Total</Text>
+                <Text className="text-[rgba(0,0,0,0.9)] font-bold text-lg text-center">{todayEntries.length}</Text>
+                <Text className="text-black/40 text-[9px]">dispositions</Text>
               </View>
             </View>
-            <View className="flex-1 gap-2.5">
-              {[
-                { color: '#00A63E', label: 'Full OD', pct: `${fullPct}%`, amount: fmt(fullAmt) },
-                { color: '#D30AD7', label: 'Partial OD', pct: `${partialPct}%`, amount: fmt(partialAmt) },
-                { color: '#EAEBED', label: 'Not Collected', pct: `${notCollectedCount}`, amount: '—' },
-              ].map(l => (
-                <View key={l.label} className="flex-row items-center gap-2">
-                  <View className="w-2 h-2 rounded-full" style={{ backgroundColor: l.color }} />
-                  <Text className="text-[11px] text-black/60 flex-1">{l.label}</Text>
-                  <Text className="text-[11px] text-black/35 w-11 text-right" numberOfLines={1}>{l.pct}</Text>
-                  <Text className="text-[11px] font-medium text-[rgba(0,0,0,0.75)] w-20 text-right" numberOfLines={1}>{l.amount}</Text>
+            <View className="flex-1 gap-1.5">
+              {dispSegments.map(seg => (
+                <View key={seg.label}>
+                  <View className="flex-row items-center gap-2">
+                    <View className="w-2 h-2 rounded-full" style={{ backgroundColor: seg.color }} />
+                    <Text className="text-[11px] text-black/60 flex-1">{seg.label}</Text>
+                    <Text className="text-[11px] font-semibold text-[rgba(0,0,0,0.75)] w-8 text-right">{seg.count}</Text>
+                  </View>
+                  {seg.label === 'Collected' && collectedSplit.length > 0 && (
+                    <View className="gap-0.5 mt-0.5 mb-1" style={{ paddingLeft: 16 }}>
+                      {collectedSplit.map(([type, n]) => (
+                        <View key={type} className="flex-row items-center">
+                          <Text className="text-[10px] text-black/40 flex-1" numberOfLines={1}>{type}</Text>
+                          <Text className="text-[10px] text-black/45 w-8 text-right">{n}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
