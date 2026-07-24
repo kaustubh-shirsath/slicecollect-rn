@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Linking, Modal } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
@@ -58,6 +58,12 @@ function MetricsGrid({ items, expanded, onToggle }: {
 export default function CustomerDetailScreen({ navigation, route }: Props) {
   const { customer: c, fromScreen } = route.params
   const { agentInfo } = useAgent()
+  // Re-render on focus so settlement schedule / visit data refresh after a disposition
+  const [, setRefreshTick] = useState(0)
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => setRefreshTick(t => t + 1))
+    return unsub
+  }, [navigation])
   const activeSettlement = getActiveSettlement(c.partyId)
   const [callBlocked, setCallBlocked] = useState(false)
   const [loanDetailsExpanded, setLoanDetailsExpanded] = useState(false)
@@ -209,11 +215,13 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
       </View>
       {settlementSchedule.map(inst => (
         <View key={inst.no} className="flex-row items-center py-2" style={{ borderBottomWidth: inst.no < settlementSchedule.length ? 0.5 : 0, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
-          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: inst.paid ? '#E0F4E8' : inst.isNext ? '#FEF3C7' : '#F0F4F7', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: inst.paid ? '#007E2F' : inst.isNext ? '#92400E' : 'rgba(0,0,0,0.4)' }}>
-              {inst.paid ? '✓' : inst.no}
-            </Text>
-          </View>
+          {inst.paid ? (
+            <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#00A63E', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>✓</Text>
+            </View>
+          ) : (
+            <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: inst.isNext ? '#92400E' : 'rgba(0,0,0,0.2)', backgroundColor: 'transparent' }} />
+          )}
           <Text className="text-xs text-[rgba(0,0,0,0.8)] font-medium ml-2.5 flex-1">Instalment {inst.no}</Text>
           <Text className="text-[11px] text-black/40 w-[86px]">{inst.dueDate}</Text>
           <Text className="text-xs font-semibold w-[76px] text-right" style={{ color: inst.paid ? '#007E2F' : 'rgba(0,0,0,0.8)' }}>{fmt(inst.amount)}</Text>

@@ -11,7 +11,7 @@ import { recordActualVisit } from '../data/routingEngine'
 import { getBorrowData } from '../data/emis'
 import { getCCBill } from '../data/ccBills'
 import { submitWaiverRequest } from '../data/waiverRequests'
-import { getActiveSettlement } from '../data/settlementUsers'
+import { getActiveSettlement, markInstalmentPaid } from '../data/settlementUsers'
 import { Customer } from '../data/customers'
 import { PRODUCT_LABEL, PRODUCT_COLORS } from '../utils/productLabels'
 
@@ -322,6 +322,11 @@ function BankDispositionScreen({ navigation, route }: Props) {
     })
     recordActualVisit(c.partyId, new Date().toISOString(), isCollected ? netCollectible : 0)
     triggerReroute()
+
+    // Settlement instalment collected → advance the settlement schedule (reflected on profile)
+    if (isCollected && paymentType === 'Settlement Instalment' && activeSettlement && netCollectible > 0) {
+      markInstalmentPaid(c.partyId)
+    }
 
     if (isCollected && netCollectible > 0) {
       const receipt = {

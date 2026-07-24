@@ -36,6 +36,19 @@ export function getActiveSettlement(partyId: string | number): ActiveSettlement 
   return activeSettlements[String(partyId)]
 }
 
+// TODO backend: instalment payment is recorded server-side; this mirrors it in the mock store
+// so the profile's settlement schedule updates immediately after a Settlement Instalment collection.
+export function markInstalmentPaid(partyId: string | number): void {
+  const s = activeSettlements[String(partyId)]
+  if (!s || s.instalmentsPaid >= s.instalmentCount) return
+  s.instalmentsPaid += 1
+  if (s.instalmentsPaid < s.instalmentCount) {
+    const due = new Date(s.nextInstalmentDue)
+    due.setMonth(due.getMonth() + 1)
+    s.nextInstalmentDue = due.toISOString().split('T')[0]
+  }
+}
+
 export function hasActiveSettlement(partyId: string | number): boolean {
   return !!activeSettlements[String(partyId)]
 }
