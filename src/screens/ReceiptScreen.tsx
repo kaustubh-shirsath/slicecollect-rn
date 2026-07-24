@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, Linking, Animated, Easing } from 'react-native'
+import { useEffect, useRef } from 'react'
+import { View, Text, TouchableOpacity, ScrollView, Animated, Easing } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
@@ -20,7 +20,6 @@ export default function ReceiptScreen({ navigation, route }: Props) {
   const checkScale = useRef(new Animated.Value(0)).current
   const contentOpacity = useRef(new Animated.Value(0)).current
   const contentSlide = useRef(new Animated.Value(24)).current
-  const [shareAlternate, setShareAlternate] = useState(true)
 
   useEffect(() => {
     Animated.sequence([
@@ -46,14 +45,8 @@ export default function ReceiptScreen({ navigation, route }: Props) {
   const date = new Date(receipt.createdAt)
   const dateStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ (\d{2})$/, " '$1")
   const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }).toLowerCase()
-  const registeredMobile = (receipt.customerMobile || '').replace(/\D/g, '')
   const altMobile = (receipt.alternateMobile || '').replace(/\D/g, '')
 
-  function shareWhatsApp() {
-    const text = `slice — Collection Confirmation\nCustomer: ${formatName(receipt.customerName)}\n${receipt.refLabel || 'CIF'}: ${receipt.refValue || receipt.partyId}\nAmount: ${fmt(receipt.amount)}\nMode: ${receipt.paymentMode}\nBranch: ${receipt.branchName}\nDate: ${dateStr}, ${timeStr}\nCollected by: ${receipt.agentName || agentInfo?.name || ''}`
-    const target = registeredMobile ? `91${registeredMobile.slice(-10)}` : ''
-    Linking.openURL(`https://wa.me/${target}?text=${encodeURIComponent(text)}`)
-  }
 
   return (
     <View className="flex-1" style={{ backgroundColor: '#EFF1FA' }}>
@@ -128,25 +121,8 @@ export default function ReceiptScreen({ navigation, route }: Props) {
             {altMobile ? ' and alternate numbers.' : ' number.'}
           </Text>
 
-          {/* Share block */}
+          {/* Actions */}
           <View style={{ width: '100%', marginTop: 18, gap: 10 }}>
-            {altMobile ? (
-              <TouchableOpacity
-                onPress={() => setShareAlternate(v => !v)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 }}
-              >
-                <View style={{ width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: shareAlternate ? '#D30AD7' : 'rgba(0,0,0,0.25)', backgroundColor: shareAlternate ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                  {shareAlternate && <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>✓</Text>}
-                </View>
-                <Text style={{ color: 'rgba(0,0,0,0.55)', fontSize: 12 }}>Also notify the alternate number ({altMobile})</Text>
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              onPress={shareWhatsApp}
-              style={{ backgroundColor: '#25D366', borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}
-            >
-              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>Share on WhatsApp</Text>
-            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)', backgroundColor: '#fff' }}
