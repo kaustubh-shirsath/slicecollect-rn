@@ -335,6 +335,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   ['Min Due', fmt(ccBill.minDueAmount)],
                   ['Late Penalty', fmt(ccBill.remainingLatePenalty)],
                   ['Late Fees', fmt(ccBill.remainingLateFees)],
+                  ['Foreclosure', fmt(ccBill.billAmount)],
                   ['DPD', `${ccBill.currentDpd} days`],
                   ['Due Since', ccBill.dueSince],
                   ['Account', ccBill.accountStatus],
@@ -382,7 +383,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   ['EMI Amt', fmt(c.emiAmt || 0)],
                   ['Min Pay', fmt(c.minimumAmountDue || 0)],
                   ['Rollback', fmt(c.rollbackAmount || 0)],
-                  ['Settlement', fmt(c.outstandingBalance || 0)],
+                  ['Foreclosure', fmt(c.foreclosure || c.outstandingBalance || 0)],
                   ['Last Payment', c.lastPaymentDate || '—'],
                 ]}
               />

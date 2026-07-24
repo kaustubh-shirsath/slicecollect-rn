@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert } from 'react-native'
+import { useState, useEffect, useRef } from 'react'
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, Animated } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
-import { useAgent } from '../navigation/AgentContext'
 import { updateActivity, getActivity } from '../data/activityLog'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settlement'>
@@ -20,39 +19,36 @@ function formatDisplay(str: string) {
 function ReasonPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
   return (
-    <>
+    <View style={{ zIndex: 50 }}>
       <TouchableOpacity
-        onPress={() => setOpen(true)}
+        onPress={() => setOpen(o => !o)}
         className="w-full bg-[#F0F4F7] rounded-[24px] px-3 py-2.5 flex-row items-center justify-between"
-        style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}
+        style={{ borderWidth: 1, borderColor: open ? '#D30AD7' : 'rgba(0,0,0,0.06)' }}
       >
         <Text className={`text-sm ${value ? 'text-[rgba(0,0,0,0.9)]' : 'text-black/30'}`}>{value || 'Why is settlement needed?'}</Text>
-        <Text className="text-black/30 text-xs">▾</Text>
+        <Text className="text-black/30 text-xs">{open ? '▴' : '▾'}</Text>
       </TouchableOpacity>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity className="flex-1 justify-end bg-black/40" activeOpacity={1} onPress={() => setOpen(false)}>
-          <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-3xl px-5 pt-5 pb-10" style={{ width: '100%', maxWidth: 520, alignSelf: 'center' }}>
-            <View className="w-10 h-1 bg-black/10 rounded-full mx-auto mb-4" />
-            {reasons.map(r => (
-              <TouchableOpacity
-                key={r}
-                onPress={() => { onChange(r); setOpen(false) }}
-                className="py-3 flex-row items-center justify-between"
-                style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-              >
-                <Text className="text-sm text-[rgba(0,0,0,0.9)]">{r}</Text>
-                {value === r && <Text className="text-[#D30AD7] font-bold">✓</Text>}
-              </TouchableOpacity>
-            ))}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-    </>
+      {open && (
+        <View style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', elevation: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, zIndex: 100, overflow: 'hidden' }}>
+          {reasons.map((r, i) => (
+            <TouchableOpacity
+              key={r}
+              onPress={() => { onChange(r); setOpen(false) }}
+              className="px-4 py-3 flex-row items-center justify-between"
+              style={i > 0 ? { borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' } : undefined}
+            >
+              <Text className="text-sm text-[rgba(0,0,0,0.85)]">{r}</Text>
+              {value === r && <Text className="text-[#D30AD7] font-bold">✓</Text>}
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
   )
 }
 
-function CalendarModal({ visible, onClose, onSelect, minDate }: {
-  visible: boolean; onClose: () => void; onSelect: (date: string) => void; minDate?: Date
+function CalendarPanel({ onSelect, onClose, minDate }: {
+  onSelect: (date: string) => void; onClose: () => void; minDate?: Date
 }) {
   const [calMonth, setCalMonth] = useState(() => {
     const d = minDate ? new Date(minDate) : new Date()
@@ -60,73 +56,70 @@ function CalendarModal({ visible, onClose, onSelect, minDate }: {
     return d
   })
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, width: '100%', maxWidth: 520, alignSelf: 'center' }}>
-          <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 16 }} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <TouchableOpacity onPress={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() - 1); setCalMonth(d) }} style={{ padding: 8 }}>
-              <Text style={{ color: '#D30AD7', fontSize: 20 }}>‹</Text>
-            </TouchableOpacity>
-            <Text style={{ fontWeight: '600', fontSize: 15, color: 'rgba(0,0,0,0.9)' }}>
-              {calMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
-            </Text>
-            <TouchableOpacity onPress={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() + 1); setCalMonth(d) }} style={{ padding: 8 }}>
-              <Text style={{ color: '#D30AD7', fontSize: 20 }}>›</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-            {['S','M','T','W','T','F','S'].map((d, i) => (
-              <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600', color: 'rgba(0,0,0,0.35)' }}>{d}</Text>
-            ))}
-          </View>
-          {(() => {
-            const today = new Date(); today.setHours(0,0,0,0)
-            const earliest = minDate ? new Date(minDate) : today
-            earliest.setHours(0,0,0,0)
-            const maxDate = new Date(today); maxDate.setDate(today.getDate() + 90)
-            const firstDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1)
-            const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate()
-            const startPad = firstDay.getDay()
-            const cells: (number | null)[] = [...Array(startPad).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
-            while (cells.length % 7 !== 0) cells.push(null)
-            const weeks: (number | null)[][] = []
-            for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
-            return weeks.map((week, wi) => (
-              <View key={wi} style={{ flexDirection: 'row', marginBottom: 4 }}>
-                {week.map((day, di) => {
-                  if (!day) return <View key={di} style={{ flex: 1 }} />
-                  const d = new Date(calMonth.getFullYear(), calMonth.getMonth(), day)
-                  d.setHours(0,0,0,0)
-                  const isDisabled = d <= earliest || d > maxDate
-                  const dateStr = d.toISOString().split('T')[0]
-                  return (
-                    <TouchableOpacity
-                      key={di}
-                      disabled={isDisabled}
-                      onPress={() => { onSelect(dateStr); onClose() }}
-                      style={{ flex: 1, alignItems: 'center', paddingVertical: 6 }}
-                    >
-                      <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 13, color: isDisabled ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.85)', fontWeight: '400' }}>{day}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  )
-                })}
-              </View>
-            ))
-          })()}
+    <View style={{ marginTop: 8, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', padding: 12, elevation: 6, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <TouchableOpacity onPress={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() - 1); setCalMonth(d) }} style={{ padding: 6 }}>
+          <Text style={{ color: '#D30AD7', fontSize: 18 }}>‹</Text>
         </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
+        <Text style={{ fontWeight: '600', fontSize: 14, color: 'rgba(0,0,0,0.9)' }}>
+          {calMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+        </Text>
+        <TouchableOpacity onPress={() => { const d = new Date(calMonth); d.setMonth(d.getMonth() + 1); setCalMonth(d) }} style={{ padding: 6 }}>
+          <Text style={{ color: '#D30AD7', fontSize: 18 }}>›</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+        {['S','M','T','W','T','F','S'].map((d, i) => (
+          <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: '600', color: 'rgba(0,0,0,0.35)' }}>{d}</Text>
+        ))}
+      </View>
+      {(() => {
+        const today = new Date(); today.setHours(0,0,0,0)
+        const earliest = minDate ? new Date(minDate) : today
+        earliest.setHours(0,0,0,0)
+        // 90-day settlement deadline minus a 7-day operational buffer
+        const maxDate = new Date(today); maxDate.setDate(today.getDate() + 83)
+        const firstDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1)
+        const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate()
+        const startPad = firstDay.getDay()
+        const cells: (number | null)[] = [...Array(startPad).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+        while (cells.length % 7 !== 0) cells.push(null)
+        const weeks: (number | null)[][] = []
+        for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
+        return weeks.map((week, wi) => (
+          <View key={wi} style={{ flexDirection: 'row', marginBottom: 2 }}>
+            {week.map((day, di) => {
+              if (!day) return <View key={di} style={{ flex: 1 }} />
+              const d = new Date(calMonth.getFullYear(), calMonth.getMonth(), day)
+              d.setHours(0,0,0,0)
+              const isDisabled = d <= earliest || d > maxDate
+              const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+              return (
+                <TouchableOpacity
+                  key={di}
+                  disabled={isDisabled}
+                  onPress={() => { onSelect(dateStr); onClose() }}
+                  style={{ flex: 1, alignItems: 'center', paddingVertical: 4 }}
+                >
+                  <View style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 12, color: isDisabled ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.85)' }}>{day}</Text>
+                  </View>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+        ))
+      })()}
+    </View>
   )
 }
 
 export default function SettlementScreen({ navigation, route }: Props) {
   const { customer: c } = route.params
-  const { agentInfo } = useAgent()
   const isSlice = c?.userType === 'cc' || c?.userType === 'borrow'
-  const [settAmount, setSettAmount] = useState((c.emiOs ?? c.overdue ?? 0).toString())
+  // Settlement is negotiated against the FORECLOSURE amount (full closure value), not the overdue
+  const foreclosureAmount = c.foreclosure ?? c.outstandingBalance ?? c.emiOs ?? 0
+  const [settAmount, setSettAmount] = useState(String(foreclosureAmount))
   const [advance, setAdvance] = useState('')
   const [settlementImage, setSettlementImage] = useState<string | null>(null)
   // cc/borrow: Payment Link only (Cash visible but disabled)
@@ -135,11 +128,17 @@ export default function SettlementScreen({ navigation, route }: Props) {
   const [reason, setReason] = useState('')
   const [desc, setDesc] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const [advanceReceiptId, setAdvanceReceiptId] = useState<string | null>(null)
   const [altMobile, setAltMobile] = useState('')
   const [instAmounts, setInstAmounts] = useState<number[]>([0])
   const [instDates, setInstDates] = useState<string[]>([''])
   const [openCalIdx, setOpenCalIdx] = useState<number | null>(null)
+  const checkScale = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (submitted) {
+      Animated.spring(checkScale, { toValue: 1, friction: 4, tension: 60, useNativeDriver: true }).start()
+    }
+  }, [submitted])
 
   const sAmount   = parseFloat(settAmount) || 0
   const advAmount = parseFloat(advance) || 0
@@ -148,7 +147,8 @@ export default function SettlementScreen({ navigation, route }: Props) {
   const totalCheck = advAmount + instSum
   const isBalanced = sAmount > 0 ? Math.abs(totalCheck - sAmount) < 1 : true
   const allDatesSet = instDates.slice(0, installments).every(d => d !== '')
-  const isValid = sAmount > 0 && (isSlice || (advAmount >= 0 && advAmount <= sAmount)) && reason !== '' && allDatesSet && isBalanced
+  const withinForeclosure = sAmount <= foreclosureAmount
+  const isValid = sAmount > 0 && withinForeclosure && (isSlice || (advAmount >= 0 && advAmount <= sAmount)) && reason !== '' && allDatesSet && isBalanced
 
   useEffect(() => {
     setInstAmounts(prev => {
@@ -169,46 +169,66 @@ export default function SettlementScreen({ navigation, route }: Props) {
   }, [installments, settAmount, advance])
 
   if (submitted) return (
-    <View className="flex-1 bg-[#F0F4F7] items-center justify-center px-6">
-      
-      <Text className="text-[rgba(0,0,0,0.9)] text-xl font-bold mb-2">Settlement Raised</Text>
-      <Text className="text-black/50 text-sm text-center mb-2">Sent to Branch Head for CBS review</Text>
-      <View className="bg-[#FAE2FA] border border-[#D30AD7]/30 rounded-[24px] p-4 w-full mb-4 gap-1">
-        <Text className="text-xs text-[#D30AD7] font-semibold mb-1">Settlement Summary</Text>
-        <View className="flex-row justify-between"><Text className="text-xs text-black/50">Settlement Amount</Text><Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{fmt(sAmount)}</Text></View>
-        {!isSlice && advAmount > 0 && <View className="flex-row justify-between"><Text className="text-xs text-black/50">Advance</Text><Text className="text-xs font-semibold text-[#00A63E]">{fmt(advAmount)}</Text></View>}
-        <View className="flex-row justify-between"><Text className="text-xs text-black/50">Installments</Text><Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{installments}</Text></View>
-        <View className="flex-row justify-between"><Text className="text-xs text-black/50">Mode</Text><Text className="text-xs font-semibold text-[rgba(0,0,0,0.9)]">{mode}</Text></View>
-      </View>
-      {advanceReceiptId && (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Receipt', {
-            receipt: {
-              receiptNo: advanceReceiptId,
-              partyId: c.partyId,
-              customerName: c.name,
-              customerMobile: c.mobile || '',
-              dispositionType: 'Settlement Advance',
-              actionType: 'Settlement Advance',
-              amount: advAmount,
-              advanceAmount: advAmount,
-              paymentMode: mode,
-              agentName: agentInfo?.name || '',
-              branchName: agentInfo?.branch || c.branch || '',
-              glCode: agentInfo?.glCode || '',
-              createdAt: new Date().toISOString(),
-              alternateMobile: altMobile,
-            },
-            backTo: 'Main',
-          })}
-          className="w-full border border-[#D30AD7] py-3.5 rounded-full items-center mb-3"
-        >
-          <Text className="text-[#D30AD7] font-semibold">View Advance Payment Receipt</Text>
+    <View className="flex-1" style={{ backgroundColor: '#EFF1FA' }}>
+      <SafeAreaView edges={['top']} />
+      <ScrollView contentContainerStyle={{ flexGrow: 1, alignItems: 'center', padding: 20, paddingBottom: 48 }}>
+        <Text style={{ color: 'rgba(0,0,0,0.45)', fontSize: 13, letterSpacing: 2, marginTop: 16 }}>RAISED SECURELY ON</Text>
+        <Text style={{ color: '#D30AD7', fontSize: 36, fontWeight: '800', letterSpacing: -1, marginTop: 2 }}>slice</Text>
+
+        <View style={{ backgroundColor: '#fff', borderRadius: 32, width: '100%', marginTop: 20, paddingVertical: 28, paddingHorizontal: 24, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(211,10,215,0.18)', shadowColor: '#D30AD7', shadowOpacity: 0.15, shadowRadius: 28, shadowOffset: { width: 0, height: 8 }, elevation: 6 }}>
+          <Text style={{ color: 'rgba(0,0,0,0.4)', fontSize: 12, letterSpacing: 2 }}>SETTLEMENT RAISED</Text>
+          <Text style={{ color: 'rgba(0,0,0,0.9)', fontSize: 40, fontWeight: '800', letterSpacing: -1, marginTop: 12 }}>{fmt(sAmount)}</Text>
+          <Text style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13, marginTop: 6, textAlign: 'center' }}>Sent to Branch Head for approval</Text>
+
+          <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', width: '100%', marginVertical: 18 }} />
+          <View style={{ width: '100%', gap: 10 }}>
+            {[
+              ['Customer', c.name],
+              ['Instalments', String(installments)],
+              ['Repayment Mode', mode],
+              ['Reason', reason],
+            ].map(([k, v]) => (
+              <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>{k}</Text>
+                <Text style={{ color: 'rgba(0,0,0,0.85)', fontSize: 12, fontWeight: '600', maxWidth: '60%', textAlign: 'right' }}>{v}</Text>
+              </View>
+            ))}
+          </View>
+
+          {advAmount > 0 && (
+            <>
+              <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', width: '100%', marginVertical: 18 }} />
+              {/* Advance collected — same success animation theme as every payment */}
+              <Animated.View
+                style={{
+                  transform: [{ scale: checkScale }],
+                  width: 64, height: 64, borderRadius: 32,
+                  backgroundColor: '#22C55E',
+                  alignItems: 'center', justifyContent: 'center',
+                  shadowColor: '#22C55E', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 4 },
+                  elevation: 8,
+                }}
+              >
+                <Text style={{ color: '#fff', fontSize: 32, fontWeight: '700', lineHeight: 38 }}>✓</Text>
+              </Animated.View>
+              <Text style={{ color: 'rgba(0,0,0,0.9)', fontSize: 24, fontWeight: '800', marginTop: 12 }}>{fmt(advAmount)}</Text>
+              <Text style={{ color: 'rgba(0,0,0,0.5)', fontSize: 13, marginTop: 2 }}>Advance collected via {mode}</Text>
+              <Text style={{ color: 'rgba(0,0,0,0.4)', fontSize: 11, textAlign: 'center', lineHeight: 16, marginTop: 10 }}>
+                Payment receipt will be sent by the bank via SMS to the registered{altMobile ? ' and alternate numbers.' : ' number.'}
+              </Text>
+            </>
+          )}
+        </View>
+
+        <TouchableOpacity onPress={() => navigation.navigate('Main')} style={{ marginTop: 20, width: '100%', backgroundColor: '#D30AD7', paddingVertical: 14, borderRadius: 999, alignItems: 'center' }}>
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Back to Cases</Text>
         </TouchableOpacity>
-      )}
-      <TouchableOpacity onPress={() => navigation.navigate('Main')} className="w-full bg-[#D30AD7] py-3.5 rounded-full items-center">
-        <Text className="text-white font-semibold">Back to Allocations</Text>
-      </TouchableOpacity>
+
+        <View style={{ marginTop: 24, alignItems: 'center' }}>
+          <Text style={{ color: 'rgba(0,0,0,0.35)', fontSize: 9, letterSpacing: 1.5 }}>POWERED BY</Text>
+          <Text style={{ color: 'rgba(0,0,0,0.55)', fontSize: 12, fontWeight: '700', marginTop: 2 }}>Slice Small Finance Bank</Text>
+        </View>
+      </ScrollView>
     </View>
   )
 
@@ -220,7 +240,7 @@ export default function SettlementScreen({ navigation, route }: Props) {
             <Text className="text-[#D30AD7] text-sm">‹ Back</Text>
           </TouchableOpacity>
           <Text className="text-[rgba(0,0,0,0.9)] text-lg font-bold">Raise Settlement</Text>
-          <Text className="text-black/40 text-xs">{c.name} · Overdue: {fmt(c.emiOs ?? c.overdue ?? 0)}</Text>
+          <Text className="text-black/40 text-xs">{c.name} · Foreclosure: {fmt(foreclosureAmount)}</Text>
         </View>
       </SafeAreaView>
 
@@ -236,7 +256,11 @@ export default function SettlementScreen({ navigation, route }: Props) {
               className="w-full bg-[#F0F4F7] rounded-[24px] px-3 py-2.5 text-sm"
               style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}
             />
-            <Text className="text-xs text-black/40 mt-1">Max: {fmt(c.emiOs ?? c.overdue ?? 0)} (full overdue)</Text>
+            <Text className="text-xs mt-1" style={{ color: withinForeclosure ? 'rgba(0,0,0,0.4)' : '#CE1D26' }}>
+              {withinForeclosure
+                ? `Max: ${fmt(foreclosureAmount)} (foreclosure amount)`
+                : `Settlement cannot exceed the foreclosure amount ${fmt(foreclosureAmount)}`}
+            </Text>
           </View>
 
           {/* Advance */}
@@ -285,9 +309,9 @@ export default function SettlementScreen({ navigation, route }: Props) {
                   <TouchableOpacity
                     key={m}
                     onPress={() => setMode(m)}
-                    style={{ minHeight: 40, flex: 1, borderRadius: 100, paddingVertical: 8, alignItems: 'center', backgroundColor: mode === m ? '#D30AD7' : '#F0F4F7', borderWidth: 2, borderColor: mode === m ? '#D30AD7' : 'rgba(0,0,0,0.06)' }}
+                    style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: mode === m ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: mode === m ? '#FAE2FA' : '#fff' }}
                   >
-                    <Text style={{ color: mode === m ? 'white' : 'rgba(0,0,0,0.5)', fontSize: 11, fontWeight: '600' }}>{m}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: mode === m ? '600' : '400', color: mode === m ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>{m}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -379,15 +403,18 @@ export default function SettlementScreen({ navigation, route }: Props) {
                     </View>
                     <View className="pt-4">
                       <TouchableOpacity
-                        onPress={() => setOpenCalIdx(i)}
+                        onPress={() => setOpenCalIdx(openCalIdx === i ? null : i)}
                         style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 2, borderColor: instDates[i] ? '#D30AD7' : 'rgba(0,0,0,0.10)', backgroundColor: instDates[i] ? '#FAE2FA' : '#F0F4F7', flexDirection: 'row', alignItems: 'center', gap: 6 }}
                       >
                         <Text style={{ fontSize: 11, fontWeight: '600', color: instDates[i] ? '#D30AD7' : 'rgba(0,0,0,0.4)' }}>
                           {instDates[i] ? formatDisplay(instDates[i]) : 'Pick date'}
                         </Text>
-                        </TouchableOpacity>
-                      <CalendarModal
-                        visible={openCalIdx === i}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  {openCalIdx === i && (
+                    <View className="px-3 pb-3">
+                      <CalendarPanel
                         onClose={() => setOpenCalIdx(null)}
                         onSelect={dateStr => {
                           const updated = [...instDates]
@@ -397,7 +424,7 @@ export default function SettlementScreen({ navigation, route }: Props) {
                         minDate={new Date()}
                       />
                     </View>
-                  </View>
+                  )}
                 </View>
               ))}
             </View>
@@ -463,7 +490,6 @@ export default function SettlementScreen({ navigation, route }: Props) {
                   { date: todayStr, amount: advAmount, mode: mode as 'Cash' | 'Payment Link', receiptId, deposited: false },
                 ],
               })
-              setAdvanceReceiptId(receiptId)
             }
             setSubmitted(true)
           }}
