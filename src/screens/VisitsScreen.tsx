@@ -160,11 +160,13 @@ export default function VisitsScreen(_props: Props) {
 
   const totalCollectedToday = todayEntries.reduce((s: number, e: any) => s + (e.category !== 'contacted' ? e.amount : 0), 0)
 
-  // Disposition mix for today: Collected (with payment-type split) > Waiver Raised > PTP > Others
-  const dispCollected = todayEntries.filter((e: any) => e.amount > 0)
-  const dispWaiver = todayEntries.filter((e: any) => e.amount === 0 && e.waiverRaised)
-  const dispPtp = todayEntries.filter((e: any) => e.amount === 0 && !e.waiverRaised && e.ptpDate)
-  const dispOthers = todayEntries.filter((e: any) => e.amount === 0 && !e.waiverRaised && !e.ptpDate)
+  // Disposition mix for today. PTP is its own line item — a PTP-coded disposition never
+  // counts under Collected even if the customer paid earlier the same day.
+  const isPtpType = (e: any) => e.type === 'PTP' || e.type === 'CPTP'
+  const dispPtp = todayEntries.filter((e: any) => isPtpType(e) || (e.amount === 0 && !e.waiverRaised && e.ptpDate))
+  const dispCollected = todayEntries.filter((e: any) => e.amount > 0 && !isPtpType(e))
+  const dispWaiver = todayEntries.filter((e: any) => !isPtpType(e) && e.amount === 0 && e.waiverRaised)
+  const dispOthers = todayEntries.filter((e: any) => !isPtpType(e) && e.amount === 0 && !e.waiverRaised && !e.ptpDate)
   const dispTotal = todayEntries.length || 1
   const collectedSplit = Object.entries(
     dispCollected.reduce((m: Record<string, number>, e: any) => { m[e.type || 'Other'] = (m[e.type || 'Other'] || 0) + 1; return m }, {})
