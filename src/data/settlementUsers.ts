@@ -25,7 +25,9 @@ ALL_CUSTOMERS.forEach((c, i) => {
       settlementId: 'STL' + String(c.partyId).slice(-6),
       totalAmount: total,
       instalmentCount: 3,
-      instalmentsPaid: 1,
+      // Advance payment is NOT an instalment — instalments start unpaid and tick only
+      // when a Settlement Instalment collection is recorded.
+      instalmentsPaid: 0,
       nextInstalmentAmount: Math.round(total / 3),
       nextInstalmentDue: '2026-07-15',
       startedOn: '2026-06-01',
