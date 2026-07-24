@@ -633,9 +633,12 @@ function BankDispositionScreen({ navigation, route }: Props) {
                 <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 2 }}>Disposition Code <Text style={{ color: '#CE1D26' }}>*</Text></Text>
                 {BANK_SUBCODES[category].map(sc => {
                   const sel = subcode === sc.code
+                  // Settlement is not offered for CC/Borrow in Phase 1
+                  const settlementBlocked = isSliceProduct && sc.code === 'WANTS_SETTLE'
                   return (
                     <TouchableOpacity
                       key={sc.code}
+                      disabled={settlementBlocked}
                       onPress={() => setSubcode(sc.code)}
                       style={{
                         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -644,6 +647,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                         borderWidth: 1.5,
                         borderColor: sel ? '#D30AD7' : 'rgba(0,0,0,0.08)',
                         backgroundColor: sel ? '#FAE2FA' : '#F9FAFB',
+                        opacity: settlementBlocked ? 0.35 : 1,
                       }}
                     >
                       <View>
@@ -685,13 +689,15 @@ function BankDispositionScreen({ navigation, route }: Props) {
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {paymentTypeOptions.map(pt => {
-                    // Active settlement: only Settlement Instalment payment type allowed
-                    const blocked = !!activeSettlement && pt !== 'Settlement Instalment'
+                    // Active settlement: only Settlement Instalment payment type allowed.
+                    // Settlement itself is not offered for CC/Borrow — instalment tile disabled there.
+                    const blocked = (!!activeSettlement && pt !== 'Settlement Instalment')
+                      || (isSliceProduct && pt === 'Settlement Instalment' && !activeSettlement)
                     return (
                       <TouchableOpacity
                         key={pt}
                         disabled={blocked}
-                        onPress={() => { setPaymentType(pt); setSelectedEmiNos([]); setCustomAmount('') }}
+                        onPress={() => { setPaymentType(pt); setSelectedEmiNos([]); setCustomAmount(''); setWaiverPct(0) }}
                         style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: paymentType === pt ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentType === pt ? '#FAE2FA' : '#fff', opacity: blocked ? 0.35 : 1 }}
                       >
                         <Text style={{ fontSize: 12, fontWeight: paymentType === pt ? '600' : '400', color: paymentType === pt ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>{pt}</Text>
@@ -789,8 +795,8 @@ function BankDispositionScreen({ navigation, route }: Props) {
                   </View>
                 )}
 
-                {/* Waiver — not available when the customer has an active settlement */}
-                {paymentType !== '' && !activeSettlement && (
+                {/* Waiver — not available with an active settlement, nor for Custom Amount / Settlement Instalment payments */}
+                {paymentType !== '' && !activeSettlement && paymentType !== 'Custom Amount' && paymentType !== 'Settlement Instalment' && (
                   <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 14, gap: 12 }}>
                     <View style={{ gap: 3 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

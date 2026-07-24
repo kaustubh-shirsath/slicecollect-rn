@@ -126,7 +126,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     else if (defaultBucket === 'All') setStageFilter([])
   }, [defaultBucket])
 
-  const { allocations, loading, isFallback } = useAllocations('All', search, agentInfo?.username, agentInfo?.portfolioType)
+  const { allocations, loading } = useAllocations('All', search, agentInfo?.username, agentInfo?.portfolioType)
 
   // Distinct buckets actually present in this agent's portfolio, grouped by product
   const bucketFilterGroups = useMemo(() => {
@@ -208,7 +208,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     // Status tag priority: Settlement > Collected > PTP > Visited
     const hasVisit = !!getActivity(c.partyId)?.latestDisposition
     const statusTag = hasActiveSettlement(c.partyId)
-      ? { label: 'Settlement', bg: '#FEF3C7', color: '#92400E' }
+      ? { label: 'Active Settlement', bg: '#FEF3C7', color: '#92400E' }
       : c.hasCollected
       ? { label: 'Collected', bg: '#E0F4E8', color: '#007E2F' }
       : c.hasPtp
@@ -274,9 +274,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
           <View className="flex-row items-center justify-between">
             <Text className="text-[rgba(0,0,0,0.9)] text-lg font-medium">My Cases</Text>
             <View className="flex-row items-center gap-3">
-              <Text className="text-black/40 text-xs">
-                {loading ? '…' : `${filtered.length}${isFallback ? ' (offline)' : ''}`}
-              </Text>
               <TouchableOpacity
                 onPress={() => navigation.navigate('Profile')}
                 className="w-9 h-9 rounded-full bg-[#FAE2FA] items-center justify-center"

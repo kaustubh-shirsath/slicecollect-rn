@@ -154,7 +154,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
 
   // Status flag — same precedence as the cases list: Settlement > Collected > PTP > Visited
   const statusTag = activeSettlement
-    ? { label: 'Settlement', bg: '#FEF3C7', color: '#92400E' }
+    ? { label: 'Active Settlement', bg: '#FEF3C7', color: '#92400E' }
     : amtCollected > 0
     ? { label: 'Collected', bg: '#E0F4E8', color: '#007E2F' }
     : latestDisp?.ptpDate
@@ -729,9 +729,9 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', letterSpacing: 0.2 }}>Add Disposition</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            disabled={!!activeSettlement}
+            disabled={!!activeSettlement || isSlice}
             onPress={() => navigation.navigate('Settlement', { customer: c })}
-            style={{ flex: 1, backgroundColor: '#1E293B', paddingVertical: 12, borderRadius: 12, alignItems: 'center', opacity: activeSettlement ? 0.35 : 1 }}
+            style={{ flex: 1, backgroundColor: '#1E293B', paddingVertical: 12, borderRadius: 12, alignItems: 'center', opacity: (activeSettlement || isSlice) ? 0.35 : 1 }}
           >
             <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{activeSettlement ? 'Settlement Active' : 'Settlement'}</Text>
           </TouchableOpacity>

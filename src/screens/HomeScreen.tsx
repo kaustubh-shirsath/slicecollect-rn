@@ -9,7 +9,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { getHomeData } from '../data/homeData'
-import LeaderboardCard from '../components/LeaderboardCard'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Home'>,
@@ -205,8 +204,6 @@ export default function HomeScreen({ navigation }: Props) {
           })}
         </View>
 
-        {/* Leaderboard — top 10 monthly collections + my rank */}
-        <LeaderboardCard myUsername={agentInfo?.username} />
       </ScrollView>
     </SafeAreaView>
   )
