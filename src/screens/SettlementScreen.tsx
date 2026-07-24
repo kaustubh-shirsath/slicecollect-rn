@@ -19,7 +19,7 @@ function formatDisplay(str: string) {
 function ReasonPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
   return (
-    <View style={{ zIndex: 50 }}>
+    <View>
       <TouchableOpacity
         onPress={() => setOpen(o => !o)}
         className="w-full bg-[#F0F4F7] rounded-[24px] px-3 py-2.5 flex-row items-center justify-between"
@@ -29,7 +29,7 @@ function ReasonPicker({ value, onChange }: { value: string; onChange: (v: string
         <Text className="text-black/30 text-xs">{open ? '▴' : '▾'}</Text>
       </TouchableOpacity>
       {open && (
-        <View style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', elevation: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, zIndex: 100, overflow: 'hidden' }}>
+        <View style={{ marginTop: 6, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)', elevation: 6, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, overflow: 'hidden' }}>
           {reasons.map((r, i) => (
             <TouchableOpacity
               key={r}
