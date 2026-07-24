@@ -16,6 +16,7 @@ import { getActivity } from '../data/activityLog'
 import { haversine } from '../data/routingEngine'
 import { getBorrowData } from '../data/emis'
 import { getCCBill } from '../data/ccBills'
+import { getRiskBand, getPriorityOrder } from '../data/caseMeta'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Allocations'>,
@@ -24,14 +25,7 @@ type Props = CompositeScreenProps<
 
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN')
 
-function riskLabel(cibilAlert: boolean, priorityScore: number): 'High' | 'Medium' | 'Low' {
-  if (cibilAlert) return 'High'
-  if (priorityScore >= 4) return 'High'
-  if (priorityScore >= 2) return 'Medium'
-  return 'Low'
-}
-
-type SortKey = 'distance' | 'amount' | 'ptpSoonest' | 'riskHigh' | 'lastVisited'
+type SortKey = 'distance' | 'amount' | 'ptpSoonest' | 'riskHigh' | 'priority' | 'lastVisited'
 type DistFilter = 'all' | '2' | '5' | '10'
 type PtpFilter = 'all' | 'active' | 'broken' | 'none'
 
@@ -52,6 +46,7 @@ const SORT_OPTIONS: { id: SortKey; label: string }[] = [
   { id: 'amount', label: '💰 Highest amount' },
   { id: 'ptpSoonest', label: '🕐 PTP due soonest' },
   { id: 'riskHigh', label: '⚡ High risk first' },
+  { id: 'priority', label: '#️⃣ Priority order' },
   { id: 'lastVisited', label: '🗓 Last visited (oldest)' },
 ]
 
@@ -102,14 +97,16 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     const hasPtp = !!disp?.ptpDate
     const ptpBroken = hasPtp && disp?.ptpDate && new Date(disp.ptpDate).toDateString() < today && act!.collections.length === 0
     const latestCollection = act && act.collections.length > 0 ? act.collections[act.collections.length - 1] : null
-    return { ...c, distKm, risk: riskLabel(c.cibilAlert, c.priorityScore || 0), hasPtp, ptpBroken, latestCollection }
+    return { ...c, distKm, risk: getRiskBand(c), priorityOrder: getPriorityOrder(c), hasPtp, ptpBroken, latestCollection }
   })
 
+  const RISK_RANK = { High: 2, Medium: 1, Low: 0 }
   const sorted = [...withMeta].sort((a: any, b: any) => {
     if (sortBy === 'distance') return a.distKm - b.distKm
     if (sortBy === 'amount') return (b.emiOs || 0) - (a.emiOs || 0)
     if (sortBy === 'ptpSoonest') return (b.hasPtp ? 1 : 0) - (a.hasPtp ? 1 : 0)
-    if (sortBy === 'riskHigh') return (b.priorityScore || 0) - (a.priorityScore || 0)
+    if (sortBy === 'riskHigh') return RISK_RANK[b.risk as 'High'|'Medium'|'Low'] - RISK_RANK[a.risk as 'High'|'Medium'|'Low']
+    if (sortBy === 'priority') return a.priorityOrder - b.priorityOrder
     if (sortBy === 'lastVisited') return (a.lastPayment || '').localeCompare(b.lastPayment || '')
     return 0
   })
@@ -123,7 +120,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     if (ptpFilter === 'active' && !c.hasPtp) return false
     if (ptpFilter === 'broken' && !c.ptpBroken) return false
     if (ptpFilter === 'none' && (c.hasPtp || c.ptpBroken)) return false
-    if (highChancesOnly && !c.cibilAlert) return false
+    if (highChancesOnly && c.risk !== 'High') return false
     if (visitedFilter !== 'all') {
       const activity = getActivity(c.partyId)
       const hasVisit = activity?.latestDisposition != null
@@ -157,7 +154,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
         <View className="flex-row items-start justify-between">
           <View className="flex-1 min-w-0 mr-3">
             <View className="flex-row items-center gap-1.5">
-              {c.cibilAlert && <View className="w-2 h-2 rounded-full bg-[#CE1D26]" />}
+              <View className="w-2 h-2 rounded-full" style={{ backgroundColor: riskColor }} />
               <Text className="font-medium text-[rgba(0,0,0,0.9)] text-sm" numberOfLines={1}>{c.name}</Text>
               {c.hasPtp && (
                 <View className="bg-[#FFF0E0] px-1.5 py-0.5 rounded-full">
@@ -172,9 +169,9 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               </View>
               <ProductTag userType={c.userType} />
               <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
-              {c.risk === 'High' && (
-                <Text className="text-[10px] font-medium" style={{ color: riskColor }}>⚡ High</Text>
-              )}
+              <Text className="text-[10px] font-medium" style={{ color: riskColor }}>
+                {c.risk === 'High' ? '⚡ High Risk' : c.risk === 'Medium' ? 'Medium Risk' : 'Low Risk'}
+              </Text>
             </View>
           </View>
           <View className="items-end gap-2">
@@ -320,7 +317,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${highChancesOnly ? 'bg-[#CE1D26]' : 'bg-[#F0F4F7]'}`}
             >
               <Text className={`text-xs font-medium ${highChancesOnly ? 'text-white' : 'text-black/60'}`}>
-                ⚡ High Chances{highChancesOnly ? ' ✕' : ''}
+                ⚡ High Risk{highChancesOnly ? ' ✕' : ''}
               </Text>
             </TouchableOpacity>
 

@@ -11,6 +11,7 @@ import { getAppointmentForCustomer, setAppointment, cancelAppointment, getTimeSl
 import { getActiveSettlement } from '../data/settlementUsers'
 import { useAgent } from '../navigation/AgentContext'
 import ProductTag from '../components/ProductTag'
+import { getRiskBand, getRemarks } from '../data/caseMeta'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>
 
@@ -135,6 +136,9 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
   const sliceBucket = borrowData?.bucketLabel ?? ccBill?.bucketLabel ?? c.assetClassification
   const displayBucket = isSlice ? sliceBucket : (c.assetClassification || c.assetClass || '')
   const bc = getBucketColor(displayBucket)
+  const riskBand = getRiskBand(c)
+  const riskColor = riskBand === 'High' ? '#CE1D26' : riskBand === 'Medium' ? '#A35300' : '#007E2F'
+  const remarks = getRemarks(c)
   const activity = getActivity(c.partyId)
   const visitHistory = activity?.visitHistory ?? []
   const latestDisp = activity?.latestDisposition
@@ -202,12 +206,11 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   </Text>
                 </View>
                 <ProductTag userType={c.userType} />
-                {c.cibilAlert && (
-                  <View className="bg-[#FFF0E0] px-2 py-0.5 rounded-full">
-                    <Text className="text-[10px] text-[#C05000] font-semibold">⚠ CIBIL</Text>
-                  </View>
-                )}
+                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: riskColor + '1A' }}>
+                  <Text className="text-[10px] font-semibold" style={{ color: riskColor }}>{riskBand} Risk</Text>
+                </View>
               </View>
+              <Text className="text-black/35 text-[11px] mt-1.5" numberOfLines={2}>{remarks}</Text>
             </View>
           </View>
         </View>

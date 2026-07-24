@@ -24,6 +24,10 @@ export interface Customer {
   cibilAlert: boolean
   // User type — determines disposition flow, UI, and metrics
   userType: 'bank' | 'cc' | 'borrow'
+  // Allocation-file fields: agent-level case sequencing, risk classification, freeform note.
+  priorityOrder?: number
+  riskBand?: 'High' | 'Medium' | 'Low'
+  remarks?: string
   // Backward-compat aliases (populated by SmartScreen toCustomer helper)
   id?: string
   assetClass?: string
