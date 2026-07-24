@@ -10,6 +10,7 @@ import { useAgent } from '../navigation/AgentContext'
 import { ALL_CUSTOMERS } from '../data/customers'
 import { getActivity, updateActivity } from '../data/activityLog'
 import { getCustomerRef, getPaymentLinkStatus, formatName, fmtDate } from '../data/caseMeta'
+import { track } from '../analytics/mixpanel'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Visits'>,
@@ -205,6 +206,7 @@ export default function VisitsScreen(_props: Props) {
       updateActivity(c.partyId, { collections: updated })
     }
     setDepositing(false)
+    track('cash_deposited', { amount: depositedAmount })
     setLastDeposit({ amount: depositedAmount, date: fmtDate(new Date()) })
   }
 

@@ -7,6 +7,7 @@ import Svg, { Path } from 'react-native-svg'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
+import { identify, track } from '../analytics/mixpanel'
 import { findAgent } from '../data/agents'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>
@@ -42,6 +43,8 @@ export default function LoginScreen({ navigation }: Props) {
       lng: agent.lng || 94.9120,
       portfolioType: 'all',
     })
+    identify(agent.employeeCode, { branch: agent.branch, region: agent.region || '', role: agent.role || 'Collections' })
+    track('login_succeeded', { method: 'password' })
     navigation.replace(agent.role === 'Sales' ? 'SalesMain' : 'Main')
   }
 

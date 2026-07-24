@@ -13,6 +13,7 @@ import { getCCBill } from '../data/ccBills'
 import { submitWaiverRequest } from '../data/waiverRequests'
 import { getActiveSettlement, markInstalmentPaid } from '../data/settlementUsers'
 import { getCustomerRef, formatName } from '../data/caseMeta'
+import { track } from '../analytics/mixpanel'
 import { Customer } from '../data/customers'
 import { PRODUCT_LABEL, PRODUCT_COLORS } from '../utils/productLabels'
 
@@ -332,6 +333,18 @@ function BankDispositionScreen({ navigation, route }: Props) {
     })
     recordActualVisit(c.partyId, new Date().toISOString(), isCollected ? netCollectible : 0)
     triggerReroute()
+
+    track('disposition_submitted', {
+      product_type: userType,
+      category: category || '',
+      sub_code: isCollected ? paymentType : subcode,
+      payment_mode: isCollected ? paymentMode : undefined,
+      amount: isCollected ? netCollectible : 0,
+      waiver_pct: waiverPct,
+      has_active_settlement: !!activeSettlement,
+    })
+    if (waiverPct > 0) track('waiver_raised', { product_type: userType, pct: waiverPct, waiver_amount: bankWaiverAmount, checker_role: checkerRole })
+    if (ptpDate) track('ptp_marked', { product_type: userType, has_amount: !!ptpAmount })
 
     // Settlement instalment collected → advance the settlement schedule (reflected on profile)
     if (isCollected && paymentType === 'Settlement Instalment' && activeSettlement && netCollectible > 0) {

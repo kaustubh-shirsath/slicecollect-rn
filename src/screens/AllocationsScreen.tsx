@@ -17,6 +17,7 @@ import { getBorrowData } from '../data/emis'
 import { getCCBill } from '../data/ccBills'
 import { getRiskBand, getPriorityOrder, getCustomerRef, formatName } from '../data/caseMeta'
 import { hasActiveSettlement } from '../data/settlementUsers'
+import { track } from '../analytics/mixpanel'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Allocations'>,
@@ -235,7 +236,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
       <TouchableOpacity
         className="bg-white rounded-[20px] px-4 py-4 mb-2.5"
         style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}
-        onPress={() => navigation.navigate('CustomerDetail', { customer: c, fromScreen: 'Allocations' })}
+        onPress={() => { track('case_opened', { product_type: c.userType, bucket: sliceBucket, risk_band: c.risk, priority_rank: c.priorityOrder, source: 'list' }); navigation.navigate('CustomerDetail', { customer: c, fromScreen: 'Allocations' }) }}
       >
         {/* Top row — rank (32) | name (flex) | amount (78, centred with Profile below) */}
         <View className="flex-row items-center">
@@ -269,7 +270,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
           </View>
           <View style={{ width: 78, alignItems: 'center', justifyContent: 'center' }}>
             <TouchableOpacity
-              onPress={() => navigation.navigate('CustomerDetail', { customer: c, fromScreen: 'Allocations' })}
+              onPress={() => { track('case_opened', { product_type: c.userType, bucket: sliceBucket, risk_band: c.risk, priority_rank: c.priorityOrder, source: 'list' }); navigation.navigate('CustomerDetail', { customer: c, fromScreen: 'Allocations' }) }}
               className="bg-[#D30AD7] px-3 py-1.5 rounded-full"
             >
               <Text className="text-[11px] text-white font-medium">Profile</Text>

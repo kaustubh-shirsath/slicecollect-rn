@@ -1,5 +1,6 @@
 import './global.css'
 import { NavigationContainer } from '@react-navigation/native'
+import { initAnalytics, track } from './src/analytics/mixpanel'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -30,6 +31,8 @@ import SalesDepositionScreen from './src/screens/sales/SalesDepositionScreen'
 import SalesMerchantDetailScreen from './src/screens/sales/SalesMerchantDetailScreen'
 import SalesCollectScreen from './src/screens/sales/SalesCollectScreen'
 import SalesReceiptScreen from './src/screens/sales/SalesReceiptScreen'
+
+initAnalytics()
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 const Tab   = createBottomTabNavigator<MainTabParamList>()
@@ -195,7 +198,14 @@ export default function App() {
           : undefined}
       >
         <AgentProvider>
-          <NavigationContainer>
+          <NavigationContainer
+            onStateChange={state => {
+              // One generic screen_viewed for every navigation — no per-screen wiring needed
+              let route: any = state?.routes?.[state.index ?? 0]
+              while (route?.state) route = route.state.routes[route.state.index ?? 0]
+              if (route?.name) track('screen_viewed', { screen: route.name })
+            }}
+          >
             <StatusBar style="auto" />
             <Stack.Navigator
               initialRouteName="Login"

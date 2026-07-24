@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { updateActivity, getActivity } from '../data/activityLog'
+import { track } from '../analytics/mixpanel'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settlement'>
 
@@ -506,6 +507,14 @@ export default function SettlementScreen({ navigation, route }: Props) {
                 ],
               })
             }
+            track('settlement_raised', {
+              amount: sAmount,
+              foreclosure_amount: foreclosureAmount,
+              instalments: installments,
+              advance_amount: advAmount,
+              repayment_mode: mode,
+              reason,
+            })
             setSubmitted(true)
           }}
           disabled={!isValid}
