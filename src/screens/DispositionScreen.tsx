@@ -337,7 +337,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
         customerName: c.name,
         customerMobile: c.mobile || '',
         refLabel: getCustomerRef(c.partyId, userType).label,
-        refValue: getCustomerRef(c.partyId, userType).value,
+        refValue: getCustomerRef(c.partyId, userType).masked,
         dispositionType: category || '',
         actionType: isCollected ? paymentType : subcode,
         amount: netCollectible,

@@ -245,6 +245,7 @@ export default function VisitsScreen({ navigation }: Props) {
                   <Text className="text-xs font-medium text-white mt-0.5">{branch}</Text>
                 </View>
               </View>
+              <Text className="text-[10px] text-white/55 mt-2.5">Make sure you have deposited this cash in your branch before you click Deposit.</Text>
             </View>
           ) : lastDeposit ? (
             <View className="mx-4 my-3 bg-[#E0F4E8] rounded-[24px] px-5 py-4" style={{ borderWidth: 1, borderColor: 'rgba(0,166,62,0.25)' }}>
@@ -291,7 +292,7 @@ export default function VisitsScreen({ navigation }: Props) {
                 </View>
 
                 {section.entries.map((e: any, i: number) => {
-              const maskedId = String(e.partyId).replace(/^(.{4})(.+)(.{4})$/, (_: string, a: string, m: string, z: string) => a + '·'.repeat(Math.min(4, m.length)) + z)
+              const maskedId = getCustomerRef(e.partyId, e.userType).masked
               return (
                 <View key={i} className="bg-white rounded-[20px] px-4 py-4 gap-2.5" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
                   <View className="flex-row items-start justify-between gap-2">
@@ -333,7 +334,7 @@ export default function VisitsScreen({ navigation }: Props) {
                               customerName: e.customerName,
                               customerMobile: e.customerMobile || '',
                               refLabel: getCustomerRef(e.partyId, e.userType).label,
-                              refValue: getCustomerRef(e.partyId, e.userType).value,
+                              refValue: getCustomerRef(e.partyId, e.userType).masked,
                               dispositionType: e.type,
                               actionType: e.type,
                               amount: e.amount,

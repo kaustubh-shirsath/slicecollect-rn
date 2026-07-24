@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  View, Text, TouchableOpacity, ScrollView, TextInput, FlatList,
+  View, Text, TouchableOpacity, ScrollView, TextInput, FlatList, Pressable,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { CompositeScreenProps } from '@react-navigation/native'
@@ -235,10 +235,10 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             <Text className="text-[11px] font-bold text-[#A008A3]">#{c.priorityOrder}</Text>
           </View>
           <Text className="flex-1 font-medium text-[rgba(0,0,0,0.9)] text-sm pr-2" numberOfLines={1}>{c.name}</Text>
-          <View style={{ width: 74, alignItems: 'center' }}>
+          <View style={{ width: 84, alignItems: 'center', justifyContent: 'center' }}>
             {statusTag && (
-              <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: statusTag.bg }}>
-                <Text className="text-[9px] font-medium" style={{ color: statusTag.color }}>{statusTag.label}</Text>
+              <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: statusTag.bg, alignItems: 'center', justifyContent: 'center' }}>
+                <Text className="text-[9px] font-medium" style={{ color: statusTag.color, textAlign: 'center' }}>{statusTag.label}</Text>
               </View>
             )}
           </View>
@@ -247,7 +247,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
 
         <View className="flex-row items-start justify-between mt-1">
           <View className="flex-1 min-w-0 mr-3" style={{ paddingLeft: 32 }}>
-            <Text className="text-black/45 text-[11px] font-semibold" numberOfLines={1}>{getCustomerRef(c.partyId, c.userType).value}</Text>
+            <Text className="text-black/45 text-[11px] font-semibold" numberOfLines={1}>{getCustomerRef(c.partyId, c.userType).masked}</Text>
             <View className="flex-row items-center gap-2 mt-2 flex-wrap">
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                 <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>
@@ -274,7 +274,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView className="flex-1 bg-[#F0F4F7]" edges={['top']}>
-      <TouchableOpacity activeOpacity={1} onPress={closeDropdown} className="flex-1">
+      <View className="flex-1">
         {/* Header */}
         <View className="bg-white px-5 py-3" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
           <View className="flex-row items-center justify-between">
@@ -380,10 +380,12 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             )}
           </ScrollView>
 
-          {/* Dropdown panel — anchored right under the filter bar, floats above the card list */}
+          {/* Dropdown panel — anchored right under the filter bar, floats above the card list.
+              A transparent backdrop closes it on outside tap; the panel itself is a plain View so
+              row presses reach their own touchables directly. */}
           {openDropdown !== 'none' && (
             <View style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100 }}>
-              <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
+              <Pressable onPress={closeDropdown} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1200 }} />
               <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, maxHeight: 380 }}>
               <ScrollView bounces={false}>
                 {openDropdown === 'bucket' && bucketFilterGroups.map(group => {
@@ -452,7 +454,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                 ))}
               </ScrollView>
               </View>
-              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -475,7 +476,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             )
           }
         />
-      </TouchableOpacity>
+      </View>
     </SafeAreaView>
   )
 }
