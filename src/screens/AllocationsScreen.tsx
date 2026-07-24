@@ -260,7 +260,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             </View>
             {/* Jio-style meta line: bucket • product • risk • distance */}
             <Text className="text-[11px] mt-1.5" numberOfLines={1}>
-              <Text className="font-medium" style={{ color: '#D30AD7' }}>{sliceBucket} • {PRODUCT_LABEL[(c.userType || 'bank') as ProductType]}</Text>
+              <Text className="font-medium" style={{ color: '#D30AD7' }}>{PRODUCT_LABEL[(c.userType || 'bank') as ProductType]} • {sliceBucket}</Text>
               <Text className="text-black/30">  •  </Text>
               <Text className="font-medium" style={{ color: riskColor }}>{c.risk} Risk</Text>
               <Text className="text-black/30">  •  </Text>

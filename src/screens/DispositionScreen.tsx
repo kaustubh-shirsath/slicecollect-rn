@@ -723,9 +723,9 @@ function BankDispositionScreen({ navigation, route }: Props) {
                         key={pt}
                         disabled={blocked}
                         onPress={() => { setPaymentType(pt); setSelectedEmiNos([]); setCustomAmount(''); setWaiverPct(0) }}
-                        style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: paymentType === pt ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentType === pt ? '#FAE2FA' : '#fff', opacity: blocked ? 0.35 : 1 }}
+                        style={{ width: '48%', paddingVertical: 10, borderRadius: 14, borderWidth: 1, alignItems: 'center', borderColor: paymentType === pt ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentType === pt ? '#FAE2FA' : '#fff', opacity: blocked ? 0.35 : 1 }}
                       >
-                        <Text style={{ fontSize: 12, fontWeight: paymentType === pt ? '600' : '400', color: paymentType === pt ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>{pt}</Text>
+                        <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: paymentType === pt ? '600' : '400', color: paymentType === pt ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>{pt}</Text>
                       </TouchableOpacity>
                     )
                   })}
@@ -812,11 +812,8 @@ function BankDispositionScreen({ navigation, route }: Props) {
                 {/* Locked amount */}
                 {paymentType !== '' && paymentType !== 'Partial Repayment' && paymentType !== 'Custom Amount' && paymentType !== 'Overdue EMIs' && (
                   <View style={{ backgroundColor: '#F0F4F7', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)' }}>Amount (system calculated)</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.85)' }}>{fmt(grossAmount)}</Text>
-                      <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)', fontWeight: '600' }}>LOCKED</Text>
-                    </View>
+                    <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)' }}>Amount</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.85)' }}>{fmt(grossAmount)} 🔒</Text>
                   </View>
                 )}
 
@@ -932,7 +929,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>
                       Payment Mode <Text style={{ color: '#CE1D26' }}>*</Text>
                     </Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
                       {(['Cash', 'Payment Link'] as const).map(mode => {
                         // Cash disabled for cc/borrow (link-only products) AND whenever a waiver is
                         // applied — waivers go to the checker first, then slice sends a payment link.
@@ -942,7 +939,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                             key={mode}
                             disabled={cashDisabled}
                             onPress={() => setPaymentMode(mode)}
-                            style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: paymentMode === mode ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentMode === mode ? '#FAE2FA' : '#fff', opacity: cashDisabled ? 0.35 : 1 }}
+                            style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: paymentMode === mode ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentMode === mode ? '#FAE2FA' : '#fff', opacity: cashDisabled ? 0.35 : 1 }}
                           >
                             <Text style={{ fontSize: 12, fontWeight: paymentMode === mode ? '600' : '400', color: paymentMode === mode ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>
                               {mode}
