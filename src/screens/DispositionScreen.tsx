@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, TouchableOpacity, ScrollView, TextInput, Modal,
 } from 'react-native'
@@ -201,6 +201,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const [customAmount, setCustomAmount] = useState('')
   const [waiverPct, setWaiverPct] = useState(0)
   const [sliderWidth, setSliderWidth] = useState(0)
+
   // Step 2 — PTP/CPTP
   const [ptpDate, setPtpDate] = useState('')
   const [ptpAmount, setPtpAmount] = useState('')
@@ -219,6 +220,11 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const [submitted, setSubmitted] = useState(false)
   // cc/borrow: Payment Link is the only enabled mode (Cash shown but disabled)
   const [paymentMode, setPaymentMode] = useState(isSliceProduct ? 'Payment Link' : '')
+
+  // Waiver payments always route via checker approval → payment link; cash not allowed.
+  useEffect(() => {
+    if (waiverPct > 0 && paymentMode === 'Cash') setPaymentMode('Payment Link')
+  }, [waiverPct, paymentMode])
   const [bankPostState, setBankPostState] = useState<'idle' | 'payment_link_sent' | 'payment_received' | 'waiver_submitted'>('idle')
   const [pendingReceiptData, setPendingReceiptData] = useState<any>(null)
 
@@ -926,8 +932,9 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     </Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                       {(['Cash', 'Payment Link'] as const).map(mode => {
-                        // cc/borrow: Cash shown but disabled — Payment Link is the only usable mode
-                        const cashDisabled = isSliceProduct && mode === 'Cash'
+                        // Cash disabled for cc/borrow (link-only products) AND whenever a waiver is
+                        // applied — waivers go to the checker first, then slice sends a payment link.
+                        const cashDisabled = (isSliceProduct || waiverPct > 0) && mode === 'Cash'
                         return (
                           <TouchableOpacity
                             key={mode}
