@@ -1,5 +1,5 @@
 import { View, Text } from 'react-native'
-import { PRODUCT_LABEL, PRODUCT_EMOJI, PRODUCT_COLORS, type ProductType } from '../utils/productLabels'
+import { PRODUCT_LABEL, PRODUCT_COLORS, type ProductType } from '../utils/productLabels'
 
 // Uniform product pill — rendered for ALL products (Loans / Credit Card / Borrow)
 export default function ProductTag({ userType }: { userType?: string }) {
@@ -8,7 +8,7 @@ export default function ProductTag({ userType }: { userType?: string }) {
   return (
     <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: colors.bg }}>
       <Text className="text-[10px] font-bold" style={{ color: colors.text }}>
-        {PRODUCT_EMOJI[pt]} {PRODUCT_LABEL[pt]}
+        {PRODUCT_LABEL[pt]}
       </Text>
     </View>
   )

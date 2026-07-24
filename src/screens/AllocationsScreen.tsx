@@ -55,12 +55,12 @@ const RISK_OPTIONS: { id: RiskFilter; label: string }[] = [
   { id: 'Low', label: 'Low' },
 ]
 const SORT_OPTIONS: { id: SortKey; label: string }[] = [
-  { id: 'priority', label: '#️⃣ Priority order' },
-  { id: 'ptpSoonest', label: '🕐 PTP due soonest' },
-  { id: 'amount', label: '💰 Highest amount first' },
-  { id: 'riskHigh', label: '⚡ High risk first' },
-  { id: 'lastVisited', label: '🗓 Oldest visit date' },
-  { id: 'distance', label: '📍 Nearest first' },
+  { id: 'priority', label: 'Priority order' },
+  { id: 'ptpSoonest', label: 'PTP due soonest' },
+  { id: 'amount', label: 'Highest amount first' },
+  { id: 'riskHigh', label: 'High risk first' },
+  { id: 'lastVisited', label: 'Oldest visit date' },
+  { id: 'distance', label: 'Nearest first' },
 ]
 
 export default function AllocationsScreen({ navigation, route }: Props) {
@@ -182,7 +182,10 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                 </View>
               )}
             </View>
-            <Text className="text-black/30 text-[11px] mt-0.5">{maskedId}</Text>
+            <View className="flex-row items-center gap-1.5 mt-0.5">
+              <Text className="text-black/30 text-[11px]">{maskedId}</Text>
+              <Text className="text-black/25 text-[11px]">· #{c.priorityOrder}</Text>
+            </View>
             <View className="flex-row items-center gap-2 mt-2 flex-wrap">
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                 <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>
@@ -190,7 +193,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               <ProductTag userType={c.userType} />
               <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
               <Text className="text-[10px] font-medium" style={{ color: riskColor }}>
-                {c.risk === 'High' ? '⚡ High Risk' : c.risk === 'Medium' ? 'Medium Risk' : 'Low Risk'}
+                {c.risk} Risk
               </Text>
             </View>
           </View>
@@ -260,7 +263,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
         <View className="bg-white" style={{ zIndex: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
           <View className="flex-row items-center gap-2 px-4 pt-2 pb-2">
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0F4F7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
-              <Text style={{ color: 'rgba(0,0,0,0.3)', fontSize: 14 }}>🔍</Text>
               <TextInput
                 value={search}
                 onChangeText={setSearch}
@@ -534,7 +536,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               </View>
             ) : (
               <View className="items-center py-12">
-                <Text className="text-3xl mb-2">🔍</Text>
                 <Text className="text-sm text-black/40">No cases match these filters</Text>
               </View>
             )

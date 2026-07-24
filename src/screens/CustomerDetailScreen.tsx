@@ -189,7 +189,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
               onPress={() => navigation.navigate('Escalate', { customer: c })}
               className="flex-row items-center gap-1 px-3 py-1.5 rounded-full bg-[#F9E4E5]"
             >
-              <Text className="text-[#CE1D26] text-xs font-medium">🚨 Escalate</Text>
+              <Text className="text-[#CE1D26] text-xs font-medium">Escalate</Text>
             </TouchableOpacity>
           </View>
           <View className="flex-row items-center gap-3">
@@ -218,7 +218,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
 
       {callBlocked && (
         <View className="mx-4 mt-3 bg-[#F9E4E5] border border-[#CE1D26]/20 rounded-2xl px-4 py-3 flex-row items-center gap-2">
-          <Text className="text-[#CE1D26] text-base">🚫</Text>
           <View>
             <Text className="text-[#CE1D26] text-xs font-medium">Cannot call at this time</Text>
             <Text className="text-[10px]" style={{ color: 'rgba(206,29,38,0.7)' }}>Calling allowed only 8:00 AM – 7:00 PM</Text>
@@ -232,7 +231,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
         {activeSettlement && (
           <View className="bg-[#FEF3C7] rounded-2xl px-3 py-2.5 flex-row items-center justify-between" style={{ borderWidth: 1, borderColor: 'rgba(180,83,9,0.25)' }}>
             <View className="flex-row items-center gap-2">
-              <Text className="text-sm">🔒</Text>
               <Text className="text-xs font-semibold text-[#92400E]">Active Settlement</Text>
               <Text className="text-[10px] text-[#92400E]">{activeSettlement.instalmentsPaid}/{activeSettlement.instalmentCount} paid</Text>
             </View>
@@ -261,7 +259,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}
           >
             <View className="flex-row items-center gap-2 flex-1">
-              <Text className="text-sm">📍</Text>
               <Text className="text-[10px] text-black/40 uppercase tracking-wide">Last +ve Disposition</Text>
               <Text className="text-xs font-medium text-[rgba(0,0,0,0.85)]" numberOfLines={1}>
                 {lastPositiveVisit.dispositionType.split('—')[0].trim()} · {lastPositiveVisit.date}
@@ -363,11 +360,11 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                     <Text className="text-sm font-semibold text-[rgba(0,0,0,0.9)] tracking-wide">XXXXXX{ph.number.slice(-4)}</Text>
                     <View className="flex-row items-center gap-2">
                       <TouchableOpacity onPress={() => handleCall(ph.number)} className="w-9 h-9 rounded-full bg-[#D30AD7] items-center justify-center">
-                        <Text className="text-white text-sm">📞</Text>
+                        <Text className="text-white text-sm">Call</Text>
                       </TouchableOpacity>
                       {i === 0 && (
                         <TouchableOpacity onPress={() => openWhatsApp(ph.number)} className="w-9 h-9 rounded-full bg-[#25D366] items-center justify-center">
-                          <Text style={{ color: '#fff', fontSize: 15 }}>💬</Text>
+                          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>WA</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -402,7 +399,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
               <TouchableOpacity onPress={() => openMaps(addr.value)} style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 12 }}>
                 <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '500', marginBottom: 4 }}>{addr.label}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
-                  <Text style={{ color: '#D30AD7', fontSize: 12, marginTop: 1 }}>📍</Text>
                   <Text style={{ fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.85)', flex: 1, lineHeight: 18 }}>{addr.value}</Text>
                 </View>
                 <Text style={{ color: '#D30AD7', fontSize: 10, fontWeight: '600', marginTop: 4 }}>Open in Maps →</Text>
@@ -422,7 +418,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
         {/* Appointment Section */}
         <View className="bg-white rounded-2xl p-4 mb-4" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
           <View className="flex-row items-center justify-between mb-2">
-            <Text className="text-sm font-semibold text-[rgba(0,0,0,0.85)]">📅 Appointment</Text>
+            <Text className="text-sm font-semibold text-[rgba(0,0,0,0.85)]">Appointment</Text>
             {appt ? (
               <View className="bg-[#E0F4E8] px-2 py-0.5 rounded-full">
                 <Text className="text-[10px] text-[#00A63E] font-semibold">Confirmed</Text>
@@ -481,7 +477,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                     className="w-full px-3 py-2.5 rounded-xl border"
                     style={{ borderColor: apptAddressIdx === addressOptions.length ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: apptAddressIdx === addressOptions.length ? '#FAE2FA' : '#fff' }}
                   >
-                    <Text className="text-[11px] font-medium" style={{ color: apptAddressIdx === addressOptions.length ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>✏️ Custom</Text>
+                    <Text className="text-[11px] font-medium" style={{ color: apptAddressIdx === addressOptions.length ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>Custom</Text>
                   </TouchableOpacity>
                   {apptAddressIdx === addressOptions.length && (
                     <TextInput
@@ -535,7 +531,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                     className="px-4 py-1.5 rounded-full border flex-row items-center gap-1"
                     style={{ borderColor: showApptCalendar || (apptDate && apptDate !== today.toISOString().split('T')[0] && apptDate !== (() => { const d = new Date(today); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })()) ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: showApptCalendar ? '#FAE2FA' : '#fff' }}
                   >
-                    <Text style={{ fontSize: 11 }}>🗓</Text>
                     <Text className="text-[11px] font-medium" style={{ color: showApptCalendar ? '#A008A3' : 'rgba(0,0,0,0.6)' }}>Pick date</Text>
                   </TouchableOpacity>
                 </View>

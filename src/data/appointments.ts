@@ -44,7 +44,7 @@ export function cancelAppointment(partyId: string): void {
 }
 
 export function getTimeSlotLabel(slot: TimeSlot): string {
-  if (slot === 'morning') return '🌅 Morning (9–12)'
-  if (slot === 'afternoon') return '☀️ Afternoon (12–4)'
-  return '🌆 Evening (4–7)'
+  if (slot === 'morning') return 'Morning (9–12)'
+  if (slot === 'afternoon') return 'Afternoon (12–4)'
+  return 'Evening (4–7)'
 }

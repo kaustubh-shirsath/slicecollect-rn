@@ -170,7 +170,7 @@ export default function SettlementScreen({ navigation, route }: Props) {
 
   if (submitted) return (
     <View className="flex-1 bg-[#F0F4F7] items-center justify-center px-6">
-      <Text className="text-5xl mb-4">🤝</Text>
+      
       <Text className="text-[rgba(0,0,0,0.9)] text-xl font-bold mb-2">Settlement Raised</Text>
       <Text className="text-black/50 text-sm text-center mb-2">Sent to Branch Head for CBS review</Text>
       <View className="bg-[#FAE2FA] border border-[#D30AD7]/30 rounded-[24px] p-4 w-full mb-4 gap-1">
@@ -385,8 +385,7 @@ export default function SettlementScreen({ navigation, route }: Props) {
                         <Text style={{ fontSize: 11, fontWeight: '600', color: instDates[i] ? '#D30AD7' : 'rgba(0,0,0,0.4)' }}>
                           {instDates[i] ? formatDisplay(instDates[i]) : 'Pick date'}
                         </Text>
-                        <Text style={{ fontSize: 13 }}>🗓</Text>
-                      </TouchableOpacity>
+                        </TouchableOpacity>
                       <CalendarModal
                         visible={openCalIdx === i}
                         onClose={() => setOpenCalIdx(null)}
@@ -420,12 +419,12 @@ export default function SettlementScreen({ navigation, route }: Props) {
               </View>
               {isBalanced && sAmount > 0 && (
                 <View className="bg-green-50 rounded-xl p-2 mt-1" style={{ borderWidth: 1, borderColor: '#86EFAC' }}>
-                  <Text className="text-[#00A63E] text-xs font-medium">✅ Amounts balanced</Text>
+                  <Text className="text-[#00A63E] text-xs font-medium">Amounts balanced</Text>
                 </View>
               )}
               {!isBalanced && sAmount > 0 && (
                 <View className="bg-red-50 rounded-xl p-2 mt-1" style={{ borderWidth: 1, borderColor: '#FCA5A5' }}>
-                  <Text className="text-[#EF4444] text-xs font-medium">❌ Total ({fmt(totalCheck)}) ≠ Settlement ({fmt(sAmount)})</Text>
+                  <Text className="text-[#EF4444] text-xs font-medium">Total ({fmt(totalCheck)}) ≠ Settlement ({fmt(sAmount)})</Text>
                 </View>
               )}
             </View>
@@ -444,7 +443,6 @@ export default function SettlementScreen({ navigation, route }: Props) {
             <Text style={{ color: '#D30AD7', fontWeight: '600' }}>✓ Settlement form attached</Text>
           ) : (
             <>
-              <Text style={{ fontSize: 24 }}>📄</Text>
               <Text style={{ color: '#D30AD7', fontWeight: '600', marginTop: 4 }}>Upload Settlement Form</Text>
               <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>Photo or gallery</Text>
             </>

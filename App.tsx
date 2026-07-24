@@ -153,7 +153,7 @@ function MainTabs() {
         name="Allocations"
         component={AllocationsScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="Cases" emoji="📋" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon label="Cases" emoji="▤" focused={focused} />,
         }}
       />
       <Tab.Screen

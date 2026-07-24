@@ -44,7 +44,6 @@ export default function LeaderboardCard({ myUsername }: { myUsername?: string })
       {/* Header */}
       <View className="flex-row items-center justify-between mb-4">
         <View className="flex-row items-center gap-2">
-          <Text style={{ fontSize: 15 }}>🏆</Text>
           <View>
             <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-sm">Leaderboard</Text>
             <Text className="text-[10px] text-black/40">Monthly collections</Text>

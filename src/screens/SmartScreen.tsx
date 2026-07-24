@@ -261,7 +261,7 @@ export default function SmartScreen({ navigation }: Props) {
                             {stop.appointmentSlot && (
                               <View style={{ backgroundColor: '#FFF3E0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
                                 <Text style={{ fontSize: 10, color: '#A35300', fontWeight: '500' }}>
-                                  🕐 {stop.appointmentSlot === 'morning' ? '9–12' : stop.appointmentSlot === 'afternoon' ? '12–4' : '4–7'}
+                                  {stop.appointmentSlot === 'morning' ? '9–12' : stop.appointmentSlot === 'afternoon' ? '12–4' : '4–7'}
                                 </Text>
                               </View>
                             )}
@@ -315,7 +315,6 @@ export default function SmartScreen({ navigation }: Props) {
 
           {pendingStops.length === 0 && totalVisited > 0 && (
             <View className="items-center py-8">
-              <Text className="text-2xl mb-2">🎉</Text>
               <Text className="text-sm font-medium text-black/60">All visits done for today</Text>
             </View>
           )}

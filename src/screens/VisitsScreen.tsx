@@ -67,6 +67,7 @@ export default function VisitsScreen({ navigation }: Props) {
   const [statusTab, setStatusTab] = useState<StatusTab>(hasBankCases ? 'Cash in Hand' : 'Collections')
   const [depositing, setDepositing] = useState(false)
   const [toast, setToast] = useState('')
+  const [lastDeposit, setLastDeposit] = useState<{ amount: number; date: string } | null>(null)
 
   const allEntries = useMemo(() => {
     if (!agentInfo) return []
@@ -164,6 +165,7 @@ export default function VisitsScreen({ navigation }: Props) {
   async function handleDeposit() {
     if (!agentInfo || cashToDeposit <= 0 || depositing) return
     setDepositing(true)
+    const depositedAmount = cashToDeposit
     await new Promise(res => setTimeout(res, 900))
     const depositId = 'DP' + Date.now()
     for (const c of ALL_CUSTOMERS.filter((c: any) => c.username === agentInfo.username)) {
@@ -179,6 +181,9 @@ export default function VisitsScreen({ navigation }: Props) {
     setDepositing(false)
     setToast('Maker entry created — pending checker approval')
     setTimeout(() => setToast(''), 3000)
+    const d = new Date()
+    const dateStr = [d.getDate(), d.getMonth() + 1, d.getFullYear() % 100].map(n => String(n).padStart(2, '0')).join('-')
+    setLastDeposit({ amount: depositedAmount, date: dateStr })
   }
 
   return (
@@ -274,7 +279,6 @@ export default function VisitsScreen({ navigation }: Props) {
         <View className="px-4 py-3 gap-3">
           {dateSections.length === 0 ? (
             <View className="bg-white rounded-[24px] p-8 items-center" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
-              <Text className="text-black/20 text-3xl mb-2">📋</Text>
               <Text className="text-black/50 text-sm">No {statusTab.toLowerCase()} entries</Text>
             </View>
           ) : (
@@ -358,9 +362,17 @@ export default function VisitsScreen({ navigation }: Props) {
 
       {toast ? (
         <View className="absolute bottom-24 self-center bg-[#00A63E] rounded-full px-5 py-3" style={{ elevation: 8 }}>
-          <Text className="text-white text-sm font-medium">✓ {toast}</Text>
+          <Text className="text-white text-sm font-medium">{toast}</Text>
         </View>
       ) : null}
+
+      {lastDeposit && (
+        <View className="absolute bottom-0 left-0 right-0 bg-[rgba(0,0,0,0.85)] px-5 py-3" style={{ elevation: 8 }}>
+          <Text className="text-white text-xs text-center font-medium">
+            {fmt(lastDeposit.amount)} has been deposited on {lastDeposit.date}
+          </Text>
+        </View>
+      )}
     </SafeAreaView>
   )
 }

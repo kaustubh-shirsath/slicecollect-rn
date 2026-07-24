@@ -168,7 +168,6 @@ export default function LoginScreen({ navigation }: Props) {
             <View className="w-10 h-1 bg-black/10 rounded-full mx-auto mb-5" />
             {forgotSent ? (
               <View className="items-center py-4">
-                <Text className="text-4xl mb-3">📩</Text>
                 <Text className="text-base font-semibold text-[rgba(0,0,0,0.9)] mb-1">Reset link sent</Text>
                 <Text className="text-xs text-black/45 text-center leading-relaxed mb-6">
                   If an account exists for this username, a password reset link has been sent to the registered email/mobile.

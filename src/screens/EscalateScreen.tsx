@@ -11,7 +11,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Escalate'>
 
 type Category = {
   id: string
-  icon: string
   title: string
   subtitle: string
   fields: Field[]
@@ -29,7 +28,7 @@ type Field = {
 const CATEGORIES: Category[] = [
   {
     id: 'user_fraud',
-    icon: '🚨',
+    
     title: 'Report User Fraud',
     subtitle: 'Flag suspicious or fraudulent activity by this customer',
     fields: [
@@ -40,7 +39,7 @@ const CATEGORIES: Category[] = [
   },
   {
     id: 'incorrect_details',
-    icon: '📝',
+    
     title: 'Incorrect User Details',
     subtitle: 'Report wrong name, contact, address or loan data',
     fields: [
@@ -51,7 +50,7 @@ const CATEGORIES: Category[] = [
   },
   {
     id: 'other',
-    icon: '💬',
+    
     title: 'Other Feedback',
     subtitle: 'Anything else about this customer',
     fields: [
@@ -89,7 +88,7 @@ export default function EscalateScreen({ navigation, route }: Props) {
       <View className="flex-1 bg-[#F0F4F7] items-center justify-center px-8">
         <View className="bg-white rounded-2xl p-8 items-center gap-4 w-full" style={{ shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 }}>
           <View className="w-16 h-16 rounded-full bg-[#DCFCE7] items-center justify-center">
-            <Text style={{ fontSize: 28 }}>✅</Text>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: '#166534' }}>✓</Text>
           </View>
           <Text className="text-[rgba(0,0,0,0.9)] text-lg font-semibold text-center">Request Submitted</Text>
           <Text className="text-black/50 text-sm text-center leading-relaxed">
@@ -143,9 +142,6 @@ export default function EscalateScreen({ navigation, route }: Props) {
                   className="bg-white rounded-2xl px-4 py-4 flex-row items-center gap-4"
                   style={{ shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
                 >
-                  <View className="w-11 h-11 rounded-xl bg-[#F0F4F7] items-center justify-center">
-                    <Text style={{ fontSize: 20 }}>{cat.icon}</Text>
-                  </View>
                   <View className="flex-1">
                     <Text className="text-[rgba(0,0,0,0.9)] font-semibold text-sm">{cat.title}</Text>
                     <Text className="text-black/40 text-xs mt-0.5">{cat.subtitle}</Text>
@@ -159,9 +155,6 @@ export default function EscalateScreen({ navigation, route }: Props) {
           <View className="gap-4">
             {/* Category header card */}
             <View className="bg-white rounded-2xl px-4 py-4 flex-row items-center gap-4" style={{ shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
-              <View className="w-11 h-11 rounded-xl bg-[#FAE2FA] items-center justify-center">
-                <Text style={{ fontSize: 20 }}>{selected.icon}</Text>
-              </View>
               <View className="flex-1">
                 <Text className="text-[rgba(0,0,0,0.9)] font-semibold text-sm">{selected.title}</Text>
                 <Text className="text-black/40 text-xs mt-0.5">{selected.subtitle}</Text>

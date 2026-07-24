@@ -13,7 +13,7 @@ import { getCCBill } from '../data/ccBills'
 import { submitWaiverRequest } from '../data/waiverRequests'
 import { getActiveSettlement } from '../data/settlementUsers'
 import { Customer } from '../data/customers'
-import { PRODUCT_LABEL, PRODUCT_EMOJI, PRODUCT_COLORS } from '../utils/productLabels'
+import { PRODUCT_LABEL, PRODUCT_COLORS } from '../utils/productLabels'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Disposition'>
 
@@ -65,11 +65,11 @@ export default function DispositionScreen(props: Props) {
 
 type BankCategory = 'Collected' | 'Contacted Positive' | 'Contacted Negative' | 'Non-Contacted'
 
-const BANK_CATEGORIES: { label: BankCategory; icon: string; color: string; bg: string }[] = [
-  { label: 'Collected',          icon: '✓',  color: '#166534', bg: '#F0FDF4' },
-  { label: 'Contacted Positive', icon: '📅', color: '#1D4ED8', bg: '#EFF6FF' },
-  { label: 'Contacted Negative', icon: '⚡', color: '#92400E', bg: '#FFF7ED' },
-  { label: 'Non-Contacted',      icon: '📵', color: '#374151', bg: '#F3F4F6' },
+const BANK_CATEGORIES: { label: BankCategory; color: string; bg: string }[] = [
+  { label: 'Collected',          color: '#166534', bg: '#F0FDF4' },
+  { label: 'Contacted Positive', color: '#1D4ED8', bg: '#EFF6FF' },
+  { label: 'Contacted Negative', color: '#92400E', bg: '#FFF7ED' },
+  { label: 'Non-Contacted',      color: '#374151', bg: '#F3F4F6' },
 ]
 
 const BANK_SUBCODES: Record<BankCategory, { code: string; label: string }[]> = {
@@ -500,12 +500,14 @@ function BankDispositionScreen({ navigation, route }: Props) {
           <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 20, elevation: 1 }}>
             <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>What Happens Next</Text>
             {[
-              [`${checkerRole} reviews your waiver request`, '📋'],
-              ['On approval, payment link is auto-sent to customer', '🔗'],
-              ['Disposition marked complete on payment', '✅'],
-            ].map(([text, icon]) => (
+              `${checkerRole} reviews your waiver request`,
+              'On approval, payment link is auto-sent to customer',
+              'Disposition marked complete on payment',
+            ].map((text, i) => (
               <View key={text} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-                <Text style={{ fontSize: 16 }}>{icon}</Text>
+                <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#F0F4F7', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(0,0,0,0.5)' }}>{i + 1}</Text>
+                </View>
                 <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.7)', flex: 1 }}>{text}</Text>
               </View>
             ))}
@@ -526,7 +528,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7', alignItems: 'center', justifyContent: 'center', padding: 24 }} edges={['top', 'bottom']}>
       <View style={{ backgroundColor: '#fff', borderRadius: 24, padding: 32, width: '100%', alignItems: 'center', elevation: 2 }}>
         <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#E0F4E8', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-          <Text style={{ fontSize: 28 }}>✅</Text>
+          <Text style={{ fontSize: 28, fontWeight: '700', color: '#00A63E' }}>✓</Text>
         </View>
         <Text style={{ fontSize: 18, fontWeight: '700', color: 'rgba(0,0,0,0.9)', marginBottom: 4 }}>Disposition Submitted</Text>
         <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', marginBottom: 20 }}>Recorded for {c.name}</Text>
@@ -571,7 +573,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
         </View>
         <View style={{ backgroundColor: PRODUCT_COLORS[userType].bg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
           <Text style={{ fontSize: 11, color: PRODUCT_COLORS[userType].text, fontWeight: '700' }}>
-            {PRODUCT_EMOJI[userType]} {PRODUCT_LABEL[userType]}
+            {PRODUCT_LABEL[userType]}
           </Text>
         </View>
       </View>
@@ -589,7 +591,6 @@ function BankDispositionScreen({ navigation, route }: Props) {
             {/* Active settlement banner */}
             {activeSettlement && (
               <View style={{ backgroundColor: '#FEF3C7', borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(180,83,9,0.25)' }}>
-                <Text style={{ fontSize: 16 }}>🔒</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: '#92400E' }}>Active Settlement — {activeSettlement.settlementId}</Text>
                   <Text style={{ fontSize: 11, color: '#92400E', marginTop: 1 }}>
@@ -629,7 +630,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                       elevation: selected ? 2 : 1,
                     }}
                   >
-                    <Text style={{ fontSize: 22, marginBottom: 8 }}>{tile.icon}</Text>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tile.color, marginBottom: 8 }} />
                     <Text style={{ fontSize: 13, fontWeight: selected ? '700' : '500', color: selected ? tile.color : 'rgba(0,0,0,0.75)' }}>{tile.label}</Text>
                   </TouchableOpacity>
                 )
@@ -794,7 +795,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)' }}>Amount (system calculated)</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.85)' }}>{fmt(grossAmount)}</Text>
-                      <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)' }}>🔒</Text>
+                      <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.35)', fontWeight: '600' }}>LOCKED</Text>
                     </View>
                   </View>
                 )}
@@ -891,7 +892,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                             <Text style={{ fontSize: 13, color: '#92400E', fontWeight: '700' }}>Net Collectible</Text>
                             <Text style={{ fontSize: 15, color: '#92400E', fontWeight: '800' }}>{fmt(netCollectible)}</Text>
                           </View>
-                          <Text style={{ fontSize: 10, color: '#B45309', marginTop: 4 }}>⚠ Waiver goes to {checkerRole} for approval before payment is made</Text>
+                          <Text style={{ fontSize: 10, color: '#B45309', marginTop: 4 }}>Waiver goes to {checkerRole} for approval before payment is made</Text>
                         </View>
                       ) : (
                         grossAmount > 0 && (
@@ -923,7 +924,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                             style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: paymentMode === mode ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: paymentMode === mode ? '#FAE2FA' : '#fff', opacity: cashDisabled ? 0.35 : 1 }}
                           >
                             <Text style={{ fontSize: 12, fontWeight: paymentMode === mode ? '600' : '400', color: paymentMode === mode ? '#A008A3' : 'rgba(0,0,0,0.7)' }}>
-                              {mode === 'Cash' ? '💵 Cash' : '🔗 Payment Link'}
+                              {mode}
                             </Text>
                           </TouchableOpacity>
                         )
@@ -955,7 +956,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     <Text style={{ fontSize: 14, color: ptpDate ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.3)' }}>
                       {ptpDate || 'Select date'}
                     </Text>
-                    <Text style={{ fontSize: 16 }}>🗓</Text>
+                    <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.35)' }}>▾</Text>
                   </TouchableOpacity>
                   <Modal visible={showDateModal} transparent animationType="slide" onRequestClose={() => setShowDateModal(false)}>
                     <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={() => setShowDateModal(false)}>
@@ -1205,7 +1206,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
               }}
             >
               <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: photoCaptured ? '#F0FDF4' : '#FEF2F2', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 18 }}>{photoCaptured ? '✅' : '📷'}</Text>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: photoCaptured ? '#166534' : '#991B1B' }}>{photoCaptured ? '✓' : '+'}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 13, fontWeight: '600', color: photoCaptured ? '#166534' : '#991B1B' }}>
