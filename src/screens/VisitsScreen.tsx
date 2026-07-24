@@ -9,6 +9,7 @@ import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { ALL_CUSTOMERS } from '../data/customers'
 import { getActivity, updateActivity } from '../data/activityLog'
+import { getCustomerRef } from '../data/caseMeta'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Visits'>,
@@ -100,6 +101,7 @@ export default function VisitsScreen({ navigation }: Props) {
           customerMobile: c.mobile || '',
           branchName: c.branch,
           product: c.product,
+          userType: c.userType,
         }]
       })
       .sort((a: any, b: any) => b.date.getTime() - a.date.getTime())
@@ -330,6 +332,8 @@ export default function VisitsScreen({ navigation }: Props) {
                               partyId: e.partyId,
                               customerName: e.customerName,
                               customerMobile: e.customerMobile || '',
+                              refLabel: getCustomerRef(e.partyId, e.userType).label,
+                              refValue: getCustomerRef(e.partyId, e.userType).value,
                               dispositionType: e.type,
                               actionType: e.type,
                               amount: e.amount,

@@ -11,7 +11,7 @@ import { getAppointmentForCustomer, setAppointment, cancelAppointment, getTimeSl
 import { getActiveSettlement } from '../data/settlementUsers'
 import { useAgent } from '../navigation/AgentContext'
 import ProductTag from '../components/ProductTag'
-import { getRiskBand, getRemarks } from '../data/caseMeta'
+import { getRiskBand, getRemarks, getCustomerRef } from '../data/caseMeta'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>
 
@@ -266,7 +266,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   </View>
                 )}
               </View>
-              <Text className="text-black/40 text-[10px] font-mono mt-0.5">{c.partyId}</Text>
+              <Text className="text-black/40 text-[10px] font-mono mt-0.5">{getCustomerRef(c.partyId, c.userType).value}</Text>
               <View className="flex-row items-center gap-1.5 mt-1.5 flex-wrap">
                 <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                   <Text className="text-[10px] font-semibold" style={{ color: bc.text }}>
@@ -404,7 +404,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                 <View key={i} className="px-4 py-2.5" style={i < visiblePhones.length - 1 || allPhones.length > 1 ? { borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' } : {}}>
                   <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-2">{ph.label}</Text>
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-sm font-semibold text-[rgba(0,0,0,0.9)] tracking-wide">{ph.number}</Text>
+                    <Text className="text-sm font-semibold text-[rgba(0,0,0,0.9)] tracking-wide">XXXXXX{ph.number.slice(-4)}</Text>
                     <View className="flex-row items-center gap-2">
                       <TouchableOpacity onPress={() => handleCall(ph.number)} className="w-9 h-9 rounded-full bg-[#D30AD7] items-center justify-center">
                         <Text className="text-white text-sm">Call</Text>

@@ -49,7 +49,7 @@ export default function ReceiptScreen({ navigation, route }: Props) {
   const altMobile = (receipt.alternateMobile || '').replace(/\D/g, '')
 
   function shareWhatsApp() {
-    const text = `slice — Collection Confirmation\nCustomer: ${receipt.customerName}\nCIF: ${receipt.partyId}\nAmount: ${fmt(receipt.amount)}\nMode: ${receipt.paymentMode}\nBranch: ${receipt.branchName}\nDate: ${dateStr}, ${timeStr}\nCollected by: ${receipt.agentName || agentInfo?.name || ''}`
+    const text = `slice — Collection Confirmation\nCustomer: ${receipt.customerName}\n${receipt.refLabel || 'CIF'}: ${receipt.refValue || receipt.partyId}\nAmount: ${fmt(receipt.amount)}\nMode: ${receipt.paymentMode}\nBranch: ${receipt.branchName}\nDate: ${dateStr}, ${timeStr}\nCollected by: ${receipt.agentName || agentInfo?.name || ''}`
     const target = registeredMobile ? `91${registeredMobile.slice(-10)}` : ''
     Linking.openURL(`https://wa.me/${target}?text=${encodeURIComponent(text)}`)
   }
@@ -105,7 +105,7 @@ export default function ReceiptScreen({ navigation, route }: Props) {
 
             {/* From customer */}
             <Text style={{ color: 'rgba(0,0,0,0.85)', fontSize: 22, fontWeight: '700', marginTop: 14 }}>From {receipt.customerName}</Text>
-            <Text style={{ color: 'rgba(0,0,0,0.4)', fontSize: 14, marginTop: 4 }}>CIF: {receipt.partyId}</Text>
+            <Text style={{ color: 'rgba(0,0,0,0.4)', fontSize: 12, marginTop: 4 }}>{receipt.refLabel || 'CIF'}: {receipt.refValue || receipt.partyId}</Text>
 
             <Text style={{ color: 'rgba(0,0,0,0.4)', fontSize: 14, marginTop: 14 }}>{dateStr}, {timeStr}</Text>
 

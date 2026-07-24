@@ -12,6 +12,7 @@ import { getBorrowData } from '../data/emis'
 import { getCCBill } from '../data/ccBills'
 import { submitWaiverRequest } from '../data/waiverRequests'
 import { getActiveSettlement, markInstalmentPaid } from '../data/settlementUsers'
+import { getCustomerRef } from '../data/caseMeta'
 import { Customer } from '../data/customers'
 import { PRODUCT_LABEL, PRODUCT_COLORS } from '../utils/productLabels'
 
@@ -334,6 +335,8 @@ function BankDispositionScreen({ navigation, route }: Props) {
         partyId: c.partyId,
         customerName: c.name,
         customerMobile: c.mobile || '',
+        refLabel: getCustomerRef(c.partyId, userType).label,
+        refValue: getCustomerRef(c.partyId, userType).value,
         dispositionType: category || '',
         actionType: isCollected ? paymentType : subcode,
         amount: netCollectible,
@@ -409,7 +412,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
 
   // ── Bank post-submit screens ──────────────────────────────────────────────
   if (bankPostState === 'payment_link_sent') {
-    const maskedMobile = c.mobile ?? ''
+    const maskedMobile = 'XXXXXX' + (c.mobile ?? '').slice(-4)
     const refNo = 'REF-' + String(c.partyId).slice(-6).toUpperCase() + '-' + String(Date.now()).slice(-6)
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F7' }}>
@@ -1119,7 +1122,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     keyboardType="phone-pad"
                     value={contactNumber}
                     onChangeText={t => setContactNumber(t.replace(/\D/g, '').slice(0, 10))}
-                    placeholder={c.mobile || '10-digit number'}
+                    placeholder={c.mobile ? 'XXXXXX' + c.mobile.slice(-4) : '10-digit number'}
                     placeholderTextColor="rgba(0,0,0,0.3)"
                     maxLength={10}
                     style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}

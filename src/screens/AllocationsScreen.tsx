@@ -16,7 +16,7 @@ import { getActivity } from '../data/activityLog'
 import { haversine } from '../data/routingEngine'
 import { getBorrowData } from '../data/emis'
 import { getCCBill } from '../data/ccBills'
-import { getRiskBand, getPriorityOrder } from '../data/caseMeta'
+import { getRiskBand, getPriorityOrder, getCustomerRef } from '../data/caseMeta'
 import { hasActiveSettlement } from '../data/settlementUsers'
 
 type Props = CompositeScreenProps<
@@ -241,7 +241,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
 
         <View className="flex-row items-start justify-between mt-1">
           <View className="flex-1 min-w-0 mr-3" style={{ paddingLeft: 32 }}>
-            <Text className="text-black/45 text-[11px] font-semibold">{c.partyId}</Text>
+            <Text className="text-black/45 text-[11px] font-semibold" numberOfLines={1}>{getCustomerRef(c.partyId, c.userType).value}</Text>
             <View className="flex-row items-center gap-2 mt-2 flex-wrap">
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                 <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>

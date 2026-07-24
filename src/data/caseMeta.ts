@@ -36,6 +36,17 @@ const REMARK_POOL = [
   'Multiple active loans across lenders, high existing indebtedness',
 ]
 
+// CC/Borrow customers are identified by UUID (from the LMS/card system); Loans by CIF.
+// Prototype derives a stable UUID from the partyId hash until the real field is wired in.
+export function getCustomerRef(partyId: string | number, userType?: string): { label: 'CIF' | 'UUID'; value: string } {
+  const pid = String(partyId)
+  if (userType !== 'cc' && userType !== 'borrow') return { label: 'CIF', value: pid }
+  let h1 = hashString(pid), h2 = hashString(pid + 'x'), h3 = hashString(pid + 'y'), h4 = hashString(pid + 'z')
+  const hex = (n: number, len: number) => n.toString(16).padStart(len, '0').slice(0, len)
+  const value = `${hex(h1, 8)}-${hex(h2, 4)}-11ec-${hex(h3, 4)}-${hex(h4, 8)}${hex(h1 ^ h2, 4)}`
+  return { label: 'UUID', value }
+}
+
 export function getRemarks(c: Customer): string {
   if (c.remarks) return c.remarks
   return REMARK_POOL[hashString(c.partyId + 'remarks') % REMARK_POOL.length]
