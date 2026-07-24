@@ -314,13 +314,13 @@ export default function VisitsScreen(_props: Props) {
           ))}
         </View>
 
-        {/* Overall total for the active tab — visually distinct from row values */}
+        {/* Overall total — slice History style: quiet label over one large centred figure */}
         {dateSections.length > 0 && (
-          <View className="mx-4 mt-3 rounded-2xl px-4 py-3.5 flex-row items-center justify-between" style={{ backgroundColor: '#FAE2FA', borderWidth: 1, borderColor: 'rgba(211,10,215,0.2)' }}>
-            <Text className="text-[11px] font-semibold" style={{ color: '#A008A3' }}>
-              {statusTab === 'Payment Link' ? 'TOTAL VIA PAYMENT LINK' : `TOTAL ${statusTab.toUpperCase()}`}
+          <View className="items-center pt-5 pb-2">
+            <Text className="text-[13px] text-black/40">
+              {statusTab === 'Payment Link' ? 'Total via payment link' : `Total ${statusTab.toLowerCase()}`}
             </Text>
-            <Text className="text-lg font-bold" style={{ color: '#A008A3' }}>
+            <Text style={{ fontSize: 38, fontWeight: '800', color: 'rgba(0,0,0,0.9)', letterSpacing: -1, marginTop: 2 }}>
               {statusTab === 'PTP Marked'
                 ? `${filteredEntries.length} case${filteredEntries.length === 1 ? '' : 's'}`
                 : fmt(overallTabTotal)}
@@ -338,8 +338,8 @@ export default function VisitsScreen(_props: Props) {
             dateSections.map(section => (
               <View key={section.key} className="gap-2">
                 {/* Date header — aligned with the row content padding */}
-                <View className="flex-row items-center px-4 pt-2">
-                  <Text className="flex-1 text-[13px] font-semibold text-[rgba(0,0,0,0.8)]">{section.label}</Text>
+                <View className="flex-row items-end px-4 pt-2">
+                  <Text className="flex-1 text-[16px] font-bold text-[rgba(0,0,0,0.85)]">{section.label}</Text>
                   <Text className="text-[11px] text-black/45">
                     {section.entries.length} case{section.entries.length > 1 ? 's' : ''}  ·  <Text className="font-semibold text-black/65">{fmt(section.entries.reduce((s: number, e: any) => s + tabAmount(e), 0))}</Text>
                   </Text>
@@ -374,7 +374,7 @@ export default function VisitsScreen(_props: Props) {
 
                   {/* Amount, time, then link status below the timestamp */}
                   <View className="items-end">
-                    <Text className="font-semibold text-[15px] text-[rgba(0,0,0,0.85)]" numberOfLines={1}>
+                    <Text className="font-semibold text-[15px]" style={{ color: statusTab === 'PTP Marked' ? 'rgba(0,0,0,0.85)' : '#0B9D48' }} numberOfLines={1}>
                       {statusTab === 'PTP Marked'
                         ? (e.ptpMarked > 0 ? fmt(e.ptpMarked) : '—')
                         : statusTab === 'Cash Deposited'
