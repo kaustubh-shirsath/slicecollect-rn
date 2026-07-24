@@ -17,6 +17,7 @@ import { haversine } from '../data/routingEngine'
 import { getBorrowData } from '../data/emis'
 import { getCCBill } from '../data/ccBills'
 import { getRiskBand, getPriorityOrder } from '../data/caseMeta'
+import { hasActiveSettlement } from '../data/settlementUsers'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Allocations'>,
@@ -204,9 +205,11 @@ export default function AllocationsScreen({ navigation, route }: Props) {
       : c.assetClassification
     const bc = getBucketColor(sliceBucket)
     const riskColor = c.risk === 'High' ? '#CE1D26' : c.risk === 'Medium' ? '#A35300' : '#007E2F'
-    // Status tag priority: Collected > PTP > Visited
+    // Status tag priority: Settlement > Collected > PTP > Visited
     const hasVisit = !!getActivity(c.partyId)?.latestDisposition
-    const statusTag = c.hasCollected
+    const statusTag = hasActiveSettlement(c.partyId)
+      ? { label: 'Settlement', bg: '#FEF3C7', color: '#92400E' }
+      : c.hasCollected
       ? { label: 'Collected', bg: '#E0F4E8', color: '#007E2F' }
       : c.hasPtp
       ? { label: 'PTP', bg: '#FFF0E0', color: '#A35300' }
@@ -220,18 +223,25 @@ export default function AllocationsScreen({ navigation, route }: Props) {
         style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}
         onPress={() => navigation.navigate('CustomerDetail', { customer: c, fromScreen: 'Allocations' })}
       >
-        <View className="flex-row items-start justify-between">
-          <View className="flex-1 min-w-0 mr-3">
-            <View className="flex-row items-center gap-1.5">
-              <Text className="text-[11px] font-bold text-[#A008A3]">#{c.priorityOrder}</Text>
-              <Text className="font-medium text-[rgba(0,0,0,0.9)] text-sm" numberOfLines={1}>{c.name}</Text>
-              {statusTag && (
-                <View className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: statusTag.bg }}>
-                  <Text className="text-[9px] font-medium" style={{ color: statusTag.color }}>{statusTag.label}</Text>
-                </View>
-              )}
-            </View>
-            <Text className="text-black/45 text-[11px] font-semibold mt-0.5">{c.partyId}</Text>
+        {/* Top row — fixed columns: rank (32) | name (flex) | status tag (fixed) | amount (right, 92) */}
+        <View className="flex-row items-center">
+          <View style={{ width: 32 }}>
+            <Text className="text-[11px] font-bold text-[#A008A3]">#{c.priorityOrder}</Text>
+          </View>
+          <Text className="flex-1 font-medium text-[rgba(0,0,0,0.9)] text-sm pr-2" numberOfLines={1}>{c.name}</Text>
+          <View style={{ width: 74, alignItems: 'center' }}>
+            {statusTag && (
+              <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: statusTag.bg }}>
+                <Text className="text-[9px] font-medium" style={{ color: statusTag.color }}>{statusTag.label}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={{ width: 92, textAlign: 'right' }} className="text-sm font-medium text-[#CE1D26]" numberOfLines={1}>{fmt(c.overdue ?? c.emiOs)}</Text>
+        </View>
+
+        <View className="flex-row items-start justify-between mt-1">
+          <View className="flex-1 min-w-0 mr-3" style={{ paddingLeft: 32 }}>
+            <Text className="text-black/45 text-[11px] font-semibold">{c.partyId}</Text>
             <View className="flex-row items-center gap-2 mt-2 flex-wrap">
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                 <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>
@@ -243,8 +253,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
             </View>
           </View>
-          <View className="items-end gap-2">
-            <Text className="text-sm font-medium text-[#CE1D26]">{fmt(c.overdue ?? c.emiOs)}</Text>
+          <View className="items-end justify-end">
             <TouchableOpacity
               onPress={() => navigation.navigate('CustomerDetail', { customer: c, fromScreen: 'Allocations' })}
               className="bg-[#D30AD7] px-3 py-1.5 rounded-full"

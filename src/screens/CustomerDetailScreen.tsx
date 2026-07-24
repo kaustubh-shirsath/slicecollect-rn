@@ -152,6 +152,34 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
     ? { lat: (lastPositiveVisit as any).lat, lng: (lastPositiveVisit as any).lng }
     : null
 
+  // Status flag — same precedence as the cases list: Settlement > Collected > PTP > Visited
+  const statusTag = activeSettlement
+    ? { label: 'Settlement', bg: '#FEF3C7', color: '#92400E' }
+    : amtCollected > 0
+    ? { label: 'Collected', bg: '#E0F4E8', color: '#007E2F' }
+    : latestDisp?.ptpDate
+    ? { label: 'PTP', bg: '#FFF0E0', color: '#A35300' }
+    : latestDisp
+    ? { label: 'Visited', bg: '#E8EDF2', color: '#3B5266' }
+    : null
+
+  // Instalment schedule derived from the active settlement record (equal split; paid rows first)
+  const settlementSchedule = activeSettlement
+    ? Array.from({ length: activeSettlement.instalmentCount }, (_, i) => {
+        const paid = i < activeSettlement.instalmentsPaid
+        const isNext = i === activeSettlement.instalmentsPaid
+        const due = new Date(activeSettlement.nextInstalmentDue)
+        due.setMonth(due.getMonth() + (i - activeSettlement.instalmentsPaid))
+        return {
+          no: i + 1,
+          amount: Math.round(activeSettlement.totalAmount / activeSettlement.instalmentCount),
+          dueDate: due.toISOString().split('T')[0],
+          paid,
+          isNext,
+        }
+      })
+    : []
+
   function handleCall(mobile: string) {
     if (!isCallAllowed()) {
       setCallBlocked(true)
@@ -171,6 +199,31 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
     const clean = mobile.replace(/\D/g, '')
     Linking.openURL(`https://wa.me/91${clean}`)
   }
+
+  // Settlement instalment schedule — rendered inside the Loan/Bill Summary card when a settlement is active
+  const settlementScheduleBlock = activeSettlement ? (
+    <View className="mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
+      <View className="flex-row items-center justify-between mb-2">
+        <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">Settlement Schedule</Text>
+        <Text className="text-[10px] text-black/40">{activeSettlement.settlementId} · {fmt(activeSettlement.totalAmount)}</Text>
+      </View>
+      {settlementSchedule.map(inst => (
+        <View key={inst.no} className="flex-row items-center py-2" style={{ borderBottomWidth: inst.no < settlementSchedule.length ? 0.5 : 0, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
+          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: inst.paid ? '#E0F4E8' : inst.isNext ? '#FEF3C7' : '#F0F4F7', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: inst.paid ? '#007E2F' : inst.isNext ? '#92400E' : 'rgba(0,0,0,0.4)' }}>
+              {inst.paid ? '✓' : inst.no}
+            </Text>
+          </View>
+          <Text className="text-xs text-[rgba(0,0,0,0.8)] font-medium ml-2.5 flex-1">Instalment {inst.no}</Text>
+          <Text className="text-[11px] text-black/40 w-[86px]">{inst.dueDate}</Text>
+          <Text className="text-xs font-semibold w-[76px] text-right" style={{ color: inst.paid ? '#007E2F' : 'rgba(0,0,0,0.8)' }}>{fmt(inst.amount)}</Text>
+        </View>
+      ))}
+      {settlementSchedule.some(i => i.isNext) && (
+        <Text className="text-[10px] text-[#92400E] mt-1.5">Next instalment {fmt(activeSettlement.nextInstalmentAmount)} due {activeSettlement.nextInstalmentDue}</Text>
+      )}
+    </View>
+  ) : null
 
   return (
     <View className="flex-1 bg-[#F0F4F7]">
@@ -197,7 +250,14 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
               <Text className="text-[#A008A3] font-bold text-base">{initials(c.name)}</Text>
             </View>
             <View className="flex-1 min-w-0">
-              <Text className="text-[rgba(0,0,0,0.9)] font-semibold text-base leading-tight" numberOfLines={1}>{c.name}</Text>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-[rgba(0,0,0,0.9)] font-semibold text-base leading-tight" numberOfLines={1}>{c.name}</Text>
+                {statusTag && (
+                  <View className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: statusTag.bg }}>
+                    <Text className="text-[9px] font-medium" style={{ color: statusTag.color }}>{statusTag.label}</Text>
+                  </View>
+                )}
+              </View>
               <Text className="text-black/40 text-[10px] font-mono mt-0.5">{c.partyId}</Text>
               <View className="flex-row items-center gap-1.5 mt-1.5 flex-wrap">
                 <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
@@ -226,29 +286,6 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
       )}
 
       <ScrollView className="flex-1 px-4 py-3" contentContainerStyle={{ gap: 12, paddingBottom: 120 }}>
-
-        {/* Active settlement tag */}
-        {activeSettlement && (
-          <View className="bg-[#FEF3C7] rounded-2xl px-3 py-2.5 flex-row items-center justify-between" style={{ borderWidth: 1, borderColor: 'rgba(180,83,9,0.25)' }}>
-            <View className="flex-row items-center gap-2">
-              <Text className="text-xs font-semibold text-[#92400E]">Active Settlement</Text>
-              <Text className="text-[10px] text-[#92400E]">{activeSettlement.instalmentsPaid}/{activeSettlement.instalmentCount} paid</Text>
-            </View>
-            <Text className="text-[10px] text-[#92400E]">Next: {fmt(activeSettlement.nextInstalmentAmount)} · {activeSettlement.nextInstalmentDue}</Text>
-          </View>
-        )}
-
-        {/* Last visit */}
-        {latestDisp && (
-          <View className="bg-white rounded-2xl px-3 py-2.5 flex-row items-center justify-between" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-            <View className="flex-row items-center gap-2">
-              <View className="w-1.5 h-1.5 rounded-full bg-[#D30AD7]" />
-              <Text className="text-[10px] text-black/40 uppercase tracking-wide">Last Visit</Text>
-              <Text className="text-xs font-medium text-[rgba(0,0,0,0.85)]">{latestDisp.code}</Text>
-            </View>
-            <Text className="text-[10px] text-black/40">{latestDisp.date}</Text>
-          </View>
-        )}
 
         {/* Last positive disposition location */}
         {lastPositiveVisit && (
@@ -310,6 +347,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                 ]}
               />
             ) : null}
+            {settlementScheduleBlock}
           </View>
         ) : (
           <>
@@ -339,6 +377,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                   ['Last Payment', c.lastPaymentDate || '—'],
                 ]}
               />
+              {settlementScheduleBlock}
             </View>
           </>
         )}
