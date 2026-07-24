@@ -68,8 +68,10 @@ export default function HomeScreen({ navigation }: Props) {
           <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-3">Portfolio Overview</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {[
-              { label: 'POS Allocated', value: fmtL(totalOverdue) },
+              { label: 'Total Allocated', value: String(homeData.totalCases) },
+              { label: 'Pending Cases', value: String(homeData.pendingVisits) },
               { label: 'Visited Cases', value: String(homeData.totalCases - homeData.pendingVisits) },
+              { label: 'POS Allocated', value: fmtL(totalOverdue) },
               { label: 'Collected Today', value: fmtL(homeData.collectedToday) },
               { label: 'Amount Due', value: fmtL(totalOverdue) },
             ].map(tile => (
