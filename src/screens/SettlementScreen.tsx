@@ -184,13 +184,28 @@ export default function SettlementScreen({ navigation, route }: Props) {
           <View style={{ width: '100%', gap: 10 }}>
             {[
               ['Customer', c.name],
-              ['Instalments', String(installments)],
               ['Repayment Mode', mode],
               ['Reason', reason],
             ].map(([k, v]) => (
               <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12 }}>{k}</Text>
                 <Text style={{ color: 'rgba(0,0,0,0.85)', fontSize: 12, fontWeight: '600', maxWidth: '60%', textAlign: 'right' }}>{v}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Agreed instalment schedule */}
+          <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', width: '100%', marginVertical: 18 }} />
+          <View style={{ width: '100%' }}>
+            <Text style={{ color: 'rgba(0,0,0,0.45)', fontSize: 11, letterSpacing: 1, marginBottom: 10 }}>SETTLEMENT SCHEDULE</Text>
+            {instAmounts.slice(0, installments).map((amt, i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: 'rgba(0,0,0,0.05)' }}>
+                <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: 'rgba(0,0,0,0.5)' }}>{i + 1}</Text>
+                </View>
+                <Text style={{ flex: 1, marginLeft: 10, fontSize: 12, fontWeight: '500', color: 'rgba(0,0,0,0.8)' }}>Instalment {i + 1}</Text>
+                <Text style={{ width: 86, fontSize: 11, color: 'rgba(0,0,0,0.4)' }}>{instDates[i] ? formatDisplay(instDates[i]) : '—'}</Text>
+                <Text style={{ width: 76, textAlign: 'right', fontSize: 12, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>{fmt(amt)}</Text>
               </View>
             ))}
           </View>
