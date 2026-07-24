@@ -9,7 +9,7 @@ import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { ALL_CUSTOMERS } from '../data/customers'
 import { getActivity, updateActivity } from '../data/activityLog'
-import { getCustomerRef, getPaymentLinkStatus, formatName } from '../data/caseMeta'
+import { getCustomerRef, getPaymentLinkStatus, formatName, fmtDate } from '../data/caseMeta'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Visits'>,
@@ -148,7 +148,7 @@ export default function VisitsScreen(_props: Props) {
           key,
           label: e.date.toDateString() === today
             ? 'Today'
-            : e.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+            : fmtDate(e.date),
           date: e.date,
           entries: [],
         }
@@ -203,9 +203,7 @@ export default function VisitsScreen(_props: Props) {
       updateActivity(c.partyId, { collections: updated })
     }
     setDepositing(false)
-    const d = new Date()
-    const dateStr = [d.getDate(), d.getMonth() + 1, d.getFullYear() % 100].map(n => String(n).padStart(2, '0')).join('-')
-    setLastDeposit({ amount: depositedAmount, date: dateStr })
+    setLastDeposit({ amount: depositedAmount, date: fmtDate(new Date()) })
   }
 
   return (
@@ -215,7 +213,7 @@ export default function VisitsScreen(_props: Props) {
         <View>
           <Text className="text-[rgba(0,0,0,0.9)] font-medium text-xl">My Collections</Text>
           <Text className="text-black/40 text-xs mt-0.5">
-            {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+            {fmtDate(new Date())}
           </Text>
         </View>
       </View>
@@ -360,14 +358,14 @@ export default function VisitsScreen(_props: Props) {
                   <View className="flex-1 min-w-0 pr-2">
                     <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight" numberOfLines={1}>{formatName(e.name)}</Text>
                     <Text className="text-[11px] mt-1" numberOfLines={1}>
+                      <Text className="text-black/40">{maskedId}</Text>
+                      {e.type ? <Text className="text-black/30">  •  </Text> : null}
                       {e.type ? (
                         <Text className="font-medium" style={{ color: '#D30AD7' }}>{statusTab === 'PTP Marked' ? 'PTP' : e.type}</Text>
                       ) : null}
-                      {e.type ? <Text className="text-black/30">  •  </Text> : null}
-                      <Text className="text-black/40">{maskedId}</Text>
                     </Text>
                     {statusTab === 'PTP Marked' && e.ptpDate ? (
-                      <Text className="text-[10px] text-black/45 mt-1">Due {e.ptpDate}</Text>
+                      <Text className="text-[10px] text-black/45 mt-1">Due {fmtDate(e.ptpDate)}</Text>
                     ) : null}
                   </View>
 

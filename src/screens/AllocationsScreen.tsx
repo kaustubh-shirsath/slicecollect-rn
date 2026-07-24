@@ -8,7 +8,6 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
-import ProductTag from '../components/ProductTag'
 import { PRODUCT_LABEL, type ProductType } from '../utils/productLabels'
 import { useAllocations } from '../hooks/useAllocations'
 import { getBucketColor } from '../utils/bucketColors'
@@ -219,7 +218,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     const sliceBucket = c.userType === 'borrow' ? (getBorrowData(c.partyId)?.bucketLabel ?? c.assetClassification)
       : c.userType === 'cc' ? (getCCBill(c.partyId)?.bucketLabel ?? c.assetClassification)
       : c.assetClassification
-    const bc = getBucketColor(sliceBucket)
     const riskColor = c.risk === 'High' ? '#CE1D26' : c.risk === 'Medium' ? '#A35300' : '#007E2F'
     // Status tag priority: Settlement > Collected > PTP > Visited
     const hasVisit = !!getActivity(c.partyId)?.latestDisposition
@@ -260,16 +258,14 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                 </View>
               )}
             </View>
-            <View className="flex-row items-center gap-2 mt-2 flex-wrap">
-              <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
-                <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>
-              </View>
-              <ProductTag userType={c.userType} />
-              <Text className="text-[10px] font-medium" style={{ color: riskColor }}>
-                {c.risk} Risk
-              </Text>
-              <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
-            </View>
+            {/* Jio-style meta line: bucket • product • risk • distance */}
+            <Text className="text-[11px] mt-1.5" numberOfLines={1}>
+              <Text className="font-medium" style={{ color: '#D30AD7' }}>{sliceBucket} • {PRODUCT_LABEL[(c.userType || 'bank') as ProductType]}</Text>
+              <Text className="text-black/30">  •  </Text>
+              <Text className="font-medium" style={{ color: riskColor }}>{c.risk} Risk</Text>
+              <Text className="text-black/30">  •  </Text>
+              <Text className="text-black/40">{c.distKm} km</Text>
+            </Text>
           </View>
           <View style={{ width: 78, alignItems: 'center', justifyContent: 'center' }}>
             <TouchableOpacity
@@ -386,7 +382,8 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             {activeCount > 0 && (
               <TouchableOpacity
                 onPress={() => { setStageFilter([]); setVisitedFilter('all'); setCollectedFilter('all'); setRiskFilter('all'); setPtpFilter('all'); setDistFilter('all'); closeDropdown() }}
-                className="px-3 py-1.5 rounded-full bg-[#F9E4E5]"
+                className="px-3 rounded-full bg-[#F9E4E5] items-center justify-center"
+                style={{ height: 36 }}
               >
                 <Text className="text-xs font-medium text-[#CE1D26]">Clear all</Text>
               </TouchableOpacity>

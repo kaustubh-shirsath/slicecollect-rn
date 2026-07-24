@@ -11,7 +11,7 @@ import { getAppointmentForCustomer, setAppointment, cancelAppointment, getTimeSl
 import { getActiveSettlement } from '../data/settlementUsers'
 import { useAgent } from '../navigation/AgentContext'
 import ProductTag from '../components/ProductTag'
-import { getRiskBand, getRemarks, getCustomerRef, formatName } from '../data/caseMeta'
+import { getRiskBand, getRemarks, getCustomerRef, formatName, fmtDate } from '../data/caseMeta'
 import Svg, { Path } from 'react-native-svg'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>
@@ -224,12 +224,12 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: inst.isNext ? '#92400E' : 'rgba(0,0,0,0.2)', backgroundColor: 'transparent' }} />
           )}
           <Text className="text-xs text-[rgba(0,0,0,0.8)] font-medium ml-2.5 flex-1">Instalment {inst.no}</Text>
-          <Text className="text-[11px] text-black/40 w-[86px]">{inst.dueDate}</Text>
+          <Text className="text-[11px] text-black/40 w-[86px]">{fmtDate(inst.dueDate)}</Text>
           <Text className="text-xs font-semibold w-[76px] text-right" style={{ color: inst.paid ? '#007E2F' : 'rgba(0,0,0,0.8)' }}>{fmt(inst.amount)}</Text>
         </View>
       ))}
       {settlementSchedule.some(i => i.isNext) && (
-        <Text className="text-[10px] text-[#92400E] mt-1.5">Next instalment {fmt(activeSettlement.nextInstalmentAmount)} due {activeSettlement.nextInstalmentDue}</Text>
+        <Text className="text-[10px] text-[#92400E] mt-1.5">Next instalment {fmt(activeSettlement.nextInstalmentAmount)} due {fmtDate(activeSettlement.nextInstalmentDue)}</Text>
       )}
     </View>
   ) : null
@@ -307,7 +307,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             <View className="flex-row items-center gap-2 flex-1">
               <Text className="text-[10px] text-black/40 uppercase tracking-wide">Last +ve Disposition</Text>
               <Text className="text-xs font-medium text-[rgba(0,0,0,0.85)]" numberOfLines={1}>
-                {lastPositiveVisit.dispositionType.split('—')[0].trim()} · {lastPositiveVisit.date}
+                {lastPositiveVisit.dispositionType.split('—')[0].trim()} · {fmtDate(lastPositiveVisit.date)}
               </Text>
             </View>
             {lastPositiveLocation

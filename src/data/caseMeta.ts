@@ -40,7 +40,7 @@ const REMARK_POOL = [
 // Prototype derives a stable UUID from the partyId hash until the real field is wired in.
 export function getCustomerRef(partyId: string | number, userType?: string): { label: 'CIF' | 'UUID'; value: string; masked: string } {
   const pid = String(partyId)
-  const mask = (v: string) => v.length <= 8 ? v : v.slice(0, 4) + '\u00b7\u00b7\u00b7\u00b7' + v.slice(-4)
+  const mask = (v: string) => v.length <= 8 ? v : v.slice(0, 4) + 'xxx' + v.slice(-4)
   if (userType !== 'cc' && userType !== 'borrow') return { label: 'CIF', value: pid, masked: mask(pid) }
   let h1 = hashString(pid), h2 = hashString(pid + 'x'), h3 = hashString(pid + 'y'), h4 = hashString(pid + 'z')
   const hex = (n: number, len: number) => n.toString(16).padStart(len, '0').slice(0, len)
@@ -66,4 +66,14 @@ export function getPaymentLinkStatus(receiptId: string): PaymentLinkStatus {
 // Display names arrive UPPERCASE from the allocation file — render as Title Case.
 export function formatName(name: string): string {
   return (name || '').toLowerCase().replace(/(^|[\s.'-])\w/g, ch => ch.toUpperCase())
+}
+
+// Uniform date display: 24 Jul '26
+export function fmtDate(d: Date | string): string {
+  const date = typeof d === 'string' ? new Date(d) : d
+  if (isNaN(date.getTime())) return String(d)
+  const day = date.toLocaleDateString('en-IN', { day: '2-digit' })
+  const mon = date.toLocaleDateString('en-IN', { month: 'short' })
+  const yr = String(date.getFullYear() % 100).padStart(2, '0')
+  return `${day} ${mon} '${yr}`
 }
