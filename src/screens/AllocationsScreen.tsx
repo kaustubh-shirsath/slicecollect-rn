@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  View, Text, TouchableOpacity, ScrollView, TextInput, FlatList,
+  View, Text, TouchableOpacity, ScrollView, TextInput, FlatList, Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { CompositeScreenProps } from '@react-navigation/native'
@@ -31,37 +31,80 @@ type PtpFilter = 'all' | 'yes' | 'no'
 type YesNoFilter = 'all' | 'yes' | 'no'
 type RiskFilter = 'all' | 'High' | 'Medium' | 'Low'
 
-const DIST_OPTIONS: { id: DistFilter; label: string }[] = [
-  { id: 'all', label: 'Any distance' },
-  { id: 'lt2', label: '< 2 km' },
-  { id: 'lt5', label: '< 5 km' },
-  { id: 'lt10', label: '< 10 km' },
-  { id: '10plus', label: '10 km+' },
+const DIST_OPTIONS: { id: DistFilter; label: string; emoji: string }[] = [
+  { id: 'all', label: 'Any distance', emoji: '📍' },
+  { id: 'lt2', label: '< 2 km', emoji: '🟢' },
+  { id: 'lt5', label: '< 5 km', emoji: '🟡' },
+  { id: 'lt10', label: '< 10 km', emoji: '🟠' },
+  { id: '10plus', label: '10 km+', emoji: '🔴' },
 ]
-const PTP_OPTIONS: { id: PtpFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'yes', label: 'Yes' },
-  { id: 'no', label: 'No' },
+const PTP_OPTIONS: { id: PtpFilter; label: string; emoji: string }[] = [
+  { id: 'all', label: 'All', emoji: '➖' },
+  { id: 'yes', label: 'Yes', emoji: '📅' },
+  { id: 'no', label: 'No', emoji: '➖' },
 ]
-const COLLECTED_OPTIONS: { id: YesNoFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'yes', label: 'Yes' },
-  { id: 'no', label: 'No' },
+const COLLECTED_OPTIONS: { id: YesNoFilter; label: string; emoji: string }[] = [
+  { id: 'all', label: 'All', emoji: '➖' },
+  { id: 'yes', label: 'Yes', emoji: '💰' },
+  { id: 'no', label: 'No', emoji: '➖' },
 ]
-const RISK_OPTIONS: { id: RiskFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'High', label: 'High' },
-  { id: 'Medium', label: 'Medium' },
-  { id: 'Low', label: 'Low' },
+const RISK_OPTIONS: { id: RiskFilter; label: string; emoji: string }[] = [
+  { id: 'all', label: 'All', emoji: '➖' },
+  { id: 'High', label: 'High', emoji: '🔴' },
+  { id: 'Medium', label: 'Medium', emoji: '🟠' },
+  { id: 'Low', label: 'Low', emoji: '🟢' },
 ]
-const SORT_OPTIONS: { id: SortKey; label: string }[] = [
-  { id: 'priority', label: 'Priority order' },
-  { id: 'ptpSoonest', label: 'PTP due soonest' },
-  { id: 'amount', label: 'Highest amount first' },
-  { id: 'riskHigh', label: 'High risk first' },
-  { id: 'lastVisited', label: 'Oldest visit date' },
-  { id: 'distance', label: 'Nearest first' },
+const VISITED_OPTIONS: { id: 'visited' | 'notVisited'; label: string; emoji: string }[] = [
+  { id: 'visited', label: 'Yes — Visited', emoji: '✅' },
+  { id: 'notVisited', label: 'No — Not Visited', emoji: '🚫' },
 ]
+const SORT_OPTIONS: { id: SortKey; label: string; emoji: string }[] = [
+  { id: 'priority', label: 'Priority order', emoji: '🎯' },
+  { id: 'ptpSoonest', label: 'PTP due soonest', emoji: '⏰' },
+  { id: 'amount', label: 'Highest amount first', emoji: '💵' },
+  { id: 'riskHigh', label: 'High risk first', emoji: '🔥' },
+  { id: 'lastVisited', label: 'Oldest visit date', emoji: '🕰️' },
+  { id: 'distance', label: 'Nearest first', emoji: '📍' },
+]
+
+// Zomato-style filter pill — subtle emoji, single accent color, no per-category color soup
+function FilterChip({ emoji, label, active, activeLabel, onPress, onClear }: {
+  emoji?: string; label: string; active: boolean; activeLabel?: string; onPress: () => void; onClear: () => void
+}) {
+  return (
+    <TouchableOpacity
+      onPress={active ? onClear : onPress}
+      onLongPress={active ? onPress : undefined}
+      className="flex-row items-center gap-1 px-3 h-9 rounded-full"
+      style={{ borderWidth: 1, borderColor: active ? '#D30AD7' : 'rgba(0,0,0,0.12)', backgroundColor: active ? '#FDEBFE' : '#fff' }}
+    >
+      {emoji && <Text style={{ fontSize: 12 }}>{emoji}</Text>}
+      <Text className={`text-xs font-medium ${active ? 'text-[#A008A3]' : 'text-black/60'}`} numberOfLines={1}>
+        {active ? activeLabel : label}
+      </Text>
+      <Text className={`text-[10px] ${active ? 'text-[#A008A3]' : 'text-black/35'}`}>{active ? '✕' : '▾'}</Text>
+    </TouchableOpacity>
+  )
+}
+
+// Single row inside the bottom sheet — subtle emoji leading, filled radio dot when selected
+function SheetRow({ emoji, label, selected, onPress }: { emoji?: string; label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="flex-row items-center justify-between px-5 py-3.5"
+      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}
+    >
+      <View className="flex-row items-center gap-2.5">
+        {emoji && <Text style={{ fontSize: 15 }}>{emoji}</Text>}
+        <Text className={`text-sm ${selected ? 'text-[#A008A3] font-medium' : 'text-[rgba(0,0,0,0.75)]'}`}>{label}</Text>
+      </View>
+      <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: selected ? '#D30AD7' : 'rgba(0,0,0,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+        {selected && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#D30AD7' }} />}
+      </View>
+    </TouchableOpacity>
+  )
+}
 
 export default function AllocationsScreen({ navigation, route }: Props) {
   const { agentInfo } = useAgent()
@@ -259,8 +302,8 @@ export default function AllocationsScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        {/* Search + filters */}
-        <View className="bg-white" style={{ zIndex: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
+        {/* Search + filters — Zomato-style pill chips, single accent, opens as bottom sheets */}
+        <View className="bg-white" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
           <View className="flex-row items-center gap-2 px-4 pt-2 pb-2">
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F0F4F7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
               <TextInput
@@ -277,86 +320,64 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               ) : null}
             </View>
             <TouchableOpacity
-              onPress={() => setOpenDropdown(prev => prev === 'sort' ? 'none' : 'sort')}
-              className={`w-9 h-9 rounded-full items-center justify-center ${sortBy !== 'distance' ? 'bg-[#D30AD7]' : 'bg-[#F0F4F7]'}`}
+              onPress={() => setOpenDropdown('sort')}
+              className="flex-row items-center gap-1 px-3 h-9 rounded-full"
+              style={{ borderWidth: 1, borderColor: sortBy !== 'priority' ? '#D30AD7' : 'rgba(0,0,0,0.12)', backgroundColor: sortBy !== 'priority' ? '#FDEBFE' : '#fff' }}
             >
-              <Text className={`text-base ${sortBy !== 'distance' ? 'text-white' : 'text-black/50'}`}>⇅</Text>
+              <Text style={{ fontSize: 13 }}>{SORT_OPTIONS.find(o => o.id === sortBy)?.emoji}</Text>
+              <Text className={`text-xs font-medium ${sortBy !== 'priority' ? 'text-[#A008A3]' : 'text-black/60'}`}>Sort</Text>
             </TouchableOpacity>
           </View>
 
           {/* Filter chips — priority order: Bucket, Visited, Collected, Risk Band, PTP, Distance */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 pb-3" contentContainerStyle={{ gap: 8, flexDirection: 'row' }}>
-            <TouchableOpacity
-              onPress={() => {
-                if (stageFilter.length > 0) { setStageFilter([]); setOpenDropdown('none') }
-                else setOpenDropdown(prev => prev === 'bucket' ? 'none' : 'bucket')
-              }}
-              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${stageFilter.length > 0 ? 'bg-[#D30AD7]' : 'bg-[#F0F4F7]'}`}
-            >
-              <Text className={`text-xs font-medium ${stageFilter.length > 0 ? 'text-white' : 'text-black/60'}`}>
-                Bucket{stageFilter.length > 0 ? ` ×${stageFilter.length} ✕` : ' ▾'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (visitedFilter !== 'all') { setVisitedFilter('all'); setOpenDropdown('none') }
-                else setOpenDropdown(prev => prev === 'visited' ? 'none' : 'visited')
-              }}
-              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${visitedFilter !== 'all' ? 'bg-[#3B3B3B]' : 'bg-[#F0F4F7]'}`}
-            >
-              <Text className={`text-xs font-medium ${visitedFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
-                {visitedFilter === 'all' ? 'Visited ▾' : visitedFilter === 'visited' ? 'Visited: Yes ✕' : 'Visited: No ✕'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (collectedFilter !== 'all') { setCollectedFilter('all'); setOpenDropdown('none') }
-                else setOpenDropdown(prev => prev === 'collected' ? 'none' : 'collected')
-              }}
-              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${collectedFilter !== 'all' ? 'bg-[#007E2F]' : 'bg-[#F0F4F7]'}`}
-            >
-              <Text className={`text-xs font-medium ${collectedFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
-                {collectedFilter === 'all' ? 'Collected ▾' : `Collected: ${collectedFilter === 'yes' ? 'Yes' : 'No'} ✕`}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (riskFilter !== 'all') { setRiskFilter('all'); setOpenDropdown('none') }
-                else setOpenDropdown(prev => prev === 'risk' ? 'none' : 'risk')
-              }}
-              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${riskFilter !== 'all' ? 'bg-[#CE1D26]' : 'bg-[#F0F4F7]'}`}
-            >
-              <Text className={`text-xs font-medium ${riskFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
-                {riskFilter === 'all' ? 'Risk Band ▾' : `${riskFilter} Risk ✕`}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (ptpFilter !== 'all') { setPtpFilter('all'); setOpenDropdown('none') }
-                else setOpenDropdown(prev => prev === 'ptp' ? 'none' : 'ptp')
-              }}
-              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${ptpFilter !== 'all' ? 'bg-[#FF8100]' : 'bg-[#F0F4F7]'}`}
-            >
-              <Text className={`text-xs font-medium ${ptpFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
-                {ptpFilter === 'all' ? 'PTP ▾' : `PTP: ${ptpFilter === 'yes' ? 'Yes' : 'No'} ✕`}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (distFilter !== 'all') { setDistFilter('all'); setOpenDropdown('none') }
-                else setOpenDropdown(prev => prev === 'distance' ? 'none' : 'distance')
-              }}
-              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${distFilter !== 'all' ? 'bg-[#2B6ACF]' : 'bg-[#F0F4F7]'}`}
-            >
-              <Text className={`text-xs font-medium ${distFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
-                {distFilter === 'all' ? 'Distance ▾' : `${DIST_OPTIONS.find(o => o.id === distFilter)?.label} ✕`}
-              </Text>
-            </TouchableOpacity>
+            <FilterChip
+              emoji="🗂️" label="Bucket"
+              active={stageFilter.length > 0}
+              activeLabel={stageFilter.length > 0 ? `Bucket · ${stageFilter.length}` : undefined}
+              onPress={() => setOpenDropdown('bucket')}
+              onClear={() => setStageFilter([])}
+            />
+            <FilterChip
+              emoji={visitedFilter === 'all' ? '👣' : VISITED_OPTIONS.find(o => o.id === visitedFilter)?.emoji}
+              label="Visited"
+              active={visitedFilter !== 'all'}
+              activeLabel={visitedFilter !== 'all' ? (visitedFilter === 'visited' ? 'Visited: Yes' : 'Visited: No') : undefined}
+              onPress={() => setOpenDropdown('visited')}
+              onClear={() => setVisitedFilter('all')}
+            />
+            <FilterChip
+              emoji={collectedFilter === 'all' ? '💰' : COLLECTED_OPTIONS.find(o => o.id === collectedFilter)?.emoji}
+              label="Collected"
+              active={collectedFilter !== 'all'}
+              activeLabel={collectedFilter !== 'all' ? `Collected: ${collectedFilter === 'yes' ? 'Yes' : 'No'}` : undefined}
+              onPress={() => setOpenDropdown('collected')}
+              onClear={() => setCollectedFilter('all')}
+            />
+            <FilterChip
+              emoji={riskFilter === 'all' ? '⚠️' : RISK_OPTIONS.find(o => o.id === riskFilter)?.emoji}
+              label="Risk Band"
+              active={riskFilter !== 'all'}
+              activeLabel={riskFilter !== 'all' ? `${riskFilter} Risk` : undefined}
+              onPress={() => setOpenDropdown('risk')}
+              onClear={() => setRiskFilter('all')}
+            />
+            <FilterChip
+              emoji={ptpFilter === 'all' ? '📅' : PTP_OPTIONS.find(o => o.id === ptpFilter)?.emoji}
+              label="PTP"
+              active={ptpFilter !== 'all'}
+              activeLabel={ptpFilter !== 'all' ? `PTP: ${ptpFilter === 'yes' ? 'Yes' : 'No'}` : undefined}
+              onPress={() => setOpenDropdown('ptp')}
+              onClear={() => setPtpFilter('all')}
+            />
+            <FilterChip
+              emoji={DIST_OPTIONS.find(o => o.id === distFilter)?.emoji ?? '📍'}
+              label="Distance"
+              active={distFilter !== 'all'}
+              activeLabel={distFilter !== 'all' ? DIST_OPTIONS.find(o => o.id === distFilter)?.label : undefined}
+              onPress={() => setOpenDropdown('distance')}
+              onClear={() => setDistFilter('all')}
+            />
 
             {activeCount > 0 && (
               <TouchableOpacity
@@ -367,161 +388,87 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             )}
           </ScrollView>
-
-          {/* Dropdown overlay — floats above cards, never displaces them */}
-          {openDropdown !== 'none' && (
-            <View style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100 }}>
-              {/* Visited Dropdown */}
-              {openDropdown === 'visited' && (
-                <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
-                  <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-                    {[
-                      { id: 'visited', label: 'Yes — Visited' },
-                      { id: 'notVisited', label: 'No — Not Visited' },
-                    ].map(opt => (
-                      <TouchableOpacity
-                        key={opt.id}
-                        onPress={() => { setVisitedFilter(opt.id as 'visited' | 'notVisited'); closeDropdown() }}
-                        className="flex-row items-center justify-between px-4 py-3"
-                        style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}
-                      >
-                        <Text className="text-sm text-[rgba(0,0,0,0.8)]">{opt.label}</Text>
-                        {visitedFilter === opt.id && <Text style={{ color: '#D30AD7' }}>✓</Text>}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </TouchableOpacity>
-              )}
-
-              {/* Bucket Dropdown — distinct buckets per product, accordion */}
-              {openDropdown === 'bucket' && (
-                <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
-                  <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-                    {bucketFilterGroups.map(group => {
-                      const isOpen = expandedProduct === group.productType || bucketFilterGroups.length === 1
-                      const selectedInGroup = group.buckets.filter(b => stageFilter.includes(b)).length
-                      return (
-                        <View key={group.productType}>
-                          {bucketFilterGroups.length > 1 && (
-                            <TouchableOpacity
-                              onPress={() => setExpandedProduct(prev => prev === group.productType ? null : group.productType)}
-                              className="flex-row items-center justify-between px-4 py-3 bg-[#F0F4F7]"
-                            >
-                              <Text className="text-xs font-semibold text-[#A008A3] uppercase tracking-wider">{group.label}</Text>
-                              <View className="flex-row items-center gap-2">
-                                {selectedInGroup > 0 && <Text className="text-[10px] text-[#D30AD7] font-semibold">{selectedInGroup} selected</Text>}
-                                <Text className="text-black/40 text-xs">{isOpen ? '▴' : '▾'}</Text>
-                              </View>
-                            </TouchableOpacity>
-                          )}
-                          {isOpen && group.buckets.map(s => {
-                            const bc = getBucketColor(s)
-                            const active = stageFilter.includes(s)
-                            return (
-                              <TouchableOpacity
-                                key={group.productType + s}
-                                onPress={() => {
-                                  setStageFilter(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
-                                }}
-                                className="flex-row items-center justify-between px-4 py-3"
-                                style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-                              >
-                                <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: bc.bg }}>
-                                  <Text className="text-xs font-medium" style={{ color: bc.text }}>{s}</Text>
-                                </View>
-                                {active && <Text className="text-[#D30AD7] text-sm font-bold">✓</Text>}
-                              </TouchableOpacity>
-                            )
-                          })}
-                        </View>
-                      )
-                    })}
-                  </View>
-                </TouchableOpacity>
-              )}
-
-              {openDropdown === 'distance' && (
-                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-                  {DIST_OPTIONS.map(opt => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      onPress={() => { setDistFilter(opt.id); closeDropdown() }}
-                      className="flex-row items-center justify-between px-4 py-3"
-                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-                    >
-                      <Text className="text-sm text-black/80">{opt.label}</Text>
-                      {distFilter === opt.id && <Text className="text-[#2B6ACF] text-sm">✓</Text>}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {openDropdown === 'collected' && (
-                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-                  {COLLECTED_OPTIONS.map(opt => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      onPress={() => { setCollectedFilter(opt.id); closeDropdown() }}
-                      className="flex-row items-center justify-between px-4 py-3"
-                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-                    >
-                      <Text className="text-sm text-black/80">{opt.label}</Text>
-                      {collectedFilter === opt.id && <Text className="text-[#007E2F] text-sm">✓</Text>}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {openDropdown === 'risk' && (
-                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-                  {RISK_OPTIONS.map(opt => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      onPress={() => { setRiskFilter(opt.id); closeDropdown() }}
-                      className="flex-row items-center justify-between px-4 py-3"
-                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-                    >
-                      <Text className="text-sm text-black/80">{opt.label}</Text>
-                      {riskFilter === opt.id && <Text className="text-[#CE1D26] text-sm">✓</Text>}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {openDropdown === 'ptp' && (
-                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-                  {PTP_OPTIONS.map(opt => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      onPress={() => { setPtpFilter(opt.id); closeDropdown() }}
-                      className="flex-row items-center justify-between px-4 py-3"
-                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-                    >
-                      <Text className="text-sm text-black/80">{opt.label}</Text>
-                      {ptpFilter === opt.id && <Text className="text-[#FF8100] text-sm">✓</Text>}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {openDropdown === 'sort' && (
-                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
-                  {SORT_OPTIONS.map(opt => (
-                    <TouchableOpacity
-                      key={opt.id}
-                      onPress={() => { setSortBy(opt.id); closeDropdown() }}
-                      className="flex-row items-center justify-between px-4 py-3"
-                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
-                    >
-                      <Text className="text-sm text-black/80">{opt.label}</Text>
-                      {sortBy === opt.id && <Text className="text-[#D30AD7] text-sm">✓</Text>}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
         </View>
+
+        {/* Bottom sheet — single reusable sheet for whichever filter/sort is open */}
+        <Modal visible={openDropdown !== 'none'} transparent animationType="slide" onRequestClose={closeDropdown}>
+          <TouchableOpacity activeOpacity={1} onPress={closeDropdown} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+            <TouchableOpacity activeOpacity={1} style={{ backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '75%', paddingBottom: 24 }}>
+              <View style={{ width: 40, height: 4, backgroundColor: 'rgba(0,0,0,0.12)', borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 }} />
+              <Text className="text-sm font-semibold text-[rgba(0,0,0,0.85)] px-5 pt-2 pb-3">
+                {openDropdown === 'bucket' ? 'Bucket' : openDropdown === 'visited' ? 'Visited' : openDropdown === 'collected' ? 'Collected'
+                  : openDropdown === 'risk' ? 'Risk Band' : openDropdown === 'ptp' ? 'PTP' : openDropdown === 'distance' ? 'Distance' : 'Sort by'}
+              </Text>
+
+              <ScrollView bounces={false}>
+                {openDropdown === 'bucket' && bucketFilterGroups.map(group => {
+                  const isOpen = expandedProduct === group.productType || bucketFilterGroups.length === 1
+                  const selectedInGroup = group.buckets.filter(b => stageFilter.includes(b)).length
+                  return (
+                    <View key={group.productType}>
+                      {bucketFilterGroups.length > 1 && (
+                        <TouchableOpacity
+                          onPress={() => setExpandedProduct(prev => prev === group.productType ? null : group.productType)}
+                          className="flex-row items-center justify-between px-5 py-3 bg-[#F0F4F7]"
+                        >
+                          <Text className="text-xs font-semibold text-[#A008A3] uppercase tracking-wider">{group.label}</Text>
+                          <View className="flex-row items-center gap-2">
+                            {selectedInGroup > 0 && <Text className="text-[10px] text-[#D30AD7] font-semibold">{selectedInGroup} selected</Text>}
+                            <Text className="text-black/40 text-xs">{isOpen ? '▴' : '▾'}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                      {isOpen && group.buckets.map(s => {
+                        const bc = getBucketColor(s)
+                        const active = stageFilter.includes(s)
+                        return (
+                          <TouchableOpacity
+                            key={group.productType + s}
+                            onPress={() => setStageFilter(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                            className="flex-row items-center justify-between px-5 py-3"
+                            style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}
+                          >
+                            <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: bc.bg }}>
+                              <Text className="text-xs font-medium" style={{ color: bc.text }}>{s}</Text>
+                            </View>
+                            <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: active ? '#D30AD7' : 'rgba(0,0,0,0.15)', backgroundColor: active ? '#D30AD7' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                              {active && <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>✓</Text>}
+                            </View>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                  )
+                })}
+
+                {openDropdown === 'visited' && VISITED_OPTIONS.map(opt => (
+                  <SheetRow key={opt.id} emoji={opt.emoji} label={opt.label} selected={visitedFilter === opt.id}
+                    onPress={() => { setVisitedFilter(opt.id); closeDropdown() }} />
+                ))}
+                {openDropdown === 'collected' && COLLECTED_OPTIONS.map(opt => (
+                  <SheetRow key={opt.id} emoji={opt.emoji} label={opt.label} selected={collectedFilter === opt.id}
+                    onPress={() => { setCollectedFilter(opt.id); closeDropdown() }} />
+                ))}
+                {openDropdown === 'risk' && RISK_OPTIONS.map(opt => (
+                  <SheetRow key={opt.id} emoji={opt.emoji} label={opt.label} selected={riskFilter === opt.id}
+                    onPress={() => { setRiskFilter(opt.id); closeDropdown() }} />
+                ))}
+                {openDropdown === 'ptp' && PTP_OPTIONS.map(opt => (
+                  <SheetRow key={opt.id} emoji={opt.emoji} label={opt.label} selected={ptpFilter === opt.id}
+                    onPress={() => { setPtpFilter(opt.id); closeDropdown() }} />
+                ))}
+                {openDropdown === 'distance' && DIST_OPTIONS.map(opt => (
+                  <SheetRow key={opt.id} emoji={opt.emoji} label={opt.label} selected={distFilter === opt.id}
+                    onPress={() => { setDistFilter(opt.id); closeDropdown() }} />
+                ))}
+                {openDropdown === 'sort' && SORT_OPTIONS.map(opt => (
+                  <SheetRow key={opt.id} emoji={opt.emoji} label={opt.label} selected={sortBy === opt.id}
+                    onPress={() => { setSortBy(opt.id); closeDropdown() }} />
+                ))}
+              </ScrollView>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Cards */}
         <FlatList
