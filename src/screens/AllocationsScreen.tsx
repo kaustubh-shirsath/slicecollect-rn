@@ -116,9 +116,13 @@ function SheetRow({ emoji, label, selected, onPress }: { emoji?: string; label: 
 export default function AllocationsScreen({ navigation, route }: Props) {
   const { agentInfo } = useAgent()
   const defaultBucket = route.params?.defaultBucket
+  const defaultProduct = route.params?.defaultProduct
   const [search, setSearch] = useState('')
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('all')
-  const [stageFilter, setStageFilter] = useState<string[]>(defaultBucket && defaultBucket !== 'All' ? [defaultBucket] : [])
+  // Bucket filters are product-scoped ('bank:Settlement') — same label can exist across products.
+  const [stageFilter, setStageFilter] = useState<string[]>(
+    defaultBucket && defaultBucket !== 'All' ? [`${defaultProduct ?? 'bank'}:${defaultBucket}`] : []
+  )
   const [distFilter, setDistFilter] = useState<DistFilter>('all')
   const [ptpFilter, setPtpFilter] = useState<PtpFilter>('all')
   const [collectedFilter, setCollectedFilter] = useState<YesNoFilter>('all')
@@ -128,9 +132,9 @@ export default function AllocationsScreen({ navigation, route }: Props) {
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
 
   useEffect(() => {
-    if (defaultBucket && defaultBucket !== 'All') setStageFilter([defaultBucket])
+    if (defaultBucket && defaultBucket !== 'All') setStageFilter([`${defaultProduct ?? 'bank'}:${defaultBucket}`])
     else if (defaultBucket === 'All') setStageFilter([])
-  }, [defaultBucket])
+  }, [defaultBucket, defaultProduct])
 
   const { allocations, loading } = useAllocations('All', search, agentInfo?.username, agentInfo?.portfolioType)
 
@@ -180,7 +184,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     const effectiveBucket = c.userType === 'borrow' ? (getBorrowData(c.partyId)?.bucketLabel ?? c.assetClassification)
       : c.userType === 'cc' ? (getCCBill(c.partyId)?.bucketLabel ?? c.assetClassification)
       : c.assetClassification
-    if (stageFilter.length > 0 && !stageFilter.includes(effectiveBucket)) return false
+    if (stageFilter.length > 0 && !stageFilter.includes(`${c.userType}:${effectiveBucket}`)) return false
     if (distFilter === 'lt2' && !(c.distKm < 2)) return false
     if (distFilter === 'lt5' && !(c.distKm < 5)) return false
     if (distFilter === 'lt10' && !(c.distKm < 10)) return false
@@ -390,7 +394,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               <ScrollView bounces={false}>
                 {openDropdown === 'bucket' && bucketFilterGroups.map(group => {
                   const isOpen = expandedProduct === group.productType || bucketFilterGroups.length === 1
-                  const selectedInGroup = group.buckets.filter(b => stageFilter.includes(b)).length
+                  const selectedInGroup = group.buckets.filter(b => stageFilter.includes(`${group.productType}:${b}`)).length
                   return (
                     <View key={group.productType}>
                       {bucketFilterGroups.length > 1 && (
@@ -407,11 +411,12 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                       )}
                       {isOpen && group.buckets.map(s => {
                         const bc = getBucketColor(s)
-                        const active = stageFilter.includes(s)
+                        const key = `${group.productType}:${s}`
+                        const active = stageFilter.includes(key)
                         return (
                           <TouchableOpacity
-                            key={group.productType + s}
-                            onPress={() => setStageFilter(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                            key={key}
+                            onPress={() => setStageFilter(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key])}
                             className="flex-row items-center justify-between px-5 py-3"
                             style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}
                           >

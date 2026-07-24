@@ -136,7 +136,7 @@ export default function HomeScreen({ navigation }: Props) {
                         return (
                           <TouchableOpacity
                             key={b.name}
-                            onPress={() => navigation.navigate('Allocations', { defaultBucket: b.name })}
+                            onPress={() => navigation.navigate('Allocations', { defaultBucket: b.name, defaultProduct: group.productType })}
                             className={`px-3 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F0F4F7]/40'}`}
                             style={{ borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: 'rgba(0,0,0,0.04)' }}
                           >
@@ -176,7 +176,7 @@ export default function HomeScreen({ navigation }: Props) {
                         return (
                           <TouchableOpacity
                             key={b.name}
-                            onPress={() => navigation.navigate('Allocations', { defaultBucket: b.name })}
+                            onPress={() => navigation.navigate('Allocations', { defaultBucket: b.name, defaultProduct: group.productType })}
                             className={`px-3 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F0F4F7]/40'}`}
                             style={{ borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: 'rgba(0,0,0,0.04)' }}
                           >
