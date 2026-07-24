@@ -692,7 +692,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             onPress={() => navigation.navigate('Disposition', { customer: c, fromScreen })}
             style={{ flex: 1, backgroundColor: '#D30AD7', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
           >
-            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', letterSpacing: 0.2 }}>Add Feedback</Text>
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', letterSpacing: 0.2 }}>Add Disposition</Text>
           </TouchableOpacity>
           <TouchableOpacity
             disabled={!!activeSettlement}

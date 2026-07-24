@@ -25,42 +25,56 @@ type Props = CompositeScreenProps<
 
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN')
 
-type SortKey = 'distance' | 'amount' | 'ptpSoonest' | 'riskHigh' | 'priority' | 'lastVisited'
-type DistFilter = 'all' | '2' | '5' | '10'
-type PtpFilter = 'all' | 'active' | 'broken' | 'none'
+type SortKey = 'priority' | 'ptpSoonest' | 'amount' | 'riskHigh' | 'lastVisited' | 'distance'
+type DistFilter = 'all' | 'lt2' | 'lt5' | 'lt10' | '10plus'
+type PtpFilter = 'all' | 'yes' | 'no'
+type YesNoFilter = 'all' | 'yes' | 'no'
+type RiskFilter = 'all' | 'High' | 'Medium' | 'Low'
 
 const DIST_OPTIONS: { id: DistFilter; label: string }[] = [
   { id: 'all', label: 'Any distance' },
-  { id: '2', label: 'Within 2 km' },
-  { id: '5', label: 'Within 5 km' },
-  { id: '10', label: 'Within 10 km' },
+  { id: 'lt2', label: '< 2 km' },
+  { id: 'lt5', label: '< 5 km' },
+  { id: 'lt10', label: '< 10 km' },
+  { id: '10plus', label: '10 km+' },
 ]
 const PTP_OPTIONS: { id: PtpFilter; label: string }[] = [
   { id: 'all', label: 'All' },
-  { id: 'active', label: 'Has active PTP' },
-  { id: 'broken', label: 'PTP broken' },
-  { id: 'none', label: 'No PTP' },
+  { id: 'yes', label: 'Yes' },
+  { id: 'no', label: 'No' },
+]
+const COLLECTED_OPTIONS: { id: YesNoFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'yes', label: 'Yes' },
+  { id: 'no', label: 'No' },
+]
+const RISK_OPTIONS: { id: RiskFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'High', label: 'High' },
+  { id: 'Medium', label: 'Medium' },
+  { id: 'Low', label: 'Low' },
 ]
 const SORT_OPTIONS: { id: SortKey; label: string }[] = [
-  { id: 'distance', label: '📍 Nearest first' },
-  { id: 'amount', label: '💰 Highest amount' },
-  { id: 'ptpSoonest', label: '🕐 PTP due soonest' },
-  { id: 'riskHigh', label: '⚡ High risk first' },
   { id: 'priority', label: '#️⃣ Priority order' },
-  { id: 'lastVisited', label: '🗓 Last visited (oldest)' },
+  { id: 'ptpSoonest', label: '🕐 PTP due soonest' },
+  { id: 'amount', label: '💰 Highest amount first' },
+  { id: 'riskHigh', label: '⚡ High risk first' },
+  { id: 'lastVisited', label: '🗓 Oldest visit date' },
+  { id: 'distance', label: '📍 Nearest first' },
 ]
 
 export default function AllocationsScreen({ navigation, route }: Props) {
   const { agentInfo } = useAgent()
   const defaultBucket = route.params?.defaultBucket
   const [search, setSearch] = useState('')
-  const [highChancesOnly, setHighChancesOnly] = useState(false)
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>('all')
   const [stageFilter, setStageFilter] = useState<string[]>(defaultBucket && defaultBucket !== 'All' ? [defaultBucket] : [])
   const [distFilter, setDistFilter] = useState<DistFilter>('all')
   const [ptpFilter, setPtpFilter] = useState<PtpFilter>('all')
-  const [sortBy, setSortBy] = useState<SortKey>('distance')
+  const [collectedFilter, setCollectedFilter] = useState<YesNoFilter>('all')
+  const [sortBy, setSortBy] = useState<SortKey>('priority')
   const [visitedFilter, setVisitedFilter] = useState<'all' | 'visited' | 'notVisited'>('all')
-  const [openDropdown, setOpenDropdown] = useState<'none' | 'bucket' | 'distance' | 'ptp' | 'sort' | 'visited'>('none')
+  const [openDropdown, setOpenDropdown] = useState<'none' | 'bucket' | 'distance' | 'ptp' | 'sort' | 'visited' | 'collected' | 'risk'>('none')
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
 
   useEffect(() => {
@@ -97,7 +111,8 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     const hasPtp = !!disp?.ptpDate
     const ptpBroken = hasPtp && disp?.ptpDate && new Date(disp.ptpDate).toDateString() < today && act!.collections.length === 0
     const latestCollection = act && act.collections.length > 0 ? act.collections[act.collections.length - 1] : null
-    return { ...c, distKm, risk: getRiskBand(c), priorityOrder: getPriorityOrder(c), hasPtp, ptpBroken, latestCollection }
+    const hasCollected = !!act && act.collections.length > 0
+    return { ...c, distKm, risk: getRiskBand(c), priorityOrder: getPriorityOrder(c), hasPtp, ptpBroken, latestCollection, hasCollected }
   })
 
   const RISK_RANK = { High: 2, Medium: 1, Low: 0 }
@@ -116,11 +131,15 @@ export default function AllocationsScreen({ navigation, route }: Props) {
       : c.userType === 'cc' ? (getCCBill(c.partyId)?.bucketLabel ?? c.assetClassification)
       : c.assetClassification
     if (stageFilter.length > 0 && !stageFilter.includes(effectiveBucket)) return false
-    if (distFilter !== 'all' && c.distKm > parseFloat(distFilter)) return false
-    if (ptpFilter === 'active' && !c.hasPtp) return false
-    if (ptpFilter === 'broken' && !c.ptpBroken) return false
-    if (ptpFilter === 'none' && (c.hasPtp || c.ptpBroken)) return false
-    if (highChancesOnly && c.risk !== 'High') return false
+    if (distFilter === 'lt2' && !(c.distKm < 2)) return false
+    if (distFilter === 'lt5' && !(c.distKm < 5)) return false
+    if (distFilter === 'lt10' && !(c.distKm < 10)) return false
+    if (distFilter === '10plus' && !(c.distKm >= 10)) return false
+    if (ptpFilter === 'yes' && !c.hasPtp) return false
+    if (ptpFilter === 'no' && c.hasPtp) return false
+    if (collectedFilter === 'yes' && !c.hasCollected) return false
+    if (collectedFilter === 'no' && c.hasCollected) return false
+    if (riskFilter !== 'all' && c.risk !== riskFilter) return false
     if (visitedFilter !== 'all') {
       const activity = getActivity(c.partyId)
       const hasVisit = activity?.latestDisposition != null
@@ -130,8 +149,9 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     return true
   })
 
-  const activeCount = (stageFilter.length > 0 ? 1 : 0) + (distFilter !== 'all' ? 1 : 0) +
-    (ptpFilter !== 'all' ? 1 : 0) + (highChancesOnly ? 1 : 0) + (visitedFilter !== 'all' ? 1 : 0)
+  const activeCount = (stageFilter.length > 0 ? 1 : 0) + (visitedFilter !== 'all' ? 1 : 0) +
+    (collectedFilter !== 'all' ? 1 : 0) + (riskFilter !== 'all' ? 1 : 0) +
+    (ptpFilter !== 'all' ? 1 : 0) + (distFilter !== 'all' ? 1 : 0)
 
   const closeDropdown = () => setOpenDropdown('none')
 
@@ -262,20 +282,8 @@ export default function AllocationsScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* Filter chips */}
+          {/* Filter chips — priority order: Bucket, Visited, Collected, Risk Band, PTP, Distance */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 pb-3" contentContainerStyle={{ gap: 8, flexDirection: 'row' }}>
-            <TouchableOpacity
-              onPress={() => {
-                if (visitedFilter !== 'all') { setVisitedFilter('all'); setOpenDropdown('none') }
-                else setOpenDropdown(prev => prev === 'visited' ? 'none' : 'visited')
-              }}
-              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${visitedFilter !== 'all' ? 'bg-[#3B3B3B]' : 'bg-[#F0F4F7]'}`}
-            >
-              <Text className={`text-xs font-medium ${visitedFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
-                {visitedFilter === 'all' ? 'Visited ▾' : visitedFilter === 'visited' ? 'Visited: Yes ✕' : 'Visited: No ✕'}
-              </Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               onPress={() => {
                 if (stageFilter.length > 0) { setStageFilter([]); setOpenDropdown('none') }
@@ -290,40 +298,67 @@ export default function AllocationsScreen({ navigation, route }: Props) {
 
             <TouchableOpacity
               onPress={() => {
-                if (distFilter !== 'all') setDistFilter('all')
-                else setOpenDropdown(prev => prev === 'distance' ? 'none' : 'distance')
+                if (visitedFilter !== 'all') { setVisitedFilter('all'); setOpenDropdown('none') }
+                else setOpenDropdown(prev => prev === 'visited' ? 'none' : 'visited')
               }}
-              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${distFilter !== 'all' ? 'bg-[#2B6ACF]' : 'bg-[#F0F4F7]'}`}
+              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${visitedFilter !== 'all' ? 'bg-[#3B3B3B]' : 'bg-[#F0F4F7]'}`}
             >
-              <Text className={`text-xs font-medium ${distFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
-                {distFilter === 'all' ? 'Distance ▾' : `≤ ${distFilter} km ✕`}
+              <Text className={`text-xs font-medium ${visitedFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
+                {visitedFilter === 'all' ? 'Visited ▾' : visitedFilter === 'visited' ? 'Visited: Yes ✕' : 'Visited: No ✕'}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => {
-                if (ptpFilter !== 'all') setPtpFilter('all')
+                if (collectedFilter !== 'all') { setCollectedFilter('all'); setOpenDropdown('none') }
+                else setOpenDropdown(prev => prev === 'collected' ? 'none' : 'collected')
+              }}
+              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${collectedFilter !== 'all' ? 'bg-[#007E2F]' : 'bg-[#F0F4F7]'}`}
+            >
+              <Text className={`text-xs font-medium ${collectedFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
+                {collectedFilter === 'all' ? 'Collected ▾' : `Collected: ${collectedFilter === 'yes' ? 'Yes' : 'No'} ✕`}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                if (riskFilter !== 'all') { setRiskFilter('all'); setOpenDropdown('none') }
+                else setOpenDropdown(prev => prev === 'risk' ? 'none' : 'risk')
+              }}
+              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${riskFilter !== 'all' ? 'bg-[#CE1D26]' : 'bg-[#F0F4F7]'}`}
+            >
+              <Text className={`text-xs font-medium ${riskFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
+                {riskFilter === 'all' ? 'Risk Band ▾' : `${riskFilter} Risk ✕`}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                if (ptpFilter !== 'all') { setPtpFilter('all'); setOpenDropdown('none') }
                 else setOpenDropdown(prev => prev === 'ptp' ? 'none' : 'ptp')
               }}
               className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${ptpFilter !== 'all' ? 'bg-[#FF8100]' : 'bg-[#F0F4F7]'}`}
             >
               <Text className={`text-xs font-medium ${ptpFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
-                {ptpFilter === 'all' ? 'PTP ▾' : `${PTP_OPTIONS.find(o => o.id === ptpFilter)?.label} ✕`}
+                {ptpFilter === 'all' ? 'PTP ▾' : `PTP: ${ptpFilter === 'yes' ? 'Yes' : 'No'} ✕`}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setHighChancesOnly(v => !v)}
-              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${highChancesOnly ? 'bg-[#CE1D26]' : 'bg-[#F0F4F7]'}`}
+              onPress={() => {
+                if (distFilter !== 'all') { setDistFilter('all'); setOpenDropdown('none') }
+                else setOpenDropdown(prev => prev === 'distance' ? 'none' : 'distance')
+              }}
+              className={`flex-row items-center gap-1 px-3 py-1.5 rounded-full ${distFilter !== 'all' ? 'bg-[#2B6ACF]' : 'bg-[#F0F4F7]'}`}
             >
-              <Text className={`text-xs font-medium ${highChancesOnly ? 'text-white' : 'text-black/60'}`}>
-                ⚡ High Risk{highChancesOnly ? ' ✕' : ''}
+              <Text className={`text-xs font-medium ${distFilter !== 'all' ? 'text-white' : 'text-black/60'}`}>
+                {distFilter === 'all' ? 'Distance ▾' : `${DIST_OPTIONS.find(o => o.id === distFilter)?.label} ✕`}
               </Text>
             </TouchableOpacity>
 
             {activeCount > 0 && (
               <TouchableOpacity
-                onPress={() => { setStageFilter([]); setDistFilter('all'); setPtpFilter('all'); setHighChancesOnly(false); setVisitedFilter('all'); closeDropdown() }}
+                onPress={() => { setStageFilter([]); setVisitedFilter('all'); setCollectedFilter('all'); setRiskFilter('all'); setPtpFilter('all'); setDistFilter('all'); closeDropdown() }}
                 className="px-3 py-1.5 rounded-full bg-[#F9E4E5]"
               >
                 <Text className="text-xs font-medium text-[#CE1D26]">Clear all</Text>
@@ -414,6 +449,38 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                     >
                       <Text className="text-sm text-black/80">{opt.label}</Text>
                       {distFilter === opt.id && <Text className="text-[#2B6ACF] text-sm">✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {openDropdown === 'collected' && (
+                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
+                  {COLLECTED_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      onPress={() => { setCollectedFilter(opt.id); closeDropdown() }}
+                      className="flex-row items-center justify-between px-4 py-3"
+                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
+                    >
+                      <Text className="text-sm text-black/80">{opt.label}</Text>
+                      {collectedFilter === opt.id && <Text className="text-[#007E2F] text-sm">✓</Text>}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {openDropdown === 'risk' && (
+                <View className="mx-4 mb-2 bg-white rounded-2xl overflow-hidden border border-black/[0.06]" style={{ elevation: 8 }}>
+                  {RISK_OPTIONS.map(opt => (
+                    <TouchableOpacity
+                      key={opt.id}
+                      onPress={() => { setRiskFilter(opt.id); closeDropdown() }}
+                      className="flex-row items-center justify-between px-4 py-3"
+                      style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}
+                    >
+                      <Text className="text-sm text-black/80">{opt.label}</Text>
+                      {riskFilter === opt.id && <Text className="text-[#CE1D26] text-sm">✓</Text>}
                     </TouchableOpacity>
                   ))}
                 </View>
