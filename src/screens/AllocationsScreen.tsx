@@ -68,23 +68,29 @@ const SORT_OPTIONS: { id: SortKey; label: string; emoji: string }[] = [
   { id: 'distance', label: 'Nearest first', emoji: '📍' },
 ]
 
-// Zomato-style filter pill — subtle emoji, single accent color, no per-category color soup
-function FilterChip({ emoji, label, active, activeLabel, onPress, onClear }: {
-  emoji?: string; label: string; active: boolean; activeLabel?: string; onPress: () => void; onClear: () => void
+// Filter pill — body tap toggles its dropdown open/closed; the ✕ is a separate
+// hit target that clears the filter without opening anything.
+function FilterChip({ emoji, label, active, activeLabel, open, onToggle, onClear }: {
+  emoji?: string; label: string; active: boolean; activeLabel?: string; open: boolean; onToggle: () => void; onClear: () => void
 }) {
   return (
-    <TouchableOpacity
-      onPress={active ? onClear : onPress}
-      onLongPress={active ? onPress : undefined}
-      className="flex-row items-center gap-1 px-3 h-9 rounded-full"
-      style={{ borderWidth: 1, borderColor: active ? '#D30AD7' : 'rgba(0,0,0,0.12)', backgroundColor: active ? '#FDEBFE' : '#fff' }}
+    <View
+      className="flex-row items-center rounded-full"
+      style={{ borderWidth: 1, borderColor: active || open ? '#D30AD7' : 'rgba(0,0,0,0.12)', backgroundColor: active ? '#FDEBFE' : '#fff', height: 36 }}
     >
-      {emoji && <Text style={{ fontSize: 12 }}>{emoji}</Text>}
-      <Text className={`text-xs font-medium ${active ? 'text-[#A008A3]' : 'text-black/60'}`} numberOfLines={1}>
-        {active ? activeLabel : label}
-      </Text>
-      <Text className={`text-[10px] ${active ? 'text-[#A008A3]' : 'text-black/35'}`}>{active ? '✕' : '▾'}</Text>
-    </TouchableOpacity>
+      <TouchableOpacity onPress={onToggle} className="flex-row items-center gap-1 pl-3 h-full" style={{ paddingRight: active ? 4 : 12 }}>
+        {emoji && <Text style={{ fontSize: 12 }}>{emoji}</Text>}
+        <Text className={`text-xs font-medium ${active ? 'text-[#A008A3]' : 'text-black/60'}`} numberOfLines={1}>
+          {active ? activeLabel : label}
+        </Text>
+        {!active && <Text className="text-[10px] text-black/35">{open ? '▴' : '▾'}</Text>}
+      </TouchableOpacity>
+      {active && (
+        <TouchableOpacity onPress={onClear} className="h-full items-center justify-center" style={{ paddingHorizontal: 10 }}>
+          <Text className="text-[11px] text-[#A008A3] font-bold">✕</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   )
 }
 
@@ -145,7 +151,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
 
   const today = new Date().toDateString()
 
-  const withMeta = allocations.map((c: any) => {
+  const withMeta = useMemo(() => allocations.map((c: any) => {
     const agentLat = agentInfo?.lat ?? 27.4728
     const agentLng = agentInfo?.lng ?? 94.9120
     const distKm = parseFloat(haversine(agentLat, agentLng, c.lat, c.lng).toFixed(1))
@@ -157,10 +163,10 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     const latestCollection = act && act.collections.length > 0 ? act.collections[act.collections.length - 1] : null
     const hasCollected = !!act && act.collections.length > 0
     return { ...c, distKm, risk: getRiskBand(c), priorityOrder: getPriorityOrder(c), hasPtp, ptpBroken, latestCollection, hasCollected }
-  })
+  }), [allocations, agentInfo])
 
   const RISK_RANK = { High: 2, Medium: 1, Low: 0 }
-  const sorted = [...withMeta].sort((a: any, b: any) => {
+  const sorted = useMemo(() => [...withMeta].sort((a: any, b: any) => {
     if (sortBy === 'distance') return a.distKm - b.distKm
     if (sortBy === 'amount') return (b.emiOs || 0) - (a.emiOs || 0)
     if (sortBy === 'ptpSoonest') return (b.hasPtp ? 1 : 0) - (a.hasPtp ? 1 : 0)
@@ -168,9 +174,9 @@ export default function AllocationsScreen({ navigation, route }: Props) {
     if (sortBy === 'priority') return a.priorityOrder - b.priorityOrder
     if (sortBy === 'lastVisited') return (a.lastPayment || '').localeCompare(b.lastPayment || '')
     return 0
-  })
+  }), [withMeta, sortBy])
 
-  const filtered = sorted.filter((c: any) => {
+  const filtered = useMemo(() => sorted.filter((c: any) => {
     const effectiveBucket = c.userType === 'borrow' ? (getBorrowData(c.partyId)?.bucketLabel ?? c.assetClassification)
       : c.userType === 'cc' ? (getCCBill(c.partyId)?.bucketLabel ?? c.assetClassification)
       : c.assetClassification
@@ -191,7 +197,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
       if (visitedFilter === 'notVisited' && hasVisit) return false
     }
     return true
-  })
+  }), [sorted, stageFilter, distFilter, ptpFilter, collectedFilter, riskFilter, visitedFilter])
 
   const activeCount = (stageFilter.length > 0 ? 1 : 0) + (visitedFilter !== 'all' ? 1 : 0) +
     (collectedFilter !== 'all' ? 1 : 0) + (riskFilter !== 'all' ? 1 : 0) +
@@ -304,7 +310,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               ) : null}
             </View>
             <TouchableOpacity
-              onPress={() => setOpenDropdown('sort')}
+              onPress={() => setOpenDropdown(prev => prev === 'sort' ? 'none' : 'sort')}
               className="flex-row items-center gap-1 px-3 h-9 rounded-full"
               style={{ borderWidth: 1, borderColor: sortBy !== 'priority' ? '#D30AD7' : 'rgba(0,0,0,0.12)', backgroundColor: sortBy !== 'priority' ? '#FDEBFE' : '#fff' }}
             >
@@ -319,43 +325,49 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               label="Bucket"
               active={stageFilter.length > 0}
               activeLabel={stageFilter.length > 0 ? `Bucket · ${stageFilter.length}` : undefined}
-              onPress={() => setOpenDropdown('bucket')}
-              onClear={() => setStageFilter([])}
+              open={openDropdown === 'bucket'}
+              onToggle={() => setOpenDropdown(prev => prev === 'bucket' ? 'none' : 'bucket')}
+              onClear={() => { setStageFilter([]); setOpenDropdown('none') }}
             />
             <FilterChip
               label="Visited"
               active={visitedFilter !== 'all'}
               activeLabel={visitedFilter !== 'all' ? (visitedFilter === 'visited' ? 'Visited: Yes' : 'Visited: No') : undefined}
-              onPress={() => setOpenDropdown('visited')}
-              onClear={() => setVisitedFilter('all')}
+              open={openDropdown === 'visited'}
+              onToggle={() => setOpenDropdown(prev => prev === 'visited' ? 'none' : 'visited')}
+              onClear={() => { setVisitedFilter('all'); setOpenDropdown('none') }}
             />
             <FilterChip
               label="Collected"
               active={collectedFilter !== 'all'}
               activeLabel={collectedFilter !== 'all' ? `Collected: ${collectedFilter === 'yes' ? 'Yes' : 'No'}` : undefined}
-              onPress={() => setOpenDropdown('collected')}
-              onClear={() => setCollectedFilter('all')}
+              open={openDropdown === 'collected'}
+              onToggle={() => setOpenDropdown(prev => prev === 'collected' ? 'none' : 'collected')}
+              onClear={() => { setCollectedFilter('all'); setOpenDropdown('none') }}
             />
             <FilterChip
               label="Risk Band"
               active={riskFilter !== 'all'}
               activeLabel={riskFilter !== 'all' ? `${riskFilter} Risk` : undefined}
-              onPress={() => setOpenDropdown('risk')}
-              onClear={() => setRiskFilter('all')}
+              open={openDropdown === 'risk'}
+              onToggle={() => setOpenDropdown(prev => prev === 'risk' ? 'none' : 'risk')}
+              onClear={() => { setRiskFilter('all'); setOpenDropdown('none') }}
             />
             <FilterChip
               label="PTP"
               active={ptpFilter !== 'all'}
               activeLabel={ptpFilter !== 'all' ? `PTP: ${ptpFilter === 'yes' ? 'Yes' : 'No'}` : undefined}
-              onPress={() => setOpenDropdown('ptp')}
-              onClear={() => setPtpFilter('all')}
+              open={openDropdown === 'ptp'}
+              onToggle={() => setOpenDropdown(prev => prev === 'ptp' ? 'none' : 'ptp')}
+              onClear={() => { setPtpFilter('all'); setOpenDropdown('none') }}
             />
             <FilterChip
               label="Distance"
               active={distFilter !== 'all'}
               activeLabel={distFilter !== 'all' ? DIST_OPTIONS.find(o => o.id === distFilter)?.label : undefined}
-              onPress={() => setOpenDropdown('distance')}
-              onClear={() => setDistFilter('all')}
+              open={openDropdown === 'distance'}
+              onToggle={() => setOpenDropdown(prev => prev === 'distance' ? 'none' : 'distance')}
+              onClear={() => { setDistFilter('all'); setOpenDropdown('none') }}
             />
 
             {activeCount > 0 && (

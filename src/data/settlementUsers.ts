@@ -16,8 +16,9 @@ export interface ActiveSettlement {
 // Mock store — replace with API fetch. Seeded deterministically: every 7th customer has one.
 const activeSettlements: Record<string, ActiveSettlement> = {}
 
+// Settlement exists only for Loans (bank) — CC/Borrow settlement is out of Phase 1 scope.
 ALL_CUSTOMERS.forEach((c, i) => {
-  if (i % 7 === 3) {
+  if (c.userType === 'bank' && i % 7 === 3) {
     const total = Math.round((c.emiOs || 50000) * 0.6)
     activeSettlements[String(c.partyId)] = {
       partyId: String(c.partyId),

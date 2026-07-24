@@ -141,12 +141,13 @@ function generateBankEmis(c: Customer) {
 
 function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[], customAmount: string) {
   const userType = c.userType || 'bank'
+  const activeSettlement = getActiveSettlement(String(c.partyId))
   if (userType === 'cc') {
     const cc = getCCBill(String(c.partyId))
     if (paymentType === 'Min Due')          return cc?.minDueAmount ?? c.minimumAmountDue ?? 0
     if (paymentType === 'Pay Overdue')      return cc?.remainingBillAmount ?? c.emiOs ?? 0
     if (paymentType === 'Full Outstanding') return cc?.billAmount ?? c.outstandingBalance ?? 0
-    if (paymentType === 'Settlement Instalment') return Number(customAmount) || 0
+    if (paymentType === 'Settlement Instalment') return activeSettlement?.nextInstalmentAmount ?? 0
     if (paymentType === 'Custom Amount')    return Number(customAmount) || 0
     return 0
   }
@@ -160,7 +161,7 @@ function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[
     // Foreclose is a distinct field from Rollback — don't fall back to rollbackAmount here.
     if (paymentType === 'Foreclose')        return bd?.foreclosureAmount ?? c.foreclosure ?? 0
     if (paymentType === 'Full Outstanding') return bd?.currentPos ?? c.outstandingBalance ?? 0
-    if (paymentType === 'Settlement Instalment') return Number(customAmount) || 0
+    if (paymentType === 'Settlement Instalment') return activeSettlement?.nextInstalmentAmount ?? 0
     if (paymentType === 'Custom Amount')    return Number(customAmount) || 0
     return 0
   }
@@ -168,7 +169,7 @@ function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[
   if (paymentType === 'Partial Repayment')    return Number(customAmount) || 0
   // Foreclosure is a distinct allocation-file field from Rollback — don't conflate them.
   if (paymentType === 'Foreclosure')          return c.foreclosure || c.rollback || 0
-  if (paymentType === 'Settlement Instalment')return Number(customAmount) || 0
+  if (paymentType === 'Settlement Instalment') return activeSettlement?.nextInstalmentAmount ?? 0
   // Stable/Rollback: allocation-file fields (MINIMUM_AMOUNT_DUE / ROLLBACK_AMOUNT), not computed.
   if (paymentType === 'Stable')                return c.minimumAmountDue || 0
   if (paymentType === 'Rollback')              return c.rollbackAmount || 0
@@ -257,7 +258,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const grossAmount = getBankGrossAmount(paymentType, c, selectedEmis, customAmount)
   const netCollectible = Math.max(0, grossAmount - bankWaiverAmount)
 
-  const needsCustomAmount = paymentType === 'Partial Repayment' || paymentType === 'Settlement Instalment' || paymentType === 'Custom Amount'
+  const needsCustomAmount = paymentType === 'Partial Repayment' || paymentType === 'Custom Amount'
 
   const step1Valid = category !== null && (
     isCollected
@@ -705,10 +706,10 @@ function BankDispositionScreen({ navigation, route }: Props) {
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {paymentTypeOptions.map(pt => {
-                    // Active settlement: only Settlement Instalment payment type allowed.
-                    // Settlement itself is not offered for CC/Borrow — instalment tile disabled there.
+                    // Settlement Instalment is only payable when an active settlement exists;
+                    // with an active settlement it's also the ONLY payable type.
                     const blocked = (!!activeSettlement && pt !== 'Settlement Instalment')
-                      || (isSliceProduct && pt === 'Settlement Instalment' && !activeSettlement)
+                      || (pt === 'Settlement Instalment' && !activeSettlement)
                     return (
                       <TouchableOpacity
                         key={pt}
@@ -781,10 +782,10 @@ function BankDispositionScreen({ navigation, route }: Props) {
                 )}
 
                 {/* Custom amount */}
-                {(paymentType === 'Partial Repayment' || paymentType === 'Settlement Instalment' || paymentType === 'Custom Amount') && (
+                {(paymentType === 'Partial Repayment' || paymentType === 'Custom Amount') && (
                   <View>
                     <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
-                      {paymentType === 'Settlement Instalment' ? 'Instalment Amount' : paymentType === 'Custom Amount' ? 'Amount' : 'Repayment Amount'} <Text style={{ color: '#CE1D26' }}>*</Text>
+                      {paymentType === 'Custom Amount' ? 'Amount' : 'Repayment Amount'} <Text style={{ color: '#CE1D26' }}>*</Text>
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: customAmount ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingBottom: 8 }}>
                       <Text style={{ fontSize: 16, fontWeight: '600', color: 'rgba(0,0,0,0.7)', marginRight: 6 }}>₹</Text>
@@ -801,7 +802,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                 )}
 
                 {/* Locked amount */}
-                {paymentType !== '' && paymentType !== 'Partial Repayment' && paymentType !== 'Settlement Instalment' && paymentType !== 'Custom Amount' && paymentType !== 'Overdue EMIs' && (
+                {paymentType !== '' && paymentType !== 'Partial Repayment' && paymentType !== 'Custom Amount' && paymentType !== 'Overdue EMIs' && (
                   <View style={{ backgroundColor: '#F0F4F7', borderRadius: 12, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.6)' }}>Amount (system calculated)</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
