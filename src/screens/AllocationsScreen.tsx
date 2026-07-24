@@ -246,7 +246,9 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               </View>
             )}
           </View>
-          <Text style={{ width: 92, textAlign: 'center' }} className="text-sm font-medium text-[#CE1D26]" numberOfLines={1}>{fmt(c.overdue ?? c.emiOs)}</Text>
+          <View style={{ width: 78, alignItems: 'center' }}>
+            <Text className="text-sm font-medium text-[#CE1D26]" numberOfLines={1}>{fmt(c.overdue ?? c.emiOs)}</Text>
+          </View>
         </View>
 
         <View className="flex-row items-start justify-between mt-1">
@@ -263,7 +265,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               <Text className="text-[10px] text-black/30">{c.distKm} km</Text>
             </View>
           </View>
-          <View style={{ width: 92, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 78, alignItems: 'center', justifyContent: 'center' }}>
             <TouchableOpacity
               onPress={() => navigation.navigate('CustomerDetail', { customer: c, fromScreen: 'Allocations' })}
               className="bg-[#D30AD7] px-3 py-1.5 rounded-full"
