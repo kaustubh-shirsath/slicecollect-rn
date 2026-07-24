@@ -30,7 +30,6 @@ export default function HomeScreen({ navigation }: Props) {
 
   const bucketGroups = homeData.bucketGroups
   const totalOverdue = homeData.overdueTotal
-  const totalCollected = homeData.collectedToday
 
   const initials = agentInfo?.name
     ? agentInfo.name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2)
@@ -69,8 +68,8 @@ export default function HomeScreen({ navigation }: Props) {
           <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-3">Portfolio Overview</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {[
-              { label: 'Total Allocated', value: String(homeData.totalCases) },
-              { label: 'Pending Cases', value: String(homeData.pendingVisits) },
+              { label: 'POS Allocated', value: fmtL(totalOverdue) },
+              { label: 'Visited Cases', value: String(homeData.totalCases - homeData.pendingVisits) },
               { label: 'Collected Today', value: fmtL(homeData.collectedToday) },
               { label: 'Amount Due', value: fmtL(totalOverdue) },
             ].map(tile => (
@@ -122,24 +121,37 @@ export default function HomeScreen({ navigation }: Props) {
                     <Text className="text-[9px] text-black/35 mb-1.5">Maximise ₹ collected against target</Text>
                     <View className="rounded-2xl overflow-hidden" style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
                       <View className="flex-row bg-[#F0F4F7] px-3 py-2">
-                        <Text className="flex-1 text-[10px] text-black/40 font-medium">Bucket</Text>
-                        <Text className="w-[70px] text-right text-[10px] text-black/40 font-medium">POS Alloc.</Text>
-                        <Text className="w-[70px] text-right text-[10px] text-black/40 font-medium">Collected</Text>
-                        <Text className="w-[70px] text-right text-[10px] text-black/40 font-medium">Target</Text>
+                        <Text className="flex-1 text-[10px] text-black/40 font-medium text-center">Bucket</Text>
+                        <Text className="w-[76px] text-[10px] text-black/40 font-medium text-center">POS Allocated</Text>
+                        <Text className="w-[70px] text-[10px] text-black/40 font-medium text-center">Collected</Text>
+                        <Text className="w-[70px] text-[10px] text-black/40 font-medium text-center">Target</Text>
                       </View>
-                      {collectionBuckets.map((b: any, i: number) => (
-                        <TouchableOpacity
-                          key={b.name}
-                          onPress={() => navigation.navigate('Allocations', { defaultBucket: b.name })}
-                          className={`flex-row items-center px-3 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F0F4F7]/40'}`}
-                          style={{ borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: 'rgba(0,0,0,0.04)' }}
-                        >
-                          <Text className="flex-1 font-medium text-xs text-[rgba(0,0,0,0.9)]">{b.name}</Text>
-                          <Text className="w-[70px] text-right text-xs text-black/50">{fmtL(b.posAllocated)}</Text>
-                          <Text className="w-[70px] text-right text-xs" style={{ color: b.collected >= b.target ? '#00A63E' : 'rgba(0,0,0,0.7)' }}>{fmtL(b.collected)}</Text>
-                          <Text className="w-[70px] text-right text-xs text-black/40">{fmtL(b.target)}</Text>
-                        </TouchableOpacity>
-                      ))}
+                      {collectionBuckets.map((b: any, i: number) => {
+                        const onTarget = b.collected >= b.target
+                        const collectedPct = b.target > 0 ? Math.round((b.collected / b.target) * 100) : 0
+                        return (
+                          <TouchableOpacity
+                            key={b.name}
+                            onPress={() => navigation.navigate('Allocations', { defaultBucket: b.name })}
+                            className={`px-3 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F0F4F7]/40'}`}
+                            style={{ borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: 'rgba(0,0,0,0.04)' }}
+                          >
+                            <View className="flex-row items-center">
+                              <Text className="flex-1 font-medium text-xs text-[rgba(0,0,0,0.9)] text-center">{b.name}</Text>
+                              <Text className="w-[76px] text-xs text-black/50 text-center">{fmtL(b.posAllocated)}</Text>
+                              <Text className="w-[70px] text-xs text-center" style={{ color: onTarget ? '#00A63E' : 'rgba(0,0,0,0.7)' }}>{fmtL(b.collected)}</Text>
+                              <Text className="w-[70px] text-xs text-black/40 text-center">{fmtL(b.target)}</Text>
+                            </View>
+                            {/* Collection progress bar vs target */}
+                            <View className="mt-1.5 h-1 rounded-full bg-[#EAEBED] overflow-hidden">
+                              <View
+                                className="h-1 rounded-full"
+                                style={{ width: `${Math.min(100, collectedPct)}%`, backgroundColor: onTarget ? '#00A63E' : '#D30AD7' }}
+                              />
+                            </View>
+                          </TouchableOpacity>
+                        )
+                      })}
                     </View>
                   </View>
                 )}
@@ -147,13 +159,13 @@ export default function HomeScreen({ navigation }: Props) {
                 {/* Resolution sub-table: SMA/BKT/... — objective is resolving highest-POS cases */}
                 {resolutionBuckets.length > 0 && (
                   <View className="px-5 pb-4">
-                    <Text className="text-[9px] text-black/35 mb-1.5">Resolve highest-POS cases first (fwd status = unresolved)</Text>
+                    <Text className="text-[9px] text-black/35 mb-1.5">Resolve highest-POS cases first</Text>
                     <View className="rounded-2xl overflow-hidden" style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
                       <View className="flex-row bg-[#F0F4F7] px-3 py-2">
-                        <Text className="flex-1 text-[10px] text-black/40 font-medium">Bucket</Text>
-                        <Text className="w-[70px] text-right text-[10px] text-black/40 font-medium">POS Alloc.</Text>
-                        <Text className="w-[62px] text-right text-[10px] text-black/40 font-medium">Resol. %</Text>
-                        <Text className="w-[54px] text-right text-[10px] text-black/40 font-medium">Target</Text>
+                        <Text className="flex-1 text-[10px] text-black/40 font-medium text-center">Bucket</Text>
+                        <Text className="w-[76px] text-[10px] text-black/40 font-medium text-center">POS Allocated</Text>
+                        <Text className="w-[70px] text-[10px] text-black/40 font-medium text-center">Resolved%</Text>
+                        <Text className="w-[60px] text-[10px] text-black/40 font-medium text-center">Target</Text>
                       </View>
                       {resolutionBuckets.map((b: any, i: number) => {
                         const onTarget = b.resolutionPct >= b.targetPct
@@ -165,10 +177,10 @@ export default function HomeScreen({ navigation }: Props) {
                             style={{ borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: 'rgba(0,0,0,0.04)' }}
                           >
                             <View className="flex-row items-center">
-                              <Text className="flex-1 font-medium text-xs text-[rgba(0,0,0,0.9)]">{b.name}</Text>
-                              <Text className="w-[70px] text-right text-xs text-black/50">{fmtL(b.posAllocated)}</Text>
-                              <Text className="w-[62px] text-right text-xs font-semibold" style={{ color: onTarget ? '#00A63E' : '#B45309' }}>{b.resolutionPct}%</Text>
-                              <Text className="w-[54px] text-right text-xs text-black/40">{b.targetPct}%</Text>
+                              <Text className="flex-1 font-medium text-xs text-[rgba(0,0,0,0.9)] text-center">{b.name}</Text>
+                              <Text className="w-[76px] text-xs text-black/50 text-center">{fmtL(b.posAllocated)}</Text>
+                              <Text className="w-[70px] text-xs font-semibold text-center" style={{ color: onTarget ? '#00A63E' : '#B45309' }}>{b.resolutionPct}%</Text>
+                              <Text className="w-[60px] text-xs text-black/40 text-center">{b.targetPct}%</Text>
                             </View>
                             {/* Resolution progress bar vs target */}
                             <View className="mt-1.5 h-1 rounded-full bg-[#EAEBED] overflow-hidden">
@@ -187,9 +199,6 @@ export default function HomeScreen({ navigation }: Props) {
             )
           })}
         </View>
-
-        {/* Summary footer */}
-        <Text className="text-center text-xs text-black/40">{fmtL(totalCollected)} collected of {fmtL(totalOverdue)} total</Text>
 
         {/* Leaderboard — top 10 monthly collections + my rank */}
         <LeaderboardCard myUsername={agentInfo?.username} />

@@ -66,7 +66,6 @@ export default function VisitsScreen({ navigation }: Props) {
     : false
   const [statusTab, setStatusTab] = useState<StatusTab>(hasBankCases ? 'Cash in Hand' : 'Collections')
   const [depositing, setDepositing] = useState(false)
-  const [toast, setToast] = useState('')
   const [lastDeposit, setLastDeposit] = useState<{ amount: number; date: string } | null>(null)
 
   const allEntries = useMemo(() => {
@@ -179,8 +178,6 @@ export default function VisitsScreen({ navigation }: Props) {
       updateActivity(c.partyId, { collections: updated })
     }
     setDepositing(false)
-    setToast('Maker entry created — pending checker approval')
-    setTimeout(() => setToast(''), 3000)
     const d = new Date()
     const dateStr = [d.getDate(), d.getMonth() + 1, d.getFullYear() % 100].map(n => String(n).padStart(2, '0')).join('-')
     setLastDeposit({ amount: depositedAmount, date: dateStr })
@@ -228,31 +225,39 @@ export default function VisitsScreen({ navigation }: Props) {
 
         {/* Cash in Hand widget (Loans agents) / Today's Collections (Credit Card & Borrow only) */}
         {hasBankCases ? (
-          cashToDeposit > 0 && <View className="mx-4 my-3 bg-[#D30AD7] rounded-[24px] px-5 py-4" style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } }}>
-            <View className="flex-row items-center justify-between">
-              <View>
-                <Text className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-0.5">Cash in Hand</Text>
-                <Text className="text-2xl font-medium text-white">{fmt(cashToDeposit)}</Text>
+          cashToDeposit > 0 ? (
+            <View className="mx-4 my-3 bg-[#D30AD7] rounded-[24px] px-5 py-4" style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } }}>
+              <View className="flex-row items-center justify-between">
+                <View>
+                  <Text className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-0.5">Cash in Hand</Text>
+                  <Text className="text-2xl font-medium text-white">{fmt(cashToDeposit)}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={handleDeposit}
+                  disabled={depositing}
+                  className="bg-white px-5 py-2.5 rounded-full"
+                >
+                  <Text className="text-[#D30AD7] text-xs font-semibold">{depositing ? 'Depositing…' : 'Deposit →'}</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                onPress={handleDeposit}
-                disabled={depositing}
-                className="bg-white px-5 py-2.5 rounded-full"
-              >
-                <Text className="text-[#D30AD7] text-xs font-semibold">{depositing ? 'Depositing…' : 'Deposit →'}</Text>
-              </TouchableOpacity>
+              <View className="flex-row items-center gap-5 mt-4 pt-3" style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' }}>
+                <View>
+                  <Text className="text-[9px] text-white/50 uppercase tracking-wider">GL Code</Text>
+                  <Text className="text-xs font-medium text-white font-mono mt-0.5">{glCode}</Text>
+                </View>
+                <View>
+                  <Text className="text-[9px] text-white/50 uppercase tracking-wider">Branch</Text>
+                  <Text className="text-xs font-medium text-white mt-0.5">{branch}</Text>
+                </View>
+              </View>
             </View>
-            <View className="flex-row items-center gap-5 mt-4 pt-3" style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' }}>
-              <View>
-                <Text className="text-[9px] text-white/50 uppercase tracking-wider">GL Code</Text>
-                <Text className="text-xs font-medium text-white font-mono mt-0.5">{glCode}</Text>
-              </View>
-              <View>
-                <Text className="text-[9px] text-white/50 uppercase tracking-wider">Branch</Text>
-                <Text className="text-xs font-medium text-white mt-0.5">{branch}</Text>
-              </View>
+          ) : lastDeposit ? (
+            <View className="mx-4 my-3 bg-[#E0F4E8] rounded-[24px] px-5 py-4" style={{ borderWidth: 1, borderColor: 'rgba(0,166,62,0.25)' }}>
+              <Text className="text-[#007E2F] text-sm font-semibold text-center">
+                {fmt(lastDeposit.amount)} has been deposited on {lastDeposit.date}
+              </Text>
             </View>
-          </View>
+          ) : null
         ) : (
           <View className="mx-4 my-3 bg-[#D30AD7] rounded-[24px] px-5 py-4" style={{ elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } }}>
             <Text className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-0.5">Today's Collections</Text>
@@ -359,20 +364,6 @@ export default function VisitsScreen({ navigation }: Props) {
           )}
         </View>
       </ScrollView>
-
-      {toast ? (
-        <View className="absolute bottom-24 self-center bg-[#00A63E] rounded-full px-5 py-3" style={{ elevation: 8 }}>
-          <Text className="text-white text-sm font-medium">{toast}</Text>
-        </View>
-      ) : null}
-
-      {lastDeposit && (
-        <View className="absolute left-0 right-0 bg-[rgba(0,0,0,0.85)] px-5 py-3" style={{ elevation: 8, bottom: 100 }}>
-          <Text className="text-white text-xs text-center font-medium">
-            {fmt(lastDeposit.amount)} has been deposited on {lastDeposit.date}
-          </Text>
-        </View>
-      )}
     </SafeAreaView>
   )
 }
