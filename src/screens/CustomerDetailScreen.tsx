@@ -11,7 +11,7 @@ import { getAppointmentForCustomer, setAppointment, cancelAppointment, getTimeSl
 import { getActiveSettlement } from '../data/settlementUsers'
 import { useAgent } from '../navigation/AgentContext'
 import ProductTag from '../components/ProductTag'
-import { getRiskBand, getRemarks, getCustomerRef } from '../data/caseMeta'
+import { getRiskBand, getRemarks, getCustomerRef, formatName } from '../data/caseMeta'
 import Svg, { Path } from 'react-native-svg'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>
@@ -260,7 +260,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
             </View>
             <View className="flex-1 min-w-0">
               <View className="flex-row items-center gap-1.5">
-                <Text className="text-[rgba(0,0,0,0.9)] font-semibold text-base leading-tight" numberOfLines={1}>{c.name}</Text>
+                <Text className="text-[rgba(0,0,0,0.9)] font-semibold text-base leading-tight" numberOfLines={1}>{formatName(c.name)}</Text>
                 {statusTag && (
                   <View className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: statusTag.bg }}>
                     <Text className="text-[9px] font-medium" style={{ color: statusTag.color }}>{statusTag.label}</Text>

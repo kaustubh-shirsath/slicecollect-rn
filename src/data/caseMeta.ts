@@ -62,3 +62,8 @@ export function getPaymentLinkStatus(receiptId: string): PaymentLinkStatus {
   if (h < 9) return 'Pending'
   return 'Failure'
 }
+
+// Display names arrive UPPERCASE from the allocation file — render as Title Case.
+export function formatName(name: string): string {
+  return (name || '').toLowerCase().replace(/(^|[\s.'-])\w/g, ch => ch.toUpperCase())
+}

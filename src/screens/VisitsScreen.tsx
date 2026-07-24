@@ -9,7 +9,7 @@ import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { ALL_CUSTOMERS } from '../data/customers'
 import { getActivity, updateActivity } from '../data/activityLog'
-import { getCustomerRef, getPaymentLinkStatus } from '../data/caseMeta'
+import { getCustomerRef, getPaymentLinkStatus, formatName } from '../data/caseMeta'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Visits'>,
@@ -354,7 +354,7 @@ export default function VisitsScreen(_props: Props) {
 
                   {/* Name + left-aligned disposition tag + ref */}
                   <View className="flex-1 min-w-0 pr-2">
-                    <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight" numberOfLines={1}>{e.name}</Text>
+                    <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight" numberOfLines={1}>{formatName(e.name)}</Text>
                     <View className="flex-row items-center gap-1.5 mt-1 flex-wrap">
                       {e.type ? (
                         <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full self-start">

@@ -16,7 +16,7 @@ import { getActivity } from '../data/activityLog'
 import { haversine } from '../data/routingEngine'
 import { getBorrowData } from '../data/emis'
 import { getCCBill } from '../data/ccBills'
-import { getRiskBand, getPriorityOrder, getCustomerRef } from '../data/caseMeta'
+import { getRiskBand, getPriorityOrder, getCustomerRef, formatName } from '../data/caseMeta'
 import { hasActiveSettlement } from '../data/settlementUsers'
 
 type Props = CompositeScreenProps<
@@ -244,7 +244,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
           <View style={{ width: 32 }}>
             <Text className="text-[11px] font-bold text-[#A008A3]">#{c.priorityOrder}</Text>
           </View>
-          <Text className="flex-1 font-medium text-[rgba(0,0,0,0.9)] text-sm pr-2" numberOfLines={1}>{c.name}</Text>
+          <Text className="flex-1 font-medium text-[rgba(0,0,0,0.9)] text-sm pr-2" numberOfLines={1}>{formatName(c.name)}</Text>
           <View style={{ width: 84, alignItems: 'center', justifyContent: 'center' }}>
             {statusTag && (
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: statusTag.bg, alignItems: 'center', justifyContent: 'center' }}>

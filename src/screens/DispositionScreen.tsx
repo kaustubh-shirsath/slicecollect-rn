@@ -12,7 +12,7 @@ import { getBorrowData } from '../data/emis'
 import { getCCBill } from '../data/ccBills'
 import { submitWaiverRequest } from '../data/waiverRequests'
 import { getActiveSettlement, markInstalmentPaid } from '../data/settlementUsers'
-import { getCustomerRef } from '../data/caseMeta'
+import { getCustomerRef, formatName } from '../data/caseMeta'
 import { Customer } from '../data/customers'
 import { PRODUCT_LABEL, PRODUCT_COLORS } from '../utils/productLabels'
 
@@ -576,7 +576,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.9)' }}>{c.name}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.9)' }}>{formatName(c.name)}</Text>
             {(() => {
               // Status flag — same precedence as cases list: Active Settlement > Collected > PTP > Visited
               const act = getActivity(c.partyId)

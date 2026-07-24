@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { formatName } from '../data/caseMeta'
 import { View, Text, TouchableOpacity, ScrollView, Animated, Easing } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { CompositeScreenProps } from '@react-navigation/native'
@@ -248,7 +249,7 @@ export default function SmartScreen({ navigation }: Props) {
                             className={`font-semibold leading-tight ${state === 'current' ? 'text-black/90 text-[15px]' : state === 'done' ? 'text-black/40 text-[13px]' : 'text-black/80 text-[13px]'}`}
                             numberOfLines={1}
                           >
-                            {stop.customer.name}
+                            {formatName(stop.customer.name)}
                           </Text>
                           <View className="flex-row items-center gap-2 mt-1.5 flex-wrap">
                             <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>

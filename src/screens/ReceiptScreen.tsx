@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
+import { formatName } from '../data/caseMeta'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Receipt'>
 
@@ -49,7 +50,7 @@ export default function ReceiptScreen({ navigation, route }: Props) {
   const altMobile = (receipt.alternateMobile || '').replace(/\D/g, '')
 
   function shareWhatsApp() {
-    const text = `slice — Collection Confirmation\nCustomer: ${receipt.customerName}\n${receipt.refLabel || 'CIF'}: ${receipt.refValue || receipt.partyId}\nAmount: ${fmt(receipt.amount)}\nMode: ${receipt.paymentMode}\nBranch: ${receipt.branchName}\nDate: ${dateStr}, ${timeStr}\nCollected by: ${receipt.agentName || agentInfo?.name || ''}`
+    const text = `slice — Collection Confirmation\nCustomer: ${formatName(receipt.customerName)}\n${receipt.refLabel || 'CIF'}: ${receipt.refValue || receipt.partyId}\nAmount: ${fmt(receipt.amount)}\nMode: ${receipt.paymentMode}\nBranch: ${receipt.branchName}\nDate: ${dateStr}, ${timeStr}\nCollected by: ${receipt.agentName || agentInfo?.name || ''}`
     const target = registeredMobile ? `91${registeredMobile.slice(-10)}` : ''
     Linking.openURL(`https://wa.me/${target}?text=${encodeURIComponent(text)}`)
   }
@@ -104,7 +105,7 @@ export default function ReceiptScreen({ navigation, route }: Props) {
             <Text style={{ color: 'rgba(0,0,0,0.9)', fontSize: 52, fontWeight: '800', letterSpacing: -1 }}>{fmt(receipt.amount)}</Text>
 
             {/* From customer */}
-            <Text style={{ color: 'rgba(0,0,0,0.85)', fontSize: 22, fontWeight: '700', marginTop: 14 }}>From {receipt.customerName}</Text>
+            <Text style={{ color: 'rgba(0,0,0,0.85)', fontSize: 22, fontWeight: '700', marginTop: 14 }}>From {formatName(receipt.customerName)}</Text>
             <Text style={{ color: 'rgba(0,0,0,0.4)', fontSize: 12, marginTop: 4 }}>{receipt.refLabel || 'CIF'}: {receipt.refValue || receipt.partyId}</Text>
 
             <Text style={{ color: 'rgba(0,0,0,0.4)', fontSize: 14, marginTop: 14 }}>{dateStr}, {timeStr}</Text>
