@@ -64,10 +64,10 @@ export default function HomeScreen({ navigation }: Props) {
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100, gap: 16 }}>
 
-        {/* Portfolio Overview — subtle raised chips in a single row */}
+        {/* Portfolio Overview — 2x2 grid of subtle raised chips, one-line labels */}
         <View className="bg-white rounded-[24px] px-5 py-4" style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
           <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-3">Portfolio Overview</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {[
               { label: 'Total Allocated', value: String(homeData.totalCases) },
               { label: 'Pending Cases', value: String(homeData.pendingVisits) },
@@ -77,11 +77,11 @@ export default function HomeScreen({ navigation }: Props) {
               <View
                 key={tile.label}
                 style={{
-                  flex: 1,
+                  width: '47%',
                   backgroundColor: '#FAFBFC',
                   borderRadius: 14,
                   paddingVertical: 10,
-                  paddingHorizontal: 8,
+                  paddingHorizontal: 12,
                   borderWidth: 1,
                   borderColor: 'rgba(0,0,0,0.05)',
                   elevation: 1,
@@ -91,8 +91,8 @@ export default function HomeScreen({ navigation }: Props) {
                   shadowOffset: { width: 0, height: 1 },
                 }}
               >
-                <Text className="text-[15px] font-semibold text-[rgba(0,0,0,0.9)]" numberOfLines={1}>{tile.value}</Text>
-                <Text className="text-[9px] text-black/45 font-medium mt-0.5" numberOfLines={1}>{tile.label}</Text>
+                <Text className="text-[10px] text-black/45 font-medium" numberOfLines={1}>{tile.label}</Text>
+                <Text className="text-lg font-semibold text-[rgba(0,0,0,0.9)] mt-1" numberOfLines={1}>{tile.value}</Text>
               </View>
             ))}
           </View>

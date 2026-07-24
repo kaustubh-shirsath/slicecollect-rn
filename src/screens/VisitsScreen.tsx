@@ -367,7 +367,7 @@ export default function VisitsScreen({ navigation }: Props) {
       ) : null}
 
       {lastDeposit && (
-        <View className="absolute bottom-0 left-0 right-0 bg-[rgba(0,0,0,0.85)] px-5 py-3" style={{ elevation: 8 }}>
+        <View className="absolute left-0 right-0 bg-[rgba(0,0,0,0.85)] px-5 py-3" style={{ elevation: 8, bottom: 100 }}>
           <Text className="text-white text-xs text-center font-medium">
             {fmt(lastDeposit.amount)} has been deposited on {lastDeposit.date}
           </Text>
