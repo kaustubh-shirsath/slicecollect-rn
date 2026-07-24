@@ -329,21 +329,19 @@ export default function VisitsScreen(_props: Props) {
                 {section.entries.map((e: any, i: number) => {
               const maskedId = getCustomerRef(e.partyId, e.userType).masked
               return (
-                <View key={i} className="bg-white rounded-[20px] px-4 py-4 gap-2.5" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
-                  <View className="flex-row items-start justify-between gap-2">
-                    <View className="min-w-0">
-                      <View className="flex-row items-center gap-1.5 flex-wrap">
-                        <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight">{e.name}</Text>
-                        {e.type ? (
-                          <View className="bg-[#FAE2FA] px-1.5 py-0.5 rounded-full">
-                            <Text className="text-[9px] text-[#A008A3] font-medium">{e.type}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      <Text className="text-black/35 text-[11px] font-mono tracking-wider mt-0.5">{maskedId}</Text>
+                <View key={i} className="bg-white rounded-[20px] px-4 py-4" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
+                  {/* Top row — fixed columns: name (flex) | disposition tag (96, centred) | amount (84, centred) */}
+                  <View className="flex-row items-center">
+                    <Text className="flex-1 font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight pr-2" numberOfLines={1}>{e.name}</Text>
+                    <View style={{ width: 96, alignItems: 'center' }}>
+                      {e.type ? (
+                        <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full">
+                          <Text className="text-[9px] text-[#A008A3] font-medium" style={{ textAlign: 'center' }}>{e.type}</Text>
+                        </View>
+                      ) : null}
                     </View>
-                    <View className="items-end">
-                      <Text className="font-semibold text-[15px] text-[rgba(0,0,0,0.85)]">
+                    <View style={{ width: 84, alignItems: 'center' }}>
+                      <Text className="font-semibold text-[15px] text-[rgba(0,0,0,0.85)]" numberOfLines={1}>
                         {statusTab === 'PTP Marked'
                           ? (e.ptpMarked > 0 ? fmt(e.ptpMarked) : '—')
                           : statusTab === 'Cash Deposited'
@@ -352,18 +350,27 @@ export default function VisitsScreen(_props: Props) {
                           ? fmt(e.linkAmount)
                           : fmt(e.cashInHand)}
                       </Text>
+                    </View>
+                  </View>
+
+                  {/* Second row — masked ref (left) | link status (centred under tag) | time (centred under amount) */}
+                  <View className="flex-row items-center mt-1">
+                    <Text className="flex-1 text-black/35 text-[11px] font-mono tracking-wider pr-2" numberOfLines={1}>{maskedId}</Text>
+                    <View style={{ width: 96, alignItems: 'center' }}>
                       {statusTab === 'Payment Link' && e.linkStatus ? (
-                        <View className="px-1.5 py-0.5 rounded-full mt-1" style={{ backgroundColor: e.linkStatus === 'Success' ? '#E0F4E8' : e.linkStatus === 'Pending' ? '#FFF0E0' : '#F9E4E5' }}>
+                        <View className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: e.linkStatus === 'Success' ? '#E0F4E8' : e.linkStatus === 'Pending' ? '#FFF0E0' : '#F9E4E5' }}>
                           <Text className="text-[9px] font-medium" style={{ color: e.linkStatus === 'Success' ? '#007E2F' : e.linkStatus === 'Pending' ? '#A35300' : '#CE1D26' }}>{e.linkStatus}</Text>
                         </View>
                       ) : null}
-                      <Text className="text-black/35 text-[10px] mt-0.5">{e.time}</Text>
+                    </View>
+                    <View style={{ width: 84, alignItems: 'center' }}>
+                      <Text className="text-black/35 text-[10px]">{e.time}</Text>
                     </View>
                   </View>
 
                   {/* PTP due date only — amounts live in the amount column */}
                   {statusTab === 'PTP Marked' && e.ptpDate ? (
-                    <Text className="text-[11px] text-black/45">Due {e.ptpDate}</Text>
+                    <Text className="text-[11px] text-black/45 mt-1.5">Due {e.ptpDate}</Text>
                   ) : null}
                 </View>
               )
