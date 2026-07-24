@@ -817,8 +817,10 @@ function BankDispositionScreen({ navigation, route }: Props) {
                   </View>
                 )}
 
-                {/* Waiver — not available with an active settlement, nor for Custom Amount / Settlement Instalment payments */}
-                {paymentType !== '' && !activeSettlement && paymentType !== 'Custom Amount' && paymentType !== 'Settlement Instalment' && (
+                {/* Waiver — not with an active settlement or Settlement Instalment.
+                    Custom Amount: waiver allowed for Borrow only. */}
+                {paymentType !== '' && !activeSettlement && paymentType !== 'Settlement Instalment'
+                  && (paymentType !== 'Custom Amount' || userType === 'borrow') && (
                   <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)', paddingTop: 14, gap: 12 }}>
                     <View style={{ gap: 3 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
