@@ -20,7 +20,6 @@ import DispositionScreen from './src/screens/DispositionScreen'
 import ReceiptScreen from './src/screens/ReceiptScreen'
 import SettlementScreen from './src/screens/SettlementScreen'
 import ProfileScreen from './src/screens/ProfileScreen'
-import DepositionScreen from './src/screens/DepositionScreen'
 import EscalateScreen from './src/screens/EscalateScreen'
 
 // Sales screens — separate module, not reachable from unified login yet (Sales pipeline rollout pending)
@@ -243,11 +242,6 @@ export default function App() {
               <Stack.Screen
                 name="Profile"
                 component={ProfileScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="Deposition"
-                component={DepositionScreen}
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen

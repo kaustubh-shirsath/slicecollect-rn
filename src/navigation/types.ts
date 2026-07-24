@@ -21,7 +21,6 @@ export type RootStackParamList = {
   Settlement: { customer: any }
   Receipt: { receipt: any; backTo: string }
   Import: undefined
-  Deposition: undefined
   Profile: undefined
   Escalate: { customer: any }
   // Sales screens
