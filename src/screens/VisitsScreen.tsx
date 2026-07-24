@@ -55,7 +55,7 @@ function DonutChart({ fullPct, partialPct }: { fullPct: number; partialPct: numb
 
 type StatusTab = 'Cash in Hand' | 'Deposited' | 'PTP Marked' | 'Collections'
 
-export default function VisitsScreen({ navigation }: Props) {
+export default function VisitsScreen(_props: Props) {
   const { agentInfo, dataVersion } = useAgent()
   // Cash exists only for Loans (bank). Pure Credit Card / Borrow agents have no cash flow:
   // they see Collections + PTP Marked tabs and no deposit entry point.
@@ -75,7 +75,6 @@ export default function VisitsScreen({ navigation }: Props) {
         if (!act?.latestDisposition) return []
         const disp = act.latestDisposition
         const totalCollected = act.collections.reduce((s: number, x: any) => s + x.amount, 0)
-        const latestCol = act.collections.length > 0 ? act.collections[act.collections.length - 1] : null
         // Per-case amount split: Cash in Hand / Deposited / PTP Marked
         const cashInHand = act.collections.filter((x: any) => !x.deposited && x.mode === 'Cash').reduce((s: number, x: any) => s + x.amount, 0)
         const deposited  = act.collections.filter((x: any) => x.deposited).reduce((s: number, x: any) => s + x.amount, 0)
@@ -83,24 +82,13 @@ export default function VisitsScreen({ navigation }: Props) {
         return [{
           name: c.name,
           partyId: c.partyId,
-          visitedAt: disp.visitedAt,
           time: new Date(disp.visitedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
           date: new Date(disp.visitedAt),
           amount: totalCollected,
           cashInHand, deposited, ptpMarked,
           type: disp.code,
-          mode: act.collections[0]?.mode ?? '',
           category: totalCollected >= c.emiOs && c.emiOs > 0 ? 'collected' : totalCollected > 0 ? 'partial' : 'contacted',
-          bucket: c.assetClassification,
-          dpd: c.dpd,
-          receiptId: latestCol?.receiptId ?? null,
           ptpDate: disp.ptpDate ?? null,
-          remarks: disp.remarks,
-          latestCol,
-          customerName: c.name,
-          customerMobile: c.mobile || '',
-          branchName: c.branch,
-          product: c.product,
           userType: c.userType,
         }]
       })
@@ -245,7 +233,7 @@ export default function VisitsScreen({ navigation }: Props) {
                   <Text className="text-xs font-medium text-white mt-0.5">{branch}</Text>
                 </View>
               </View>
-              <Text className="text-[10px] text-white/55 mt-2.5">Make sure you have deposited this cash in your branch before you click Deposit.</Text>
+              <Text className="text-[10px] text-white/55 mt-2.5">Please deposit this cash in your branch before you click 'Deposit'.</Text>
             </View>
           ) : lastDeposit ? (
             <View className="mx-4 my-3 bg-[#E0F4E8] rounded-[24px] px-5 py-4" style={{ borderWidth: 1, borderColor: 'rgba(0,166,62,0.25)' }}>
@@ -297,7 +285,14 @@ export default function VisitsScreen({ navigation }: Props) {
                 <View key={i} className="bg-white rounded-[20px] px-4 py-4 gap-2.5" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
                   <View className="flex-row items-start justify-between gap-2">
                     <View className="min-w-0">
-                      <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight">{e.name}</Text>
+                      <View className="flex-row items-center gap-1.5 flex-wrap">
+                        <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight">{e.name}</Text>
+                        {e.type ? (
+                          <View className="bg-[#FAE2FA] px-1.5 py-0.5 rounded-full">
+                            <Text className="text-[9px] text-[#A008A3] font-medium">{e.type}</Text>
+                          </View>
+                        ) : null}
+                      </View>
                       <Text className="text-black/35 text-[11px] font-mono tracking-wider mt-0.5">{maskedId}</Text>
                     </View>
                     <View className="items-end">
@@ -318,42 +313,6 @@ export default function VisitsScreen({ navigation }: Props) {
                   {statusTab === 'PTP Marked' && e.ptpDate ? (
                     <Text className="text-[11px] text-black/45">Due {e.ptpDate}</Text>
                   ) : null}
-
-                  {e.receiptId && (
-                    <View className="flex-row items-center justify-between pt-2" style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
-                      <View className="flex-row items-center gap-1.5">
-                        <Text className="text-[10px] text-black/30">Receipt</Text>
-                        <Text className="text-[10px] font-mono text-black/45 tracking-wide">{e.receiptId}</Text>
-                      </View>
-                      {e.latestCol && (
-                        <TouchableOpacity
-                          onPress={() => navigation.navigate('Receipt', {
-                            receipt: {
-                              receiptNo: e.receiptId,
-                              partyId: e.partyId,
-                              customerName: e.customerName,
-                              customerMobile: e.customerMobile || '',
-                              refLabel: getCustomerRef(e.partyId, e.userType).label,
-                              refValue: getCustomerRef(e.partyId, e.userType).masked,
-                              dispositionType: e.type,
-                              actionType: e.type,
-                              amount: e.amount,
-                              advanceAmount: 0,
-                              paymentMode: e.mode || e.latestCol?.mode || '',
-                              agentName: agentInfo?.name || '',
-                              branchName: agentInfo?.branch || e.branchName || '',
-                              glCode: agentInfo?.glCode || '',
-                              createdAt: e.visitedAt,
-                            },
-                            backTo: 'Visits',
-                          })}
-                          className="border border-black/15 bg-[#F0F4F7] px-3 py-1 rounded-full"
-                        >
-                          <Text className="text-[10px] font-medium text-black/60">View Receipt</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  )}
                 </View>
               )
                 })}
