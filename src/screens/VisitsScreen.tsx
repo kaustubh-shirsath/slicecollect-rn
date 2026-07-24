@@ -19,8 +19,8 @@ type Props = CompositeScreenProps<
 function fmt(n: number) { return '₹' + n.toLocaleString('en-IN') }
 
 function DonutChart({ segments }: { segments: { pct: number; color: string }[] }) {
-  const size = 112
-  const r = 50
+  const size = 124
+  const r = 48
   const cx = size / 2
   const cy = size / 2
 
@@ -193,8 +193,8 @@ export default function VisitsScreen(_props: Props) {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Donut chart — today's disposition mix */}
-        <View className="bg-white px-4 py-5" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
-          <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-3">Today&apos;s Dispositions</Text>
+        <View className="bg-white px-5 py-5" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
+          <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium mb-4">Today&apos;s Dispositions</Text>
           <View className="flex-row items-center gap-5">
             <View className="relative">
               <DonutChart segments={dispSegments.map(seg => ({ pct: (seg.count / dispTotal) * 100, color: seg.color }))} />
