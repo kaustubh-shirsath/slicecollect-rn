@@ -54,6 +54,21 @@ function DonutChart({ segments }: { segments: { pct: number; color: string }[] }
   )
 }
 
+
+// slice Activity-style avatar colours — stable pastel per name
+const AVATAR_COLORS = [
+  { bg: '#EDEBFB', fg: '#6D5AE6' },
+  { bg: '#FDEEDC', fg: '#E58A2E' },
+  { bg: '#E3F5E9', fg: '#2FA35C' },
+  { bg: '#FBE5E7', fg: '#D9485A' },
+  { bg: '#E4EFFB', fg: '#3B7BD8' },
+]
+function avatarColor(name: string) {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]
+}
+
 type StatusTab = 'Cash in Hand' | 'Cash Deposited' | 'Payment Link' | 'PTP Marked'
 
 export default function VisitsScreen(_props: Props) {
@@ -299,13 +314,13 @@ export default function VisitsScreen(_props: Props) {
           ))}
         </View>
 
-        {/* Overall total for the active tab */}
+        {/* Overall total for the active tab — visually distinct from row values */}
         {dateSections.length > 0 && (
-          <View className="mx-4 mt-3 bg-white rounded-2xl px-4 py-3 flex-row items-center justify-between" style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}>
-            <Text className="text-[11px] text-black/50 font-medium">
-              {statusTab === 'Payment Link' ? 'Total collected via payment link' : `Total ${statusTab.toLowerCase()}`}
+          <View className="mx-4 mt-3 rounded-2xl px-4 py-3.5 flex-row items-center justify-between" style={{ backgroundColor: '#FAE2FA', borderWidth: 1, borderColor: 'rgba(211,10,215,0.2)' }}>
+            <Text className="text-[11px] font-semibold" style={{ color: '#A008A3' }}>
+              {statusTab === 'Payment Link' ? 'TOTAL VIA PAYMENT LINK' : `TOTAL ${statusTab.toUpperCase()}`}
             </Text>
-            <Text className="text-sm font-bold text-[rgba(0,0,0,0.85)]">{fmt(overallTabTotal)}</Text>
+            <Text className="text-lg font-bold" style={{ color: '#A008A3' }}>{fmt(overallTabTotal)}</Text>
           </View>
         )}
 
@@ -318,62 +333,63 @@ export default function VisitsScreen(_props: Props) {
           ) : (
             dateSections.map(section => (
               <View key={section.key} className="gap-2">
-                {/* Date header — top left */}
-                <View className="flex-row items-center justify-between px-1 pt-2">
-                  <Text className="text-[13px] font-semibold text-[rgba(0,0,0,0.8)]">{section.label}</Text>
-                  <Text className="text-[10px] text-black/40">
-                    {section.entries.length} case{section.entries.length > 1 ? 's' : ''} · <Text className="font-semibold text-black/60">{fmt(section.entries.reduce((s: number, e: any) => s + tabAmount(e), 0))}</Text>
+                {/* Date header — aligned with the row content padding */}
+                <View className="flex-row items-center px-4 pt-2">
+                  <Text className="flex-1 text-[13px] font-semibold text-[rgba(0,0,0,0.8)]">{section.label}</Text>
+                  <Text className="text-[11px] text-black/45">
+                    {section.entries.length} case{section.entries.length > 1 ? 's' : ''}  ·  <Text className="font-semibold text-black/65">{fmt(section.entries.reduce((s: number, e: any) => s + tabAmount(e), 0))}</Text>
                   </Text>
                 </View>
 
+                <View className="bg-white rounded-[20px]" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
                 {section.entries.map((e: any, i: number) => {
               const maskedId = getCustomerRef(e.partyId, e.userType).masked
+              const av = avatarColor(e.name)
               return (
-                <View key={i} className="bg-white rounded-[20px] px-4 py-4" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
-                  {/* Top row — fixed columns: name (flex) | disposition tag (96, centred) | amount (84, centred) */}
-                  <View className="flex-row items-center">
-                    <Text className="flex-1 font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight pr-2" numberOfLines={1}>{e.name}</Text>
-                    <View style={{ width: 118, alignItems: 'center' }}>
+                <View key={i} className="flex-row items-center px-4 py-3.5" style={i > 0 ? { borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' } : undefined}>
+                  {/* Avatar */}
+                  <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: av.bg, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <Text style={{ color: av.fg, fontSize: 16, fontWeight: '700' }}>{e.name.trim()[0]}</Text>
+                  </View>
+
+                  {/* Name + left-aligned disposition tag + ref */}
+                  <View className="flex-1 min-w-0 pr-2">
+                    <Text className="font-semibold text-[rgba(0,0,0,0.9)] text-[15px] leading-tight" numberOfLines={1}>{e.name}</Text>
+                    <View className="flex-row items-center gap-1.5 mt-1 flex-wrap">
                       {e.type ? (
-                        <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full">
-                          <Text className="text-[9px] text-[#A008A3] font-medium" numberOfLines={1} style={{ textAlign: 'center' }}>{e.type}</Text>
+                        <View className="bg-[#FAE2FA] px-2 py-0.5 rounded-full self-start">
+                          <Text className="text-[9px] text-[#A008A3] font-medium" numberOfLines={1}>{e.type}</Text>
                         </View>
                       ) : null}
-                    </View>
-                    <View style={{ width: 84, alignItems: 'center' }}>
-                      <Text className="font-semibold text-[15px] text-[rgba(0,0,0,0.85)]" numberOfLines={1}>
-                        {statusTab === 'PTP Marked'
-                          ? (e.ptpMarked > 0 ? fmt(e.ptpMarked) : '—')
-                          : statusTab === 'Cash Deposited'
-                          ? fmt(e.deposited)
-                          : statusTab === 'Payment Link'
-                          ? fmt(e.linkAmount)
-                          : fmt(e.cashInHand)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Second row — masked ref (left) | link status + time centred under the amount */}
-                  <View className="flex-row items-center mt-1">
-                    <Text className="flex-1 text-black/35 text-[11px] font-mono tracking-wider pr-2" numberOfLines={1}>{maskedId}</Text>
-                    <View style={{ width: 118 }} />
-                    <View style={{ width: 84, alignItems: 'center', gap: 2 }}>
-                      {statusTab === 'Payment Link' && e.linkStatus ? (
-                        <View className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: e.linkStatus === 'Success' ? '#E0F4E8' : e.linkStatus === 'Pending' ? '#FFF0E0' : '#F9E4E5' }}>
-                          <Text className="text-[9px] font-medium" style={{ color: e.linkStatus === 'Success' ? '#007E2F' : e.linkStatus === 'Pending' ? '#A35300' : '#CE1D26' }}>{e.linkStatus}</Text>
-                        </View>
+                      {statusTab === 'PTP Marked' && e.ptpDate ? (
+                        <Text className="text-[10px] text-black/45">Due {e.ptpDate}</Text>
                       ) : null}
-                      <Text className="text-black/35 text-[10px]">{e.time}</Text>
                     </View>
+                    <Text className="text-black/35 text-[10px] font-mono tracking-wider mt-1" numberOfLines={1}>{maskedId}</Text>
                   </View>
 
-                  {/* PTP due date only — amounts live in the amount column */}
-                  {statusTab === 'PTP Marked' && e.ptpDate ? (
-                    <Text className="text-[11px] text-black/45 mt-1.5">Due {e.ptpDate}</Text>
-                  ) : null}
+                  {/* Amount, time, then link status below the timestamp */}
+                  <View className="items-end">
+                    <Text className="font-semibold text-[15px] text-[rgba(0,0,0,0.85)]" numberOfLines={1}>
+                      {statusTab === 'PTP Marked'
+                        ? (e.ptpMarked > 0 ? fmt(e.ptpMarked) : '—')
+                        : statusTab === 'Cash Deposited'
+                        ? fmt(e.deposited)
+                        : statusTab === 'Payment Link'
+                        ? fmt(e.linkAmount)
+                        : fmt(e.cashInHand)}
+                    </Text>
+                    <Text className="text-black/35 text-[10px] mt-0.5">{e.time}</Text>
+                    {statusTab === 'Payment Link' && e.linkStatus ? (
+                      <View className="px-1.5 py-0.5 rounded-full mt-1" style={{ backgroundColor: e.linkStatus === 'Success' ? '#E0F4E8' : e.linkStatus === 'Pending' ? '#FFF0E0' : '#F9E4E5' }}>
+                        <Text className="text-[9px] font-medium" style={{ color: e.linkStatus === 'Success' ? '#007E2F' : e.linkStatus === 'Pending' ? '#A35300' : '#CE1D26' }}>{e.linkStatus}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
               )
                 })}
+                </View>
               </View>
             ))
           )}
