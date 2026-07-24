@@ -205,7 +205,7 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
     <View className="mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.06)' }}>
       <View className="flex-row items-center justify-between mb-2">
         <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">Settlement Schedule</Text>
-        <Text className="text-[10px] text-black/40">{activeSettlement.settlementId} · {fmt(activeSettlement.totalAmount)}</Text>
+        <Text className="text-[10px] text-black/40">Total {fmt(activeSettlement.totalAmount)}</Text>
       </View>
       {settlementSchedule.map(inst => (
         <View key={inst.no} className="flex-row items-center py-2" style={{ borderBottomWidth: inst.no < settlementSchedule.length ? 0.5 : 0, borderBottomColor: 'rgba(0,0,0,0.05)' }}>

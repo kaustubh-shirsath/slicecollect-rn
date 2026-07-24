@@ -558,7 +558,27 @@ function BankDispositionScreen({ navigation, route }: Props) {
           <Text style={{ fontSize: 20, color: 'rgba(0,0,0,0.6)' }}>←</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.9)' }}>{c.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(0,0,0,0.9)' }}>{c.name}</Text>
+            {(() => {
+              // Status flag — same precedence as cases list: Active Settlement > Collected > PTP > Visited
+              const act = getActivity(c.partyId)
+              const tag = activeSettlement
+                ? { label: 'Active Settlement', bg: '#FEF3C7', color: '#92400E' }
+                : (act?.collections.length ?? 0) > 0
+                ? { label: 'Collected', bg: '#E0F4E8', color: '#007E2F' }
+                : act?.latestDisposition?.ptpDate
+                ? { label: 'PTP', bg: '#FFF0E0', color: '#A35300' }
+                : act?.latestDisposition
+                ? { label: 'Visited', bg: '#E8EDF2', color: '#3B5266' }
+                : null
+              return tag ? (
+                <View style={{ backgroundColor: tag.bg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
+                  <Text style={{ fontSize: 9, fontWeight: '500', color: tag.color }}>{tag.label}</Text>
+                </View>
+              ) : null
+            })()}
+          </View>
           <Text style={{ fontSize: 11, color: '#CE1D26', fontWeight: '500' }}>Overdue {fmt(c.emiOs || c.overdue || 0)}</Text>
         </View>
         <View style={{ backgroundColor: PRODUCT_COLORS[userType].bg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
@@ -577,18 +597,6 @@ function BankDispositionScreen({ navigation, route }: Props) {
         {step === 1 && (
           <>
             <Text style={{ fontSize: 13, color: 'rgba(0,0,0,0.5)', marginBottom: 4 }}>Select a category, then choose a disposition code</Text>
-
-            {/* Active settlement banner */}
-            {activeSettlement && (
-              <View style={{ backgroundColor: '#FEF3C7', borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(180,83,9,0.25)' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#92400E' }}>Active Settlement — {activeSettlement.settlementId}</Text>
-                  <Text style={{ fontSize: 11, color: '#92400E', marginTop: 1 }}>
-                    Collections only via "Settlement Instalment" (no waiver). Next instalment {fmt(activeSettlement.nextInstalmentAmount)} due {activeSettlement.nextInstalmentDue}.
-                  </Text>
-                </View>
-              </View>
-            )}
 
             {/* 2×2 category tiles */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
