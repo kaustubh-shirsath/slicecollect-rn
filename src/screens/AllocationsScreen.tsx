@@ -239,19 +239,12 @@ export default function AllocationsScreen({ navigation, route }: Props) {
         style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}
         onPress={() => navigation.navigate('CustomerDetail', { customer: c, fromScreen: 'Allocations' })}
       >
-        {/* Top row — fixed columns: rank (32) | name (flex) | status tag (fixed) | amount (right, 92) */}
+        {/* Top row — rank (32) | name (flex) | amount (78, centred with Profile below) */}
         <View className="flex-row items-center">
           <View style={{ width: 32 }}>
             <Text className="text-[11px] font-bold text-[#A008A3]">#{c.priorityOrder}</Text>
           </View>
           <Text className="flex-1 font-medium text-[rgba(0,0,0,0.9)] text-sm pr-2" numberOfLines={1}>{formatName(c.name)}</Text>
-          <View style={{ width: 84, alignItems: 'center', justifyContent: 'center' }}>
-            {statusTag && (
-              <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: statusTag.bg, alignItems: 'center', justifyContent: 'center' }}>
-                <Text className="text-[9px] font-medium" style={{ color: statusTag.color, textAlign: 'center' }}>{statusTag.label}</Text>
-              </View>
-            )}
-          </View>
           <View style={{ width: 78, alignItems: 'center' }}>
             <Text className="text-sm font-medium text-[#CE1D26]" numberOfLines={1}>{fmt(c.overdue ?? c.emiOs)}</Text>
           </View>
@@ -259,7 +252,15 @@ export default function AllocationsScreen({ navigation, route }: Props) {
 
         <View className="flex-row items-start justify-between mt-1">
           <View className="flex-1 min-w-0 mr-3" style={{ paddingLeft: 32 }}>
-            <Text className="text-black/45 text-[11px] font-semibold" numberOfLines={1}>{getCustomerRef(c.partyId, c.userType).masked}</Text>
+            <View className="flex-row items-center">
+              <Text className="text-black/45 text-[11px] font-semibold" numberOfLines={1}>{getCustomerRef(c.partyId, c.userType).masked}</Text>
+              {statusTag && (
+                <Text className="text-[11px]" numberOfLines={1}>
+                  <Text className="text-black/30">  ·  </Text>
+                  <Text className="font-medium" style={{ color: statusTag.color }}>{statusTag.label}</Text>
+                </Text>
+              )}
+            </View>
             <View className="flex-row items-center gap-2 mt-2 flex-wrap">
               <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: bc.bg }}>
                 <Text className="text-[10px] font-medium" style={{ color: bc.text }}>{sliceBucket}</Text>

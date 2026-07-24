@@ -320,7 +320,11 @@ export default function VisitsScreen(_props: Props) {
             <Text className="text-[11px] font-semibold" style={{ color: '#A008A3' }}>
               {statusTab === 'Payment Link' ? 'TOTAL VIA PAYMENT LINK' : `TOTAL ${statusTab.toUpperCase()}`}
             </Text>
-            <Text className="text-lg font-bold" style={{ color: '#A008A3' }}>{fmt(overallTabTotal)}</Text>
+            <Text className="text-lg font-bold" style={{ color: '#A008A3' }}>
+              {statusTab === 'PTP Marked'
+                ? `${filteredEntries.length} case${filteredEntries.length === 1 ? '' : 's'}`
+                : fmt(overallTabTotal)}
+            </Text>
           </View>
         )}
 
