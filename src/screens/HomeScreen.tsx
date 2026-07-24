@@ -68,21 +68,21 @@ export default function HomeScreen({ navigation }: Props) {
           <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-3">Portfolio Overview</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {[
-              { label: 'Total Allocated', value: String(homeData.totalCases) },
-              { label: 'Pending Cases', value: String(homeData.pendingVisits) },
-              { label: 'Visited Cases', value: String(homeData.totalCases - homeData.pendingVisits) },
-              { label: 'POS Allocated', value: fmtL(totalOverdue) },
-              { label: 'Collected Today', value: fmtL(homeData.collectedToday) },
-              { label: 'Amount Due', value: fmtL(totalOverdue) },
+              { label: 'Total Allocated', value: String(homeData.totalCases), accent: '#6D5AE6' },
+              { label: 'Pending Cases', value: String(homeData.pendingVisits), accent: '#B45309' },
+              { label: 'Visited Cases', value: String(homeData.totalCases - homeData.pendingVisits), accent: '#1D4ED8' },
+              { label: 'POS Allocated', value: fmtL(totalOverdue), accent: '#A008A3' },
+              { label: 'Collected Today', value: fmtL(homeData.collectedToday), accent: '#00A63E' },
+              { label: 'Amount Due', value: fmtL(totalOverdue), accent: '#CE1D26' },
             ].map(tile => (
               <View
                 key={tile.label}
                 style={{
                   width: '47%',
+                  flexDirection: 'row',
                   backgroundColor: '#FAFBFC',
                   borderRadius: 14,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
+                  overflow: 'hidden',
                   borderWidth: 1,
                   borderColor: 'rgba(0,0,0,0.05)',
                   elevation: 1,
@@ -92,8 +92,11 @@ export default function HomeScreen({ navigation }: Props) {
                   shadowOffset: { width: 0, height: 1 },
                 }}
               >
-                <Text className="text-[10px] text-black/45 font-medium" numberOfLines={1}>{tile.label}</Text>
-                <Text className="text-lg font-semibold text-[rgba(0,0,0,0.9)] mt-1" numberOfLines={1}>{tile.value}</Text>
+                <View style={{ width: 4, backgroundColor: tile.accent }} />
+                <View style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 10 }}>
+                  <Text className="text-[10px] text-black/45 font-medium" numberOfLines={1}>{tile.label}</Text>
+                  <Text className="text-lg font-bold mt-1" style={{ color: tile.accent }} numberOfLines={1}>{tile.value}</Text>
+                </View>
               </View>
             ))}
           </View>

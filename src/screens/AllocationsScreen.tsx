@@ -332,14 +332,13 @@ export default function AllocationsScreen({ navigation, route }: Props) {
           {/* Filter chips — priority order: Bucket, Visited, Collected, Risk Band, PTP, Distance */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 pb-3" contentContainerStyle={{ gap: 8, flexDirection: 'row' }}>
             <FilterChip
-              emoji="🗂️" label="Bucket"
+              label="Bucket"
               active={stageFilter.length > 0}
               activeLabel={stageFilter.length > 0 ? `Bucket · ${stageFilter.length}` : undefined}
               onPress={() => setOpenDropdown('bucket')}
               onClear={() => setStageFilter([])}
             />
             <FilterChip
-              emoji={visitedFilter === 'all' ? '👣' : VISITED_OPTIONS.find(o => o.id === visitedFilter)?.emoji}
               label="Visited"
               active={visitedFilter !== 'all'}
               activeLabel={visitedFilter !== 'all' ? (visitedFilter === 'visited' ? 'Visited: Yes' : 'Visited: No') : undefined}
@@ -347,7 +346,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               onClear={() => setVisitedFilter('all')}
             />
             <FilterChip
-              emoji={collectedFilter === 'all' ? '💰' : COLLECTED_OPTIONS.find(o => o.id === collectedFilter)?.emoji}
               label="Collected"
               active={collectedFilter !== 'all'}
               activeLabel={collectedFilter !== 'all' ? `Collected: ${collectedFilter === 'yes' ? 'Yes' : 'No'}` : undefined}
@@ -355,7 +353,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               onClear={() => setCollectedFilter('all')}
             />
             <FilterChip
-              emoji={riskFilter === 'all' ? '⚠️' : RISK_OPTIONS.find(o => o.id === riskFilter)?.emoji}
               label="Risk Band"
               active={riskFilter !== 'all'}
               activeLabel={riskFilter !== 'all' ? `${riskFilter} Risk` : undefined}
@@ -363,7 +360,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               onClear={() => setRiskFilter('all')}
             />
             <FilterChip
-              emoji={ptpFilter === 'all' ? '📅' : PTP_OPTIONS.find(o => o.id === ptpFilter)?.emoji}
               label="PTP"
               active={ptpFilter !== 'all'}
               activeLabel={ptpFilter !== 'all' ? `PTP: ${ptpFilter === 'yes' ? 'Yes' : 'No'}` : undefined}
@@ -371,7 +367,6 @@ export default function AllocationsScreen({ navigation, route }: Props) {
               onClear={() => setPtpFilter('all')}
             />
             <FilterChip
-              emoji={DIST_OPTIONS.find(o => o.id === distFilter)?.emoji ?? '📍'}
               label="Distance"
               active={distFilter !== 'all'}
               activeLabel={distFilter !== 'all' ? DIST_OPTIONS.find(o => o.id === distFilter)?.label : undefined}
@@ -442,11 +437,11 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                 })}
 
                 {openDropdown === 'visited' && VISITED_OPTIONS.map(opt => (
-                  <SheetRow key={opt.id} emoji={opt.emoji} label={opt.label} selected={visitedFilter === opt.id}
+                  <SheetRow key={opt.id} label={opt.label} selected={visitedFilter === opt.id}
                     onPress={() => { setVisitedFilter(opt.id); closeDropdown() }} />
                 ))}
                 {openDropdown === 'collected' && COLLECTED_OPTIONS.map(opt => (
-                  <SheetRow key={opt.id} emoji={opt.emoji} label={opt.label} selected={collectedFilter === opt.id}
+                  <SheetRow key={opt.id} label={opt.label} selected={collectedFilter === opt.id}
                     onPress={() => { setCollectedFilter(opt.id); closeDropdown() }} />
                 ))}
                 {openDropdown === 'risk' && RISK_OPTIONS.map(opt => (
@@ -454,7 +449,7 @@ export default function AllocationsScreen({ navigation, route }: Props) {
                     onPress={() => { setRiskFilter(opt.id); closeDropdown() }} />
                 ))}
                 {openDropdown === 'ptp' && PTP_OPTIONS.map(opt => (
-                  <SheetRow key={opt.id} emoji={opt.emoji} label={opt.label} selected={ptpFilter === opt.id}
+                  <SheetRow key={opt.id} label={opt.label} selected={ptpFilter === opt.id}
                     onPress={() => { setPtpFilter(opt.id); closeDropdown() }} />
                 ))}
                 {openDropdown === 'distance' && DIST_OPTIONS.map(opt => (
