@@ -8,7 +8,6 @@ import { MainTabParamList, RootStackParamList } from '../navigation/types'
 import { useAgent } from '../navigation/AgentContext'
 import { buildRoute } from '../data/routingEngine'
 import type { RouteStop } from '../data/routingEngine'
-import { getTimeSlotLabel } from '../data/appointments'
 import { getBucketColor } from '../utils/bucketColors'
 
 type Props = CompositeScreenProps<

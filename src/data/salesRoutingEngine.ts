@@ -1,7 +1,6 @@
 import { ALL_MERCHANTS } from './merchants'
 import type { Merchant } from './merchants'
 import { haversine } from './routingEngine'
-import { getSalesActivity } from './salesActivityLog'
 import { getAppointments } from './appointments'
 import type { TimeSlot } from './appointments'
 

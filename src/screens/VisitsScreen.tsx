@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import Svg, { Circle, Path, G } from 'react-native-svg'
+import Svg, { Circle, Path } from 'react-native-svg'
 import { CompositeScreenProps } from '@react-navigation/native'
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
@@ -17,12 +17,11 @@ type Props = CompositeScreenProps<
 
 function fmt(n: number) { return '₹' + n.toLocaleString('en-IN') }
 
-function DonutChart({ fullPct, partialPct, total }: { fullPct: number; partialPct: number; total: number }) {
+function DonutChart({ fullPct, partialPct }: { fullPct: number; partialPct: number }) {
   const size = 112
   const r = 50
   const cx = size / 2
   const cy = size / 2
-  const circumference = 2 * Math.PI * r
 
   function arc(startPct: number, pct: number, color: string) {
     if (pct <= 0) return null
@@ -40,8 +39,6 @@ function DonutChart({ fullPct, partialPct, total }: { fullPct: number; partialPc
     const d = `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y}`
     return <Path d={d} stroke={color} strokeWidth="14" fill="none" strokeLinecap="butt" />
   }
-
-  const grayPct = Math.max(0, 100 - fullPct - partialPct)
 
   return (
     <Svg width={size} height={size}>
@@ -152,10 +149,6 @@ export default function VisitsScreen({ navigation }: Props) {
     .flatMap((c: any) => (getActivity(c.partyId)?.collections ?? []).filter((col: any) => !col.deposited && col.mode === 'Cash'))
     .reduce((s: number, col: any) => s + col.amount, 0) : 0
 
-  const receiptCount = agentInfo ? ALL_CUSTOMERS
-    .filter((c: any) => c.username === agentInfo.username)
-    .flatMap((c: any) => (getActivity(c.partyId)?.collections ?? []).filter((col: any) => !col.deposited && col.mode === 'Cash')).length : 0
-
   const glCode = agentInfo?.glCode || '11799'
   const branch = agentInfo?.branch || ''
 
@@ -200,7 +193,7 @@ export default function VisitsScreen({ navigation }: Props) {
         <View className="bg-white px-4 py-5" style={{ borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.06)' }}>
           <View className="flex-row items-center gap-5">
             <View className="relative">
-              <DonutChart fullPct={fullPct} partialPct={partialPct} total={totalCollectedToday} />
+              <DonutChart fullPct={fullPct} partialPct={partialPct} />
               <View className="absolute inset-0 items-center justify-center">
                 <Text className="text-[rgba(0,0,0,0.9)] font-semibold text-[11px] text-center">{fmt(totalCollectedToday)}</Text>
                 <Text className="text-black/40 text-[9px] mt-0.5">Total</Text>

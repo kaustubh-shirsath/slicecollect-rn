@@ -60,7 +60,6 @@ export function getHomeData(username: string, portfolioType?: 'bank' | 'slice' |
     if (!portfolioType || portfolioType === 'all') return true
     return portfolioType === 'bank' ? c.userType === 'bank' : c.userType !== 'bank'
   })
-  const today = new Date().toDateString()
   const thisMonth = new Date().getMonth()
 
   let collectedToday = 0, monthlyCollected = 0, cashToDeposit = 0

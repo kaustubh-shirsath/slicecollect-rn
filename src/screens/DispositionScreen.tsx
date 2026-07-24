@@ -266,16 +266,6 @@ function BankDispositionScreen({ navigation, route }: Props) {
       : subcode !== '' && (!isPTPSubcode || !!ptpDate)
   )
 
-  const step2Valid = (() => {
-    if (isCollected) {
-      if (!paymentType) return false
-      if (paymentType === 'Overdue EMIs' && selectedEmiNos.length === 0) return false
-      if (needsCustomAmount && !customAmount) return false
-    }
-    if (isPTPSubcode && !ptpDate) return false
-    return true
-  })()
-
   const step3Valid = (() => {
     if (showContactPerson && requireContactPerson && !contactPerson) return false
     if (showContactPlace && requireContactPlace && !contactPlace) return false
@@ -736,7 +726,6 @@ function BankDispositionScreen({ navigation, route }: Props) {
                     )}
                     {bankEmis.map(e => {
                       const sel = selectedEmiNos.includes(e.emiNo)
-                      const maxSelected = selectedEmiNos.length > 0 ? Math.max(...selectedEmiNos) : 0
                       const isNext = selectedEmiNos.length === 0 && e.emiNo === 1
                       const total = e.pos + e.interest + e.penalty
                       return (

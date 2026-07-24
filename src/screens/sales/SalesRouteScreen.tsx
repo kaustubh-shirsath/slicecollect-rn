@@ -8,7 +8,6 @@ import { SalesTabParamList, RootStackParamList } from '../../navigation/types'
 import { useAgent } from '../../navigation/AgentContext'
 import { buildSalesRoute } from '../../data/salesRoutingEngine'
 import type { SalesRouteStop } from '../../data/salesRoutingEngine'
-import { getTimeSlotLabel } from '../../data/appointments'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<SalesTabParamList, 'SalesRoute'>,

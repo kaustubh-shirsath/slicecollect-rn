@@ -10,7 +10,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Receipt'>
 function fmt(n: number) { return '₹' + n.toLocaleString('en-IN') }
 
 export default function ReceiptScreen({ navigation, route }: Props) {
-  const { receipt, backTo } = route.params
+  const { receipt } = route.params
   const { agentInfo } = useAgent()
 
   if (!receipt) {
