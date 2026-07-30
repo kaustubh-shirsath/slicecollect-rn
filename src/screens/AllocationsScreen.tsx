@@ -220,8 +220,10 @@ export default function AllocationsScreen({ navigation, route }: Props) {
       : c.userType === 'cc' ? (getCCBill(c.partyId)?.bucketLabel ?? c.assetClassification)
       : c.assetClassification
     const riskColor = c.risk === 'High' ? '#CE1D26' : c.risk === 'Medium' ? '#A35300' : '#007E2F'
-    // Status tag priority: Settlement > Collected > PTP > Visited
-    const hasVisit = !!getActivity(c.partyId)?.latestDisposition
+    // Status tag priority: Settlement > Collected > PTP > Visited.
+    // Visited = any disposition other than Non-Contacted (paid > 0 wins as Collected).
+    const latestType = getActivity(c.partyId)?.latestDisposition?.type
+    const hasVisit = !!latestType && latestType !== 'Non-Contacted'
     const statusTag = hasActiveSettlement(c.partyId)
       ? { label: 'Active Settlement', bg: '#FEF3C7', color: '#92400E' }
       : c.hasCollected

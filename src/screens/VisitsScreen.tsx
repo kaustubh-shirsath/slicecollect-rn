@@ -112,6 +112,7 @@ export default function VisitsScreen(_props: Props) {
           cashInHand, deposited, ptpMarked,
           linkAmount, linkSuccessAmount, linkStatus,
           type: disp.code,
+          dispCategory: disp.type,
           category: totalCollected >= c.emiOs && c.emiOs > 0 ? 'collected' : totalCollected > 0 ? 'partial' : 'contacted',
           ptpDate: disp.ptpDate ?? null,
           userType: c.userType,
@@ -161,22 +162,25 @@ export default function VisitsScreen(_props: Props) {
 
   const totalCollectedToday = todayEntries.reduce((s: number, e: any) => s + (e.category !== 'contacted' ? e.amount : 0), 0)
 
-  // Disposition mix for today. PTP is its own line item — a PTP-coded disposition never
-  // counts under Collected even if the customer paid earlier the same day.
-  const isPtpType = (e: any) => e.type === 'PTP' || e.type === 'CPTP'
-  const dispPtp = todayEntries.filter((e: any) => isPtpType(e) || (e.amount === 0 && !e.waiverRaised && e.ptpDate))
-  const dispCollected = todayEntries.filter((e: any) => e.amount > 0 && !isPtpType(e))
-  const dispWaiver = todayEntries.filter((e: any) => !isPtpType(e) && e.amount === 0 && e.waiverRaised)
-  const dispOthers = todayEntries.filter((e: any) => !isPtpType(e) && e.amount === 0 && !e.waiverRaised && !e.ptpDate)
+  // Disposition mix for today, classified by disposition category:
+  // Collected (paid + waiver raised) / Contacted +ve / Contacted -ve / Non Contacted / Others
+  const dispCollected = todayEntries.filter((e: any) => e.dispCategory === 'Collected')
+  const dispPositive = todayEntries.filter((e: any) => e.dispCategory === 'Contacted Positive')
+  const dispNegative = todayEntries.filter((e: any) => e.dispCategory === 'Contacted Negative')
+  const dispNonContacted = todayEntries.filter((e: any) => e.dispCategory === 'Non-Contacted')
+  const dispOthers = todayEntries.filter((e: any) => !['Collected', 'Contacted Positive', 'Contacted Negative', 'Non-Contacted'].includes(e.dispCategory))
   const dispTotal = todayEntries.length || 1
-  const collectedSplit = Object.entries(
-    dispCollected.reduce((m: Record<string, number>, e: any) => { m[e.type || 'Other'] = (m[e.type || 'Other'] || 0) + 1; return m }, {})
-  ).sort((a, b) => b[1] - a[1])
+  // Collected splits into money in hand vs waiver pending approval
+  const collectedSplit: [string, number][] = [
+    ['Paid', dispCollected.filter((e: any) => e.amount > 0).length],
+    ['Waiver Raised', dispCollected.filter((e: any) => e.amount === 0 && e.waiverRaised).length],
+  ].filter(([, n]) => (n as number) > 0) as [string, number][]
   const dispSegments = [
     { label: 'Collected', count: dispCollected.length, color: '#00A63E' },
-    { label: 'Waiver Raised', count: dispWaiver.length, color: '#7C3AED' },
-    { label: 'PTP', count: dispPtp.length, color: '#FF8100' },
-    { label: 'Others', count: dispOthers.length, color: '#94A3B8' },
+    { label: 'Contacted +ve', count: dispPositive.length, color: '#1D4ED8' },
+    { label: 'Contacted -ve', count: dispNegative.length, color: '#FF8100' },
+    { label: 'Non Contacted', count: dispNonContacted.length, color: '#94A3B8' },
+    { label: 'Others', count: dispOthers.length, color: '#CBD5E1' },
   ]
 
   const cashToDeposit = agentInfo ? ALL_CUSTOMERS
@@ -277,7 +281,7 @@ export default function VisitsScreen(_props: Props) {
               </View>
               <View className="flex-row items-center gap-5 mt-4 pt-3" style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)' }}>
                 <View>
-                  <Text className="text-[9px] text-white/50 uppercase tracking-wider">GL Code</Text>
+                  <Text className="text-[9px] text-white/50 uppercase tracking-wider">Branch Code</Text>
                   <Text className="text-xs font-medium text-white font-mono mt-0.5">{glCode}</Text>
                 </View>
                 <View>

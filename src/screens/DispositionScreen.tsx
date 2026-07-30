@@ -11,9 +11,10 @@ import { recordActualVisit } from '../data/routingEngine'
 import { getBorrowData } from '../data/emis'
 import { getCCBill } from '../data/ccBills'
 import { submitWaiverRequest } from '../data/waiverRequests'
-import { getActiveSettlement, markInstalmentPaid } from '../data/settlementUsers'
-import { getCustomerRef, formatName } from '../data/caseMeta'
+import { getActiveSettlement, recordInstalmentPayment, nextPayableInstalment, instalmentStatus } from '../data/settlementUsers'
+import { getCustomerRef, formatName, fmtDate } from '../data/caseMeta'
 import { track } from '../analytics/mixpanel'
+import { getExtraPhones, getExtraAddresses } from '../data/customerContacts'
 import { Customer } from '../data/customers'
 import { PRODUCT_LABEL, PRODUCT_COLORS } from '../utils/productLabels'
 
@@ -23,7 +24,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Disposition'>
 function fmt(n: number) { return '₹' + n.toLocaleString('en-IN') }
 
 const PERSON_OPTIONS = ['Self', 'Spouse', 'Parent', 'Sibling', 'Neighbor', 'Other']
-const PLACE_OPTIONS = ['Home', 'Office', 'Field', 'Phone', 'Other']
 
 function SimpleSelect({ value, onChange, options, placeholder }: {
   value: string; onChange: (v: string) => void; options: string[]; placeholder: string
@@ -148,7 +148,10 @@ function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[
     if (paymentType === 'Min Due')          return cc?.minDueAmount ?? c.minimumAmountDue ?? 0
     if (paymentType === 'Pay Overdue')      return cc?.remainingBillAmount ?? c.emiOs ?? 0
     if (paymentType === 'Full Outstanding') return cc?.billAmount ?? c.outstandingBalance ?? 0
-    if (paymentType === 'Settlement Instalment') return activeSettlement?.nextInstalmentAmount ?? 0
+    if (paymentType === 'Settlement Instalment') {
+      const nxt = activeSettlement ? nextPayableInstalment(activeSettlement) : undefined
+      return nxt ? nxt.amount - nxt.paidAmount : 0
+    }
     if (paymentType === 'Custom Amount')    return Number(customAmount) || 0
     return 0
   }
@@ -162,7 +165,10 @@ function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[
     // Foreclose is a distinct field from Rollback — don't fall back to rollbackAmount here.
     if (paymentType === 'Foreclose')        return bd?.foreclosureAmount ?? c.foreclosure ?? 0
     if (paymentType === 'Full Outstanding') return bd?.currentPos ?? c.outstandingBalance ?? 0
-    if (paymentType === 'Settlement Instalment') return activeSettlement?.nextInstalmentAmount ?? 0
+    if (paymentType === 'Settlement Instalment') {
+      const nxt = activeSettlement ? nextPayableInstalment(activeSettlement) : undefined
+      return nxt ? nxt.amount - nxt.paidAmount : 0
+    }
     if (paymentType === 'Custom Amount')    return Number(customAmount) || 0
     return 0
   }
@@ -170,7 +176,10 @@ function getBankGrossAmount(paymentType: string, c: Customer, selectedEmis: any[
   if (paymentType === 'Partial Repayment')    return Number(customAmount) || 0
   // Foreclosure is a distinct allocation-file field from Rollback — don't conflate them.
   if (paymentType === 'Foreclosure')          return c.foreclosure || c.rollback || 0
-  if (paymentType === 'Settlement Instalment') return activeSettlement?.nextInstalmentAmount ?? 0
+  if (paymentType === 'Settlement Instalment') {
+      const nxt = activeSettlement ? nextPayableInstalment(activeSettlement) : undefined
+      return nxt ? nxt.amount - nxt.paidAmount : 0
+    }
   // Stable/Rollback: allocation-file fields (MINIMUM_AMOUNT_DUE / ROLLBACK_AMOUNT), not computed.
   if (paymentType === 'Stable')                return c.minimumAmountDue || 0
   if (paymentType === 'Rollback')              return c.rollbackAmount || 0
@@ -210,11 +219,21 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const [calMonth, setCalMonth] = useState(new Date())
   // Step 3 — all types
   const [contactPerson, setContactPerson] = useState('')
-  const [contactPlace, setContactPlace] = useState('')
-  const [contactNumber, setContactNumber] = useState('')
-  const [altNumber, setAltNumber] = useState('')
-  const [altAddress, setAltAddress] = useState('')
-  const [visitedAddress, setVisitedAddress] = useState('')
+  // Contact points come from the backend (pref-1 phone default) — agents pick, never type.
+  const phoneOptions = ([
+    c.mobile && { label: 'Primary', value: String(c.mobile) },
+    c.mobile1 && { label: 'Alternate', value: String(c.mobile1) },
+    c.mobile2 && { label: 'Alternate 2', value: String(c.mobile2) },
+  ].filter(Boolean) as { label: string; value: string }[])
+    .concat(getExtraPhones(c.partyId).map(p => ({ label: p.label + ' (added)', value: p.value })))
+  const addressOptions = ([
+    c.address && { label: 'Home', value: String(c.address) },
+    c.address_line2 && { label: 'Address 2', value: String(c.address_line2) },
+    c.address_line3 && { label: 'Address 3', value: String(c.address_line3) },
+  ].filter(Boolean) as { label: string; value: string }[])
+    .concat(getExtraAddresses(c.partyId).map(a => ({ label: a.label + ' (added)', value: a.value })))
+  const [contactPlace, setContactPlace] = useState(addressOptions[0]?.value ?? '')
+  const [contactNumber, setContactNumber] = useState(phoneOptions[0]?.value ?? '')
   const [remarks, setRemarks] = useState('')
   const [photoCaptured, setPhotoCaptured] = useState(false)
   const [submitAttempted, setSubmitAttempted] = useState(false)
@@ -348,7 +367,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
 
     // Settlement instalment collected → advance the settlement schedule (reflected on profile)
     if (isCollected && paymentType === 'Settlement Instalment' && activeSettlement && netCollectible > 0) {
-      markInstalmentPaid(c.partyId)
+      recordInstalmentPayment(c.partyId, netCollectible)
     }
 
     if (isCollected && netCollectible > 0) {
@@ -599,7 +618,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                 ? { label: 'Collected', bg: '#E0F4E8', color: '#007E2F' }
                 : act?.latestDisposition?.ptpDate
                 ? { label: 'PTP', bg: '#FFF0E0', color: '#A35300' }
-                : act?.latestDisposition
+                : act?.latestDisposition && act.latestDisposition.type !== 'Non-Contacted'
                 ? { label: 'Visited', bg: '#E8EDF2', color: '#3B5266' }
                 : null
               return tag ? (
@@ -642,7 +661,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                       const lockToInstalment = !!activeSettlement && tile.label === 'Collected'
                       setPaymentType(lockToInstalment ? 'Settlement Instalment' : '')
                       setSelectedEmiNos([])
-                      setCustomAmount(lockToInstalment ? String(activeSettlement!.nextInstalmentAmount) : '')
+                      setCustomAmount('')
                       setWaiverPct(0)
                       setPtpDate('')
                       setPtpAmount('')
@@ -819,6 +838,40 @@ function BankDispositionScreen({ navigation, route }: Props) {
                         style={{ flex: 1, fontSize: 16, color: 'rgba(0,0,0,0.9)' }}
                       />
                     </View>
+                  </View>
+                )}
+
+                {/* Settlement instalment selector — earliest outstanding instalment only.
+                    Later instalments stay locked until the prior ones are fully paid. */}
+                {paymentType === 'Settlement Instalment' && activeSettlement && (
+                  <View style={{ gap: 6 }}>
+                    <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600' }}>Select Instalment</Text>
+                    {activeSettlement.instalments.map(inst => {
+                      const status = instalmentStatus(inst)
+                      const nxt = nextPayableInstalment(activeSettlement)
+                      const isSelectable = nxt?.no === inst.no
+                      const bg = status === 'paid' ? 'rgba(0,166,62,0.07)' : status === 'partial' ? 'rgba(245,158,11,0.10)' : '#fff'
+                      return (
+                        <View
+                          key={inst.no}
+                          style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 14, backgroundColor: bg, borderWidth: 1.5, borderColor: isSelectable ? '#D30AD7' : 'rgba(0,0,0,0.08)', opacity: status === 'paid' ? 0.7 : isSelectable ? 1 : 0.5 }}
+                        >
+                          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: isSelectable ? '#D30AD7' : status === 'paid' ? '#00A63E' : 'rgba(0,0,0,0.08)', alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: isSelectable || status === 'paid' ? '#fff' : 'rgba(0,0,0,0.4)' }}>{status === 'paid' ? '✓' : inst.no}</Text>
+                          </View>
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(0,0,0,0.85)' }}>Instalment {inst.no} · due {fmtDate(inst.dueDate)}</Text>
+                            <Text style={{ fontSize: 10, color: status === 'partial' ? '#B45309' : 'rgba(0,0,0,0.4)', marginTop: 1 }}>
+                              {status === 'paid' ? 'Paid' : status === 'partial' ? `Partially paid — ${fmt(inst.paidAmount)} of ${fmt(inst.amount)}` : 'Unpaid'}
+                            </Text>
+                          </View>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: isSelectable ? '#A008A3' : 'rgba(0,0,0,0.5)' }}>
+                            {status === 'paid' ? fmt(inst.amount) : fmt(inst.amount - inst.paidAmount)}
+                          </Text>
+                        </View>
+                      )
+                    })}
+                    <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)' }}>Instalments must be cleared in order — the earliest outstanding one is collected first.</Text>
                   </View>
                 )}
 
@@ -1118,96 +1171,38 @@ function BankDispositionScreen({ navigation, route }: Props) {
                 </View>
               )}
 
-              {/* 2. Contact Place */}
+              {/* 2. Visited Address — all known addresses incl. agent-added ones */}
               {showContactPlace && (
                 <View>
                   <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                    Met At{requireContactPlace ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
+                    Visited Address{requireContactPlace ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
                   </Text>
                   <SimpleSelect
                     value={contactPlace}
                     onChange={setContactPlace}
-                    options={PLACE_OPTIONS}
-                    placeholder="Select contact place"
+                    options={addressOptions.map(a => a.value)}
+                    placeholder="Select visited address"
                   />
                 </View>
               )}
 
-              {/* 3. Contact Number — always show */}
+              {/* 3. Contact Number — backend-provided list, pref-1 pre-selected. No typing. */}
               <View>
                 <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                   Contact Number{requireContactNumber ? <Text style={{ color: '#CE1D26' }}> *</Text> : ' (Optional)'}
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: contactNumber.length > 0 && contactNumber.length !== 10 ? '#CE1D26' : contactNumber.length === 10 ? '#D30AD7' : 'rgba(0,0,0,0.15)' }}>
-                  <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10, paddingRight: 6, fontWeight: '500' }}>+91</Text>
-                  <TextInput
-                    keyboardType="phone-pad"
-                    value={contactNumber}
-                    onChangeText={t => setContactNumber(t.replace(/\D/g, '').slice(0, 10))}
-                    placeholder={c.mobile ? 'XXXXXX' + c.mobile.slice(-4) : '10-digit number'}
-                    placeholderTextColor="rgba(0,0,0,0.3)"
-                    maxLength={10}
-                    style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}
-                  />
-                  {contactNumber.length > 0 && (
-                    <Text style={{ fontSize: 11, color: contactNumber.length === 10 ? '#00A63E' : '#CE1D26' }}>{contactNumber.length}/10</Text>
-                  )}
-                </View>
-              </View>
-
-              {/* 4. Alternate Number — always optional */}
-              <View>
-                <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Alternate Number (Optional)</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: altNumber.length > 0 && altNumber.length !== 10 ? '#CE1D26' : altNumber.length === 10 ? '#D30AD7' : 'rgba(0,0,0,0.15)' }}>
-                  <Text style={{ fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10, paddingRight: 6, fontWeight: '500' }}>+91</Text>
-                  <TextInput
-                    keyboardType="phone-pad"
-                    value={altNumber}
-                    onChangeText={t => setAltNumber(t.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="10-digit number"
-                    placeholderTextColor="rgba(0,0,0,0.3)"
-                    maxLength={10}
-                    style={{ flex: 1, fontSize: 14, color: 'rgba(0,0,0,0.9)', paddingVertical: 10 }}
-                  />
-                  {altNumber.length > 0 && (
-                    <Text style={{ fontSize: 11, color: altNumber.length === 10 ? '#00A63E' : '#CE1D26' }}>{altNumber.length}/10</Text>
-                  )}
-                </View>
-              </View>
-
-              {/* 5. Alternate Address — always optional */}
-              <View>
-                <Text style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Alternate Address (Optional)</Text>
-                <TextInput
-                  value={altAddress}
-                  onChangeText={setAltAddress}
-                  placeholder="Enter alternate address"
-                  placeholderTextColor="rgba(0,0,0,0.3)"
-                  multiline
-                  numberOfLines={2}
-                  style={{ fontSize: 14, color: 'rgba(0,0,0,0.85)', borderBottomWidth: 1, borderBottomColor: altAddress ? '#D30AD7' : 'rgba(0,0,0,0.15)', paddingVertical: 8, textAlignVertical: 'top' }}
+                <SimpleSelect
+                  value={contactNumber ? (phoneOptions.find(p => p.value === contactNumber)?.label + ' — XXXXXX' + contactNumber.slice(-4)) : ''}
+                  onChange={label => {
+                    const opt = phoneOptions.find(p => (p.label + ' — XXXXXX' + p.value.slice(-4)) === label)
+                    if (opt) setContactNumber(opt.value)
+                  }}
+                  options={phoneOptions.map(p => p.label + ' — XXXXXX' + p.value.slice(-4))}
+                  placeholder="Select contact number"
                 />
               </View>
             </View>
 
-            {/* 6. Address Visited — optional select */}
-            {[c.address, c.address_line2, c.address_line3].filter(Boolean).length > 0 && (
-              <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>
-                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '600', marginBottom: 8 }}>
-                  Address Visited <Text style={{ color: 'rgba(0,0,0,0.3)', fontWeight: '400', fontSize: 10 }}>(Optional)</Text>
-                </Text>
-                <SimpleSelect
-                  value={visitedAddress}
-                  onChange={setVisitedAddress}
-                  options={[
-                    c.address && `Home: ${c.address.slice(0, 40)}`,
-                    c.address_line2 && `Alt: ${c.address_line2.slice(0, 40)}`,
-                    c.address_line3 && `Other: ${c.address_line3.slice(0, 40)}`,
-                  ].filter(Boolean) as string[]}
-                  placeholder="Select address visited"
-                />
-              </View>
-            )}
 
             {/* 8. Remarks */}
             <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1 }}>

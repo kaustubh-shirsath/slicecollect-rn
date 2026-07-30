@@ -8,10 +8,11 @@ import { getCCBill } from '../data/ccBills'
 import { getBucketColor } from '../utils/bucketColors'
 import { getActivity } from '../data/activityLog'
 import { getAppointmentForCustomer, setAppointment, cancelAppointment, getTimeSlotLabel, type TimeSlot, type Appointment } from '../data/appointments'
-import { getActiveSettlement } from '../data/settlementUsers'
+import { getActiveSettlement, instalmentStatus, nextPayableInstalment } from '../data/settlementUsers'
 import { useAgent } from '../navigation/AgentContext'
 import ProductTag from '../components/ProductTag'
 import { getRiskBand, getRemarks, getCustomerRef, formatName, fmtDate } from '../data/caseMeta'
+import { getExtraPhones, addExtraPhone, getExtraAddresses, addExtraAddress } from '../data/customerContacts'
 import Svg, { Path } from 'react-native-svg'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>
@@ -71,15 +72,20 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
   const [showAllAddresses, setShowAllAddresses] = useState(false)
   const [showAllPhones, setShowAllPhones] = useState(false)
   const [localAddresses, setLocalAddresses] = useState<{ label: string; value: string }[]>(() =>
-    [
+    ([
       c.address && { label: 'Home', value: c.address },
       c.address_line2 && { label: 'Address 2', value: c.address_line2 },
       c.address_line3 && { label: 'Address 3', value: c.address_line3 },
-    ].filter(Boolean) as { label: string; value: string }[]
+    ].filter(Boolean) as { label: string; value: string }[]).concat(getExtraAddresses(c.partyId))
   )
   const [addingAddr, setAddingAddr] = useState(false)
   const [newAddrLabel, setNewAddrLabel] = useState<'Home' | 'Work' | 'Other'>('Home')
   const [newAddrValue, setNewAddrValue] = useState('')
+  // Agent-added phones — persist to phone-variant db (copsdb_gold) via backend
+  const [localPhones, setLocalPhones] = useState<{ label: string; value: string }[]>(() => getExtraPhones(c.partyId))
+  const [addingPhone, setAddingPhone] = useState(false)
+  const [newPhoneLabel, setNewPhoneLabel] = useState<'Alternate' | 'Family' | 'Work'>('Alternate')
+  const [newPhoneValue, setNewPhoneValue] = useState('')
 
   // Appointment state
   const [appt, setAppt] = useState<Appointment | undefined>(() => getAppointmentForCustomer(c.partyId))
@@ -166,26 +172,11 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
     ? { label: 'Collected', bg: '#E0F4E8', color: '#007E2F' }
     : latestDisp?.ptpDate
     ? { label: 'PTP', bg: '#FFF0E0', color: '#A35300' }
-    : latestDisp
+    : latestDisp && latestDisp.type !== 'Non-Contacted'
     ? { label: 'Visited', bg: '#E8EDF2', color: '#3B5266' }
     : null
 
-  // Instalment schedule derived from the active settlement record (equal split; paid rows first)
-  const settlementSchedule = activeSettlement
-    ? Array.from({ length: activeSettlement.instalmentCount }, (_, i) => {
-        const paid = i < activeSettlement.instalmentsPaid
-        const isNext = i === activeSettlement.instalmentsPaid
-        const due = new Date(activeSettlement.nextInstalmentDue)
-        due.setMonth(due.getMonth() + (i - activeSettlement.instalmentsPaid))
-        return {
-          no: i + 1,
-          amount: Math.round(activeSettlement.totalAmount / activeSettlement.instalmentCount),
-          dueDate: due.toISOString().split('T')[0],
-          paid,
-          isNext,
-        }
-      })
-    : []
+  const settlementSchedule = activeSettlement?.instalments ?? []
 
   function handleCall(mobile: string) {
     if (!isCallAllowed()) {
@@ -214,23 +205,28 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
         <Text className="text-[10px] text-black/40 uppercase tracking-wider font-medium">Settlement Schedule</Text>
         <Text className="text-[10px] text-black/40">Total {fmt(activeSettlement.totalAmount)}</Text>
       </View>
-      {settlementSchedule.map(inst => (
-        <View key={inst.no} className="flex-row items-center py-2" style={{ borderBottomWidth: inst.no < settlementSchedule.length ? 0.5 : 0, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
-          {inst.paid ? (
-            <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#00A63E', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>✓</Text>
-            </View>
-          ) : (
-            <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: inst.isNext ? '#92400E' : 'rgba(0,0,0,0.2)', backgroundColor: 'transparent' }} />
-          )}
-          <Text className="text-xs text-[rgba(0,0,0,0.8)] font-medium ml-2.5 flex-1">Instalment {inst.no}</Text>
-          <Text className="text-[11px] text-black/40 w-[86px]">{fmtDate(inst.dueDate)}</Text>
-          <Text className="text-xs font-semibold w-[76px] text-right" style={{ color: inst.paid ? '#007E2F' : 'rgba(0,0,0,0.8)' }}>{fmt(inst.amount)}</Text>
-        </View>
-      ))}
-      {settlementSchedule.some(i => i.isNext) && (
-        <Text className="text-[10px] text-[#92400E] mt-1.5">Next instalment {fmt(activeSettlement.nextInstalmentAmount)} due {fmtDate(activeSettlement.nextInstalmentDue)}</Text>
-      )}
+      {/* Column header */}
+      <View className="flex-row items-center pb-1">
+        <Text className="text-[9px] text-black/35 font-medium w-[26px]">#</Text>
+        <Text className="text-[9px] text-black/35 font-medium flex-1">Due Date</Text>
+        <Text className="text-[9px] text-black/35 font-medium w-[76px] text-right">Amount</Text>
+        <Text className="text-[9px] text-black/35 font-medium w-[76px] text-right">Paid</Text>
+      </View>
+      {settlementSchedule.map(inst => {
+        const status = instalmentStatus(inst)
+        const rowBg = status === 'paid' ? 'rgba(0,166,62,0.07)' : status === 'partial' ? 'rgba(245,158,11,0.10)' : 'transparent'
+        return (
+          <View key={inst.no} className="flex-row items-center py-2 px-1.5 rounded-lg" style={{ backgroundColor: rowBg, marginBottom: 2 }}>
+            <Text className="text-xs font-bold w-[22px]" style={{ color: status === 'paid' ? '#007E2F' : status === 'partial' ? '#B45309' : 'rgba(0,0,0,0.5)' }}>{inst.no}</Text>
+            <Text className="text-[11px] text-black/45 flex-1">{fmtDate(inst.dueDate)}</Text>
+            <Text className="text-xs font-semibold w-[76px] text-right text-[rgba(0,0,0,0.8)]">{fmt(inst.amount)}</Text>
+            <Text className="text-xs font-semibold w-[76px] text-right" style={{ color: status === 'paid' ? '#007E2F' : status === 'partial' ? '#B45309' : 'rgba(0,0,0,0.35)' }}>{fmt(inst.paidAmount)}</Text>
+          </View>
+        )
+      })}
+      {(() => { const nxt = nextPayableInstalment(activeSettlement); return nxt ? (
+        <Text className="text-[10px] text-[#92400E] mt-1.5">Next: instalment {nxt.no} — {fmt(nxt.amount - nxt.paidAmount)} due {fmtDate(nxt.dueDate)}</Text>
+      ) : null })()}
     </View>
   ) : null
 
@@ -330,15 +326,14 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                 expanded={loanDetailsExpanded}
                 onToggle={() => setLoanDetailsExpanded(e => !e)}
                 items={[
-                  ['Bill Amount', fmt(ccBill.billAmount)],
-                  ['Remaining', fmt(ccBill.remainingBillAmount)],
+                  ['Bill', fmt(ccBill.billAmount)],
+                  ['Remaining Bill', fmt(ccBill.remainingBillAmount)],
                   ['Min Due', fmt(ccBill.minDueAmount)],
-                  ['Late Penalty', fmt(ccBill.remainingLatePenalty)],
-                  ['Late Fees', fmt(ccBill.remainingLateFees)],
-                  ['Foreclosure', fmt(ccBill.billAmount)],
+                  ['Rem Min Due', fmt(Math.max(0, ccBill.minDueAmount - amtCollected))],
                   ['DPD', `${ccBill.currentDpd} days`],
-                  ['Due Since', ccBill.dueSince],
-                  ['Account', ccBill.accountStatus],
+                  ['Late Penalty', fmt(ccBill.remainingLatePenalty)],
+                  ['Interest', fmt(ccBill.remainingLateFees)],
+                  ['Card Status', ccBill.accountStatus],
                 ]}
               />
             ) : borrowData ? (
@@ -346,14 +341,12 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                 expanded={loanDetailsExpanded}
                 onToggle={() => setLoanDetailsExpanded(e => !e)}
                 items={[
-                  ['Current POS', fmt(borrowData.currentPos)],
-                  ['Min Due', fmt(borrowData.minDueAmount)],
-                  ['Late Interest', fmt(borrowData.lateInterest)],
-                  ['Late Penalty', fmt(borrowData.latePenalty)],
-                  ['Overdue EMIs', String(borrowData.totalEmisOverdue)],
-                  ['DPD', `${borrowData.currentDpd} days`],
-                  ['Due Since', borrowData.dueSince],
+                  ['Loan Amount', fmt(borrowData.currentPos)],
                   ['Foreclosure', fmt(borrowData.foreclosureAmount)],
+                  ['EMI Amt', fmt(c.emiAmt || 0)],
+                  ['DPD', `${borrowData.currentDpd} days`],
+                  ['Overdue Amount', fmt(borrowData.totalOverdue)],
+                  ['Collected Amount', fmt(amtCollected)],
                 ]}
               />
             ) : null}
@@ -378,13 +371,12 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                 onToggle={() => setLoanDetailsExpanded(e => !e)}
                 items={[
                   ['Product', fmtProduct(c.product || '')],
-                  ['DPD', `${c.dpd} days`],
-                  ['POS Amt', fmt(c.outstandingBalance || 0)],
-                  ['EMI Amt', fmt(c.emiAmt || 0)],
-                  ['Min Pay', fmt(c.minimumAmountDue || 0)],
-                  ['Rollback', fmt(c.rollbackAmount || 0)],
+                  ['Loan Amount', fmt(c.outstandingBalance || 0)],
                   ['Foreclosure', fmt(c.foreclosure || c.outstandingBalance || 0)],
-                  ['Last Payment', c.lastPaymentDate || '—'],
+                  ['EMI Amt', fmt(c.emiAmt || 0)],
+                  ['DPD', `${c.dpd} days`],
+                  ['Overdue Amount', fmt(c.emiOs || 0)],
+                  ['Collected Amount', fmt(amtCollected)],
                 ]}
               />
               {settlementScheduleBlock}
@@ -394,11 +386,12 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
 
         {/* Contact */}
         {(() => {
-          const allPhones = [
+          const allPhones = ([
             c.mobile && { label: 'Primary', number: c.mobile },
             c.mobile1 && { label: 'Alternate', number: c.mobile1 },
             c.mobile2 && { label: 'Alternate 2', number: c.mobile2 },
-          ].filter(Boolean) as { label: string; number: string }[]
+          ].filter(Boolean) as { label: string; number: string }[])
+            .concat(localPhones.map(p => ({ label: p.label + ' (added)', number: p.value })))
           const visiblePhones = showAllPhones ? allPhones : allPhones.slice(0, 1)
           return (
             <View className="bg-white rounded-[20px] overflow-hidden" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
@@ -426,6 +419,50 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
                     {showAllPhones ? 'Show less' : `+${allPhones.length - 1} more number${allPhones.length - 2 > 0 ? 's' : ''}`}
                   </Text>
                   <Text className="text-[#D30AD7] text-xs">{showAllPhones ? '▴' : '▾'}</Text>
+                </TouchableOpacity>
+              )}
+              {/* Add phone — persists to phone-variant db */}
+              {addingPhone ? (
+                <View className="px-4 py-3 gap-2" style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' }}>
+                  <View className="flex-row gap-2">
+                    {(['Alternate', 'Family', 'Work'] as const).map(l => (
+                      <TouchableOpacity key={l} onPress={() => setNewPhoneLabel(l)} className="px-3 py-1.5 rounded-full" style={{ borderWidth: 1, borderColor: newPhoneLabel === l ? '#D30AD7' : 'rgba(0,0,0,0.1)', backgroundColor: newPhoneLabel === l ? '#FAE2FA' : '#fff' }}>
+                        <Text className="text-[11px] font-medium" style={{ color: newPhoneLabel === l ? '#A008A3' : 'rgba(0,0,0,0.6)' }}>{l}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TextInput
+                    keyboardType="phone-pad"
+                    value={newPhoneValue}
+                    onChangeText={v => setNewPhoneValue(v.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="10-digit number"
+                    placeholderTextColor="rgba(0,0,0,0.3)"
+                    className="w-full bg-[#F0F4F7] rounded-xl px-3 py-2.5 text-sm"
+                    maxLength={10}
+                  />
+                  <View className="flex-row gap-2">
+                    <TouchableOpacity onPress={() => { setAddingPhone(false); setNewPhoneValue('') }} className="flex-1 py-2.5 rounded-full bg-[#F0F4F7] items-center">
+                      <Text className="text-xs font-medium text-black/60">Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (newPhoneValue.length === 10) {
+                          const entry = { label: newPhoneLabel, value: newPhoneValue }
+                          addExtraPhone(c.partyId, entry)   // → phone-variant db
+                          setLocalPhones(prev => [...prev, entry])
+                          setAddingPhone(false)
+                          setNewPhoneValue('')
+                        }
+                      }}
+                      className="flex-1 py-2.5 rounded-full bg-[#D30AD7] items-center"
+                    >
+                      <Text className="text-xs font-medium text-white">Add</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity onPress={() => setAddingPhone(true)} className="px-4 py-2.5 items-center" style={{ borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' }}>
+                  <Text className="text-xs font-medium text-[#A008A3]">+ Add phone number</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -715,7 +752,9 @@ export default function CustomerDetailScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 onPress={() => {
                   if (newAddrValue.trim()) {
-                    setLocalAddresses(prev => [...prev, { label: newAddrLabel, value: newAddrValue.trim() }])
+                    const entry = { label: newAddrLabel, value: newAddrValue.trim() }
+                    addExtraAddress(c.partyId, entry)   // → address-variant db
+                    setLocalAddresses(prev => [...prev, entry])
                     setAddingAddr(false)
                     setNewAddrValue('')
                   }
