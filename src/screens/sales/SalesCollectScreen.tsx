@@ -7,6 +7,7 @@ import { useAgent } from '../../navigation/AgentContext'
 import { updateSalesActivity, getSalesActivity } from '../../data/salesActivityLog'
 import { recordSalesVisit } from '../../data/salesRoutingEngine'
 import type { SalesReceiptData } from '../../navigation/types'
+import AttachmentPicker, { type Attachment } from '../../components/AttachmentPicker'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SalesCollect'>
 
@@ -30,7 +31,7 @@ export default function SalesCollectScreen({ navigation, route }: Props) {
   const [denomOpen, setDenomOpen] = useState(false)
   const [contactPerson, setContactPerson] = useState<ContactPersonType | ''>('')
   const [gpsCaptured, setGpsCaptured] = useState(false)
-  const [photoCaptured, setPhotoCaptured] = useState(false)
+  const [photo, setPhoto] = useState<Attachment | null>(null)
   const [remarks, setRemarks] = useState('')
 
   const denomTotal = noteValues.reduce((s, n) => s + n * (counts[n] || 0), 0)
@@ -38,7 +39,7 @@ export default function SalesCollectScreen({ navigation, route }: Props) {
 
   const step1Valid = amountNum > 0
   const step2Valid = contactPerson !== '' && gpsCaptured
-  const step3Valid = photoCaptured
+  const step3Valid = !!photo
 
   function buildNoteString(): string {
     const parts: string[] = []
@@ -300,19 +301,7 @@ export default function SalesCollectScreen({ navigation, route }: Props) {
             </View>
 
             {/* Photo proof */}
-            <TouchableOpacity
-              onPress={() => setPhotoCaptured(true)}
-              style={{
-                padding: 20, borderRadius: 24, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', gap: 8,
-                borderColor: photoCaptured ? '#00A63E' : 'rgba(206,29,38,0.4)',
-                backgroundColor: photoCaptured ? '#E0F4E8' : 'rgba(249,228,229,0.30)',
-              }}
-            >
-              <Text style={{ fontSize: 24 }}>{photoCaptured ? '✅' : '📷'}</Text>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: photoCaptured ? '#007E2F' : '#CE1D26' }}>
-                {photoCaptured ? 'Photo Captured' : 'Capture Visit Photo *'}
-              </Text>
-            </TouchableOpacity>
+            <AttachmentPicker label="Visit Photo" required value={photo} onChange={setPhoto} />
 
             {/* Remarks */}
             <View>

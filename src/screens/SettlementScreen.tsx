@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, Animated } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Animated } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { RootStackParamList } from '../navigation/types'
 import { updateActivity, getActivity } from '../data/activityLog'
 import { track } from '../analytics/mixpanel'
+import AttachmentPicker, { type Attachment } from '../components/AttachmentPicker'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settlement'>
 
@@ -122,7 +123,7 @@ export default function SettlementScreen({ navigation, route }: Props) {
   const foreclosureAmount = c.foreclosure ?? c.outstandingBalance ?? c.emiOs ?? 0
   const [settAmount, setSettAmount] = useState(String(foreclosureAmount))
   const [advance, setAdvance] = useState('')
-  const [settlementImage, setSettlementImage] = useState<string | null>(null)
+  const [settlementForm, setSettlementForm] = useState<Attachment | null>(null)
   // cc/borrow: Payment Link only (Cash visible but disabled)
   const [mode, setMode] = useState(isSlice ? 'Payment Link' : 'Cash')
   const [installments, setInstallments] = useState(1)
@@ -474,23 +475,15 @@ export default function SettlementScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        <TouchableOpacity
-          onPress={() => Alert.alert('Upload Settlement Form', 'Choose an option', [
-            { text: 'Take Photo', onPress: () => setSettlementImage('captured') },
-            { text: 'Choose from Gallery', onPress: () => setSettlementImage('gallery') },
-            { text: 'Cancel', style: 'cancel' }
-          ])}
-          style={{ borderWidth: 1.5, borderColor: '#D30AD7', borderStyle: 'dashed', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12 }}
-        >
-          {settlementImage ? (
-            <Text style={{ color: '#D30AD7', fontWeight: '600' }}>✓ Settlement form attached</Text>
-          ) : (
-            <>
-              <Text style={{ color: '#D30AD7', fontWeight: '600', marginTop: 4 }}>Upload Settlement Form</Text>
-              <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>Photo or gallery</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        <View style={{ marginBottom: 12 }}>
+          <AttachmentPicker
+            label="Settlement Form"
+            hint="Signed form — photo or PDF"
+            allowPdf
+            value={settlementForm}
+            onChange={setSettlementForm}
+          />
+        </View>
 
         <TouchableOpacity
           onPress={() => {

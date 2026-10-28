@@ -8,6 +8,7 @@ import { SalesTabParamList, RootStackParamList } from '../../navigation/types'
 import { useAgent } from '../../navigation/AgentContext'
 import { ALL_MERCHANTS } from '../../data/merchants'
 import { getSalesActivity, updateSalesActivity } from '../../data/salesActivityLog'
+import AttachmentPicker, { type Attachment } from '../../components/AttachmentPicker'
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<SalesTabParamList, 'SalesDeposit'>,
@@ -31,7 +32,7 @@ export default function SalesDepositionScreen({ navigation }: Props) {
   const [depDate, setDepDate] = useState(new Date().toISOString().split('T')[0])
   const [txnRef, setTxnRef] = useState('')
   const [agree, setAgree] = useState(false)
-  const [slipUploaded, setSlipUploaded] = useState(false)
+  const [slip, setSlip] = useState<Attachment | null>(null)
   const dpNumber = useRef('SDP' + Date.now() + Math.floor(Math.random() * 9999))
 
   const glAcct = (agentInfo as any)?.glCode || '11799'
@@ -78,7 +79,7 @@ export default function SalesDepositionScreen({ navigation }: Props) {
   const selectedItems = pendingItems.filter(r => selectedIds.has(r.id))
   const totalPending  = pendingItems.reduce((s, r) => s + r.amount, 0)
   const denomTotal = noteValues.reduce((s, n) => s + n * (counts[n] || 0), 0)
-  const depositFormValid = depDate && txnRef.trim() && agree && slipUploaded
+  const depositFormValid = depDate && txnRef.trim() && agree && !!slip
 
   function toggleSelect(id: string) {
     setSelectedIds(prev => {
@@ -113,7 +114,7 @@ export default function SalesDepositionScreen({ navigation }: Props) {
     setShowDepositModal(false)
     setSelectedIds(new Set())
     setToast('Deposit submitted successfully')
-    setCounts({}); setTxnRef(''); setAgree(false); setSlipUploaded(false)
+    setCounts({}); setTxnRef(''); setAgree(false); setSlip(null)
     setTimeout(() => setToast(''), 3000)
   }
 
@@ -388,18 +389,7 @@ export default function SalesDepositionScreen({ navigation }: Props) {
 
               {/* Upload slip */}
               <View className="mb-4">
-                <Text className="text-[10px] font-medium text-black/50 uppercase tracking-wider mb-1.5">Upload Deposition Slip *</Text>
-                <TouchableOpacity
-                  onPress={() => setSlipUploaded(true)}
-                  style={{
-                    padding: 24, borderRadius: 24, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', gap: 8,
-                    borderColor: slipUploaded ? '#00A63E' : 'rgba(0,0,0,0.20)',
-                    backgroundColor: slipUploaded ? '#E0F4E8' : '#F0F4F7',
-                  }}
-                >
-                  <Text className="text-2xl">{slipUploaded ? '✅' : '📷'}</Text>
-                  <Text className="text-xs text-black/50">{slipUploaded ? 'Slip uploaded' : 'Upload Deposition Slip *'}</Text>
-                </TouchableOpacity>
+                <AttachmentPicker label="Deposition Slip" hint="Photo or PDF of the stamped slip" required allowPdf value={slip} onChange={setSlip} />
               </View>
 
               {/* DP Number */}

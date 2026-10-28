@@ -22,6 +22,15 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Pulse to pick photos of receipts, slips and settlement forms.",
+          "cameraPermission": "Allow Pulse to take visit photos and photos of documents.",
+          "microphonePermission": false
+        }
+      ]
+    ]
   }
 }

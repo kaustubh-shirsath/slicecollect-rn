@@ -17,6 +17,7 @@ import { track } from '../analytics/mixpanel'
 import { getExtraPhones, getExtraAddresses } from '../data/customerContacts'
 import { Customer } from '../data/customers'
 import { PRODUCT_LABEL, PRODUCT_COLORS } from '../utils/productLabels'
+import AttachmentPicker, { type Attachment } from '../components/AttachmentPicker'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Disposition'>
 
@@ -235,7 +236,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
   const [contactPlace, setContactPlace] = useState(addressOptions[0]?.value ?? '')
   const [contactNumber, setContactNumber] = useState(phoneOptions[0]?.value ?? '')
   const [remarks, setRemarks] = useState('')
-  const [photoCaptured, setPhotoCaptured] = useState(false)
+  const [photo, setPhoto] = useState<Attachment | null>(null)
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   // cc/borrow: Payment Link is the only enabled mode (Cash shown but disabled)
@@ -298,7 +299,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
     if (showContactPerson && requireContactPerson && !contactPerson) return false
     if (showContactPlace && requireContactPlace && !contactPlace) return false
     if (requireContactNumber && contactNumber.length !== 10) return false
-    if (!photoCaptured) return false
+    if (!photo) return false
     if (remarksRequired && remarks.length < 15) return false
     return true
   })()
@@ -1223,29 +1224,15 @@ function BankDispositionScreen({ navigation, route }: Props) {
               )}
             </View>
 
-            {/* 9. Photo capture — REQUIRED */}
-            <TouchableOpacity
-              onPress={() => setPhotoCaptured(v => !v)}
-              style={{
-                backgroundColor: '#fff', borderRadius: 20, padding: 16, elevation: 1,
-                flexDirection: 'row', alignItems: 'center', gap: 12,
-                borderWidth: submitAttempted && !photoCaptured ? 1.5 : 0,
-                borderColor: submitAttempted && !photoCaptured ? '#CE1D26' : 'transparent',
-              }}
-            >
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: photoCaptured ? '#F0FDF4' : '#FEF2F2', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: photoCaptured ? '#166534' : '#991B1B' }}>{photoCaptured ? '✓' : '+'}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: photoCaptured ? '#166534' : '#991B1B' }}>
-                  {photoCaptured ? 'Photo Captured' : 'Capture Photo *'}
-                </Text>
-                <Text style={{ fontSize: 11, color: 'rgba(0,0,0,0.4)' }}>
-                  {photoCaptured ? 'Tap to retake' : 'Required for all dispositions'}
-                </Text>
-              </View>
-              {photoCaptured && <Text style={{ fontSize: 12, color: '#166534', fontWeight: '600' }}>✓</Text>}
-            </TouchableOpacity>
+            {/* 9. Photo — REQUIRED */}
+            <AttachmentPicker
+              label="Visit Photo"
+              hint="Required for all dispositions"
+              required
+              value={photo}
+              onChange={setPhoto}
+              error={submitAttempted && !photo}
+            />
 
             {/* 10. Validation hint */}
             {submitAttempted && !step3Valid && (
@@ -1253,7 +1240,7 @@ function BankDispositionScreen({ navigation, route }: Props) {
                 {showContactPerson && requireContactPerson && !contactPerson && <Text style={{ fontSize: 11, color: '#92400E' }}>• Select who you spoke with</Text>}
                 {showContactPlace && requireContactPlace && !contactPlace && <Text style={{ fontSize: 11, color: '#92400E' }}>• Select where you met</Text>}
                 {requireContactNumber && contactNumber.length !== 10 && <Text style={{ fontSize: 11, color: '#92400E' }}>• Enter valid 10-digit contact number</Text>}
-                {!photoCaptured && <Text style={{ fontSize: 11, color: '#92400E' }}>• Photo is required</Text>}
+                {!photo && <Text style={{ fontSize: 11, color: '#92400E' }}>• Photo is required</Text>}
                 {remarksRequired && remarks.length < 15 && <Text style={{ fontSize: 11, color: '#92400E' }}>• Remarks must be at least 15 characters</Text>}
               </View>
             )}
